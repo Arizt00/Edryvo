@@ -1,0 +1,95 @@
+use <io:output, render>;
+use <process:env>;
+use <text:string>;
+use <data:json>;
+
+lanternCounter :: runtime {
+    fn:
+        migrate(state >> int, actual >> int, schema >> int) -> bool {
+            // Explicit transformation from schema 1 to schema 2.
+            if (actual == 1 && schema == 2) {
+                total >> int <- jsonNewInt(0);
+                jsonObjectSet(state, "total", total);
+                jsonRelease(total);
+                version >> int <- jsonNewInt(2);
+                jsonObjectSet(state, "schema", version);
+                jsonRelease(version);
+                return true;
+            }
+            return false;
+        }
+
+        checkpoint(state >> int, path >> str) -> bool {
+            temporary >> str <- strConcat(path, ".tmp");
+            saved >> bool <- jsonSaveFile(state, temporary, 2);
+            if (saved) { saved <- rename_file(temporary, path); }
+            strRelease(temporary);
+            return saved;
+        }
+
+        reloadRequested(path >> str) -> bool {
+            request >> str <- strConcat(path, ".reload");
+            requested >> bool <- exists(request);
+            strRelease(request);
+            return requested;
+        }
+
+        checkpointPath() -> str {
+            block >> addr <- envOpen();
+            count >> int <- envCount(block);
+            index >> int <- 0;
+            while (index < count) {
+                entry >> str <- envAt(block, index);
+                if (strStartsWith(entry, "LUMEN_LANTERN_STATE=")) {
+                    path >> str <- strSubstring(entry, 20, strLen(entry) - 20);
+                    envRelease(block);
+                    return path;
+                }
+                index <- index + 1;
+            }
+            envRelease(block);
+            return strEmpty();
+        }
+
+        load(path >> str, schema >> int) -> int {
+            if (!exists(path)) {
+                state >> int <- jsonNewObject();
+                version >> int <- jsonNewInt(schema);
+                jsonObjectSet(state, "schema", version);
+                jsonRelease(version);
+                return state;
+            }
+            state >> int <- jsonParseFile(path);
+            if (state == 0) { return 0; }
+            version >> int <- jsonObjectGet(state, "schema");
+            actual >> int <- jsonGetIntOr(version, -1);
+            jsonRelease(version);
+            if (actual != schema && !migrate(state, actual, schema)) {
+                println("Lantern: incompatible schema. Migrate the checkpoint before continuing.");
+                jsonRelease(state);
+                return 0;
+            }
+            return state;
+        }
+
+        run() -> bool {
+            path >> str <- checkpointPath();
+            if (strLen(path) == 0) { println("Start this file with Lantern."); strRelease(path); return false; }
+            state >> int <- load(path, 2);
+            if (state == 0) { strRelease(path); return false; }
+            previous >> int <- jsonObjectGet(state, "count");
+            count >> int <- jsonGetIntOr(previous, 0) + 1;
+            jsonRelease(previous);
+            value >> int <- jsonNewInt(count);
+            jsonObjectSet(state, "count", value);
+            jsonRelease(value);
+            saved >> bool <- checkpoint(state, path);
+            println("LANTERN_NC " + renderInt(count));
+            jsonRelease(state);
+            strRelease(path);
+            return saved;
+        }
+    ref main ->> run;
+    fa:
+        return true;
+}

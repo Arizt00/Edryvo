@@ -1,0 +1,4 @@
+-r requirements-desktop.txt
+pyinstaller>=6.10,<7
+
+PyYAML==6.0.3

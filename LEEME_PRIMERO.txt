@@ -1,0 +1,6 @@
+LUMEN STUDIO 0.5.2
+
+Windows x64: abre el instalador .exe, o extrae el ZIP portable completo y ejecuta lumen.exe.
+No separes el ejecutable de _internal. Consulta README.md y docs/LENGUAJES.md.
+El instalador y la presentación de primer inicio son pantallas independientes.
+Firma Authenticode: no incluida. SDK externos: según tus lenguajes y selección.

@@ -1,0 +1,11 @@
+{
+  "Proyecto CMake mínimo": {
+    "prefix": "lumen-cmake",
+    "body": [
+      "cmake_minimum_required(VERSION 3.20)",
+      "project(${1:MyProject} LANGUAGES CXX)",
+      "add_executable(${1:MyProject} main.cpp)",
+      "target_compile_features(${1:MyProject} PRIVATE cxx_std_20)"
+    ]
+  }
+}

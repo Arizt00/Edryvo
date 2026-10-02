@@ -1,0 +1,20 @@
+{
+  "name": "forest-syntax",
+  "publisher": "lumen",
+  "version": "0.4.0",
+  "displayName": "Lumen · Forest Syntax",
+  "description": "Tema de editor verde bosque. Contribución declarativa para Monaco.",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "contributes": {
+    "themes": [
+      {
+        "label": "Lumen Forest Syntax",
+        "uiTheme": "vs-dark",
+        "path": "themes/forest.json"
+      }
+    ]
+  }
+}

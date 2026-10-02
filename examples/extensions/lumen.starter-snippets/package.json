@@ -1,0 +1,33 @@
+{
+  "name": "starter-snippets",
+  "publisher": "lumen",
+  "version": "0.4.0",
+  "displayName": "Lumen · Starter Snippets",
+  "description": "Fragmentos originales de Python y CMake, sin código ejecutable de extensión.",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "contributes": {
+    "snippets": [
+      {
+        "language": "python",
+        "path": "snippets/python.json"
+      },
+      {
+        "language": "cmake",
+        "path": "snippets/cmake.json"
+      }
+    ]
+  },
+  "lumen": {
+    "commands": [
+      {
+        "id": "python-main",
+        "title": "Lumen: insertar punto de entrada Python",
+        "kind": "insertSnippet",
+        "body": "def main():\n    print(\"Hola desde Lumen\")\n\nif __name__ == \"__main__\":\n    main()\n"
+      }
+    ]
+  }
+}

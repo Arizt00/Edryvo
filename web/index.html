@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es" data-theme="day" data-booting="true">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Lumen Studio</title>
+  <link rel="icon" href="/assets/lumen.svg" type="image/svg+xml">
+  <script src="/src/theme-init.js"></script>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/refinement.css">
+  <link rel="stylesheet" href="/atelier.css">
+  <link rel="stylesheet" href="/platform.css">
+  <link rel="stylesheet" href="/lenon.css">
+<link rel="stylesheet" href="/controls.css"><link rel="stylesheet" href="/continuity.css"><link rel="stylesheet" href="/preview.css"><link rel="stylesheet" href="/finish.css"></head>
+<body>
+<div class="app" id="app">
+  <header class="topbar">
+    <button class="brand" data-action="about" title="Acerca de Lumen Studio">
+      <svg class="lumen-logo" viewBox="0 0 38 44" aria-hidden="true"><defs><linearGradient id="logo-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="logo-light"/><stop offset="1" class="logo-dark"/></linearGradient></defs><path d="M16.4 4.3C18.2-1 27.4.1 26 6.5L18.2 30h14c6.1 0 6.8 10.5.3 10.5H7.7c-5.4 0-7.2-4.5-5.4-9.5Z" fill="url(#logo-gradient)"/><path d="m18.2 30-3.6 10.5H7.7c-5.4 0-7.2-4.5-5.4-9.5l2.3-6.2c-1.1 4.5 1.3 5.2 4.6 5.2Z" fill="white" opacity=".16"/></svg>
+      <span class="brand-name">LUMEN</span><span class="brand-divider"></span><span class="brand-tagline">Crafted for creators</span>
+    </button>
+    <button class="global-search" data-action="palette" title="Buscar archivos y comandos (Ctrl+K)">
+      <span data-icon="search"></span><span class="search-placeholder">Search files, symbols, commands...</span><kbd>Ctrl K</kbd>
+    </button>
+    <div class="top-actions">
+      <div class="pane-switcher" role="group" aria-label="Paneles laterales">
+        <button class="icon-button" data-action="collapse-left" data-toggle-side="left" title="Contraer panel izquierdo (Ctrl+B)" aria-label="Contraer panel izquierdo"><span data-icon="dock-left"></span></button>
+        <button class="icon-button" data-action="collapse-right" data-toggle-side="right" title="Contraer panel derecho (Ctrl+Alt+B)" aria-label="Contraer panel derecho"><span data-icon="dock-right"></span></button>
+      </div>
+      <button class="tool-button layout-trigger" id="layout-trigger" data-action="layout-settings" title="Organizar paneles"><span data-icon="layout"></span><span class="layout-button-label">Espacio</span></button>
+      <button class="tool-button target-button" data-action="task-picker" title="Lenguajes, compiladores y CMake"><span data-icon="cube"></span><span id="target-label">Unity</span><span class="small-icon" data-icon="chevron-down"></span></button>
+      <button class="tool-button run-button" data-action="run" title="Ejecutar archivo activo (F5)"><span data-icon="play"></span></button>
+      <button class="tool-button debug-button" data-action="run-menu" title="Abrir depuración">Run<span class="small-icon" data-icon="chevron-down"></span></button>
+      <button class="icon-button theme-trigger" id="theme-trigger" data-action="theme-menu" title="Cambiar tema" aria-label="Cambiar tema"><span data-icon="sun"></span></button>
+      <button class="avatar" data-action="session" title="Sesión local">A<span class="presence"></span></button>
+    </div>
+  </header>
+
+  <main class="workspace" id="workspace">
+    <nav class="activity-rail" aria-label="Main navigation">
+      <div class="rail-items" id="rail-items">
+        <button class="rail-item active" data-view="explorer" title="Explorer (Ctrl+B)"><span data-icon="files"></span><span>Explorer</span></button>
+        <button class="rail-item" data-view="search" title="Buscar en archivos (Ctrl+Shift+F)"><span data-icon="search"></span><span>Search</span></button>
+        <button class="rail-item" data-view="git" title="Estado Git real"><span data-icon="git"></span><span>Source Control</span></button>
+        <button class="rail-item" data-view="run" title="Tareas y ejecución"><span data-icon="run"></span><span>Run &amp; Debug</span></button>
+        <button class="rail-item" data-action="extensions" title="Marketplace Open VSX y paquetes VSIX"><span data-icon="extensions"></span><span>Extensions</span></button>
+        <button class="rail-item" data-action="toggle-ai" title="Mostrar / ocultar asistente"><span data-icon="ai-circle"></span><span>AI Assistant</span></button>
+      </div>
+      <div class="rail-spacer"></div>
+      <button class="inspiration-card" data-action="settings" title="Personalizar apariencia">
+        <img id="landscape" src="/assets/landscape-day.png" alt="" draggable="false">
+        <span class="inspiration-copy"><strong id="landscape-title">Light,<br>clarity, flow.</strong><small id="landscape-caption">Build something<br>brighter.</small></span>
+      </button>
+      <button class="rail-compact-toggle icon-button" data-action="toggle-rail" aria-expanded="true" aria-controls="rail-items" title="Contraer navegación (Ctrl+Alt+N)" aria-label="Contraer o expandir navegación"><span data-icon="rail-compact"></span></button>
+      <button class="rail-settings icon-button" data-action="settings" title="Ajustes (Ctrl+,)" aria-label="Ajustes"><span data-icon="settings"></span></button>
+    </nav>
+
+    <aside class="project-panel panel" id="project-panel">
+      <div class="panel-heading" data-dock-handle="project"><button class="dock-grip icon-button" data-dock-start="project" aria-label="Mover panel Proyecto" title="Arrastra para agrupar. Enter: elegir posición."><span data-icon="grip"></span></button><span class="heading-mark" data-icon="files"></span><h1 id="sidebar-title">Project</h1><div class="heading-actions"><button class="icon-button" data-action="new-file" title="Nuevo archivo"><span data-icon="plus"></span></button><button class="icon-button" data-action="project-menu" title="Abrir carpeta y acciones de proyecto" aria-label="Acciones del proyecto"><span data-icon="folder-open"></span></button></div></div>
+      <div class="sidebar-content" id="sidebar-content"></div>
+      <div class="resize-handle vertical tree-resizer" id="tree-resizer" role="separator" aria-label="Ancho del explorador" tabindex="0"></div>
+    </aside>
+
+    <section class="editor-panel panel" id="editor-panel" aria-label="Code editor">
+      <div class="editor-tabbar"><div class="file-tabs" id="file-tabs" role="tablist"></div><button class="icon-button new-tab" data-action="new-file" title="Nuevo archivo"><span data-icon="plus"></span></button><div class="tabbar-space"></div><button class="icon-button" data-action="editor-menu" title="Ajustes del editor" aria-label="Ajustes del editor"><span data-icon="sliders"></span></button></div>
+      <div class="breadcrumbs" id="breadcrumbs"></div>
+      <div class="editor-mount" id="editor-mount"></div>
+      <div class="editor-empty hidden" id="editor-empty"><svg class="empty-logo" viewBox="0 0 40 44"><path d="M17 5 6 37h28" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></svg><h2>Your next idea starts here.</h2><p>Open a file <kbd>Ctrl P</kbd> or create something new.</p><button class="primary-button" data-action="new-file">New file</button></div>
+      <div class="resize-handle vertical ai-resizer" id="ai-resizer" role="separator" aria-label="Ancho del asistente" tabindex="0"></div>
+    </section>
+
+    <aside class="assistant-panel panel" id="assistant-panel" aria-label="AI Assistant">
+      <div class="assistant-heading" data-dock-handle="assistant"><button class="dock-grip icon-button" data-dock-start="assistant" aria-label="Mover panel Asistente" title="Arrastra para agrupar. Enter: elegir posición."><span data-icon="grip"></span></button><div class="assistant-heading-title"><span class="sparkles" data-icon="sparkles"></span><h2>AI Assistant</h2></div><div class="heading-actions"><button class="icon-button" data-action="new-chat" title="Nueva conversación"><span data-icon="plus"></span></button><button class="icon-button" data-action="ai-settings" title="Proveedores y modelos de IA" aria-label="Proveedores y modelos de IA"><span data-icon="sliders"></span></button></div></div>
+      <div class="assistant-body" id="assistant-body">
+        <div class="assistant-hero" id="assistant-hero"><span class="assistant-kicker">YOUR CREATIVE PARTNER</span><div class="hero-sparkle"><span data-icon="sparkles"></span></div><h3>Space for your next idea.</h3><p id="assistant-subtitle">Connect a local model. Keep your flow.</p></div>
+        <div class="ai-actions" id="ai-actions">
+          <button class="ai-action-card" data-ai-action="generate"><span class="action-card-icon" data-icon="sparkles"></span><span><strong>Generate</strong><small>Code, scripts<br>and new ideas.</small></span></button>
+          <button class="ai-action-card" data-ai-action="refactor"><span class="action-card-icon" data-icon="refactor"></span><span><strong>Refactor</strong><small>Simpler, clearer<br>code.</small></span></button>
+          <button class="ai-action-card" data-ai-action="explain"><span class="action-card-icon" data-icon="book"></span><span><strong>Explain</strong><small>Understand<br>your code.</small></span></button>
+          <button class="ai-action-card" data-ai-action="fix"><span class="action-card-icon" data-icon="bug"></span><span><strong>Fix issues</strong><small>Find and resolve<br>problems.</small></span></button>
+        </div>
+        <div class="chat-messages hidden" id="chat-messages" aria-live="polite"></div>
+        <form class="ai-composer" id="ai-form"><textarea id="ai-input" rows="2" placeholder="Ask anything..." aria-label="Pregunta al asistente"></textarea><button class="send-button" type="submit" title="Revisar y enviar al modelo"><span data-icon="send"></span></button></form>
+        <div class="ai-suggestions" id="ai-suggestions">
+          <button data-ai-prompt="¿Cómo puedo mejorar este script?"><span data-icon="bulb"></span>How can I improve this script?</button>
+          <button data-ai-prompt="Propón un sistema de salto y sprint para este componente."><span data-icon="plus-square"></span>Add jumping and sprinting</button>
+          <button data-ai-prompt="Propón un sistema de seguimiento de cámara suave para este código."><span data-icon="bulb"></span>Create a smooth camera system</button>
+        </div>
+      </div>
+    </aside>
+
+    <section class="terminal-panel panel" id="terminal-panel" aria-label="Local command console">
+      <div class="resize-handle horizontal" id="terminal-resizer" role="separator" aria-label="Altura de la terminal" tabindex="0"></div>
+      <div class="terminal-toolbar" data-dock-handle="console"><button class="dock-grip icon-button" data-dock-start="console" aria-label="Mover panel Consola" title="Arrastra para agrupar. Enter: elegir posición."><span data-icon="grip"></span></button><div class="terminal-tabs" role="tablist" aria-label="Vistas de consola">
+        <button class="terminal-tab active" role="tab" data-terminal="terminal"><span data-icon="terminal"></span>Terminal</button>
+        <button class="terminal-tab" role="tab" data-terminal="problems">Problems<span class="count-badge" id="problem-count">0</span></button>
+        <button class="terminal-tab" role="tab" data-terminal="output">Output</button>
+        <button class="terminal-tab" role="tab" data-terminal="debug">Debug Console</button>
+        <button class="terminal-tab" role="tab" data-terminal="git">Git</button>
+      </div><div class="terminal-tools"><button class="console-mode" data-action="console-info" title="Abrir terminal interactiva"><span id="console-label">shell</span><span data-icon="chevron-down"></span></button><button class="icon-button" data-action="new-console" title="Nueva terminal interactiva (Ctrl+Alt+T)"><span data-icon="plus"></span></button><button class="icon-button" data-action="toggle-terminal-size" title="Ampliar terminal"><span data-icon="split"></span></button><button class="icon-button" data-action="clear-terminal" title="Limpiar salida"><span data-icon="trash"></span></button><button class="icon-button" data-action="toggle-terminal" title="Ocultar terminal (Ctrl+J)"><span data-icon="chevron-up"></span></button></div></div>
+      <div class="terminal-scroll" id="terminal-scroll"><pre class="terminal-log" id="terminal-log" aria-live="polite"></pre><form class="terminal-prompt" id="terminal-form"><span class="prompt-path" id="prompt-path">~/Projects/MyProject</span><span class="prompt-branch">⌁ local</span><span class="prompt-chevron">❯</span><input id="terminal-input" autocomplete="off" spellcheck="false" aria-label="Comando local"><button class="stop-button hidden" id="stop-task" type="button" data-action="stop-task" title="Detener proceso"><span data-icon="stop"></span></button></form></div>
+      <div class="terminal-content hidden" id="terminal-content"></div>
+      <div class="terminal-signature"><span>Designed for<br>a brighter tomorrow.</span><div class="orb-wrap" id="orb-wrap"><div class="orb-fallback" aria-hidden="true"></div><canvas id="lumen-orb" width="96" height="96" aria-hidden="true"></canvas></div></div>
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <button data-view="git" class="status-item"><span data-icon="git"></span><span id="branch-label">local</span><span class="small-icon" data-icon="chevron-down"></span></button>
+    <button class="status-item diagnostics" data-action="diagnostics"><span data-icon="error-circle"></span><span id="error-count">0</span><span data-icon="warning"></span><span id="warning-count">0</span></button>
+    <button class="status-item engine-status" data-action="about" title="Estado real del entorno"><span id="engine-label">Local workspace</span><span class="version-label">v0.5.2</span></button>
+    <div class="status-spacer"></div>
+    <span class="status-item cursor-status" id="cursor-status">Ln 1, Col 1</span>
+    <button class="status-item" data-action="indent-settings">Spaces: 4</button>
+    <span class="status-item encoding-status">UTF-8</span><span class="status-item" id="newline-status">LF</span><span class="status-item" id="language-status">C#</span>
+    <button class="status-item notification-button" data-action="notifications" title="Actividad"><span data-icon="bell"></span><span class="notification-dot hidden" id="notification-dot"></span></button>
+  </footer>
+</div>
+<div class="sr-only" id="layout-announcement" role="status" aria-live="polite"></div>
+<div id="popover" class="popover hidden" role="menu"></div>
+<div class="modal-backdrop hidden" id="modal-backdrop"><section class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"></section></div>
+<div class="palette-backdrop hidden" id="palette-backdrop"><section class="command-palette" role="dialog" aria-modal="true" aria-label="Buscar archivos y comandos"><header class="palette-heading"><span class="tile-icon">⌘</span><div><h2>Archivos y comandos</h2><p>Busca archivos, símbolos, ejecuta comandos y más.</p></div><button class="icon-button" id="close-palette" aria-label="Cerrar paleta">×</button></header><div class="palette-input-wrap"><span data-icon="search"></span><input id="palette-input" placeholder="Buscar archivos, símbolos, comandos..." autocomplete="off"><kbd>esc</kbd></div><nav class="palette-modes"><button id="palette-files" class="active">Archivos</button><button id="palette-commands">⌘ Comandos</button><span id="palette-count"></span></nav><div class="palette-results" id="palette-results" role="listbox"></div><footer><span><kbd>↑</kbd><kbd>↓</kbd> para navegar <kbd>↵</kbd> para abrir</span><span>LUMEN STUDIO 0.5.2</span></footer></section></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div id="lumen-tooltip" class="lumen-tooltip" role="tooltip" hidden></div>
+<div class="connection-overlay hidden" id="connection-overlay"><h1>Lumen needs its local Python service.</h1><p>Start <code>python app.py</code> and open the address shown in your terminal.</p><button class="primary-button" id="retry-connection">Retry connection</button></div>
+<script type="module" src="/src/app.js"></script>
+</body>
+</html>

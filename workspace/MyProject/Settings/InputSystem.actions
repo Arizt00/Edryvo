@@ -1,0 +1,4 @@
+{
+  "name": "PlayerInput",
+  "actions": [{"name": "Move", "type": "Vector2", "bindings": ["WASD", "Arrow keys"]}]
+}

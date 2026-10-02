@@ -1,0 +1,4 @@
+# Optional: requires Python 3.11+ and a provider-authorized Copilot account.
+# API checked against the official Python SDK documentation on 2026-09-28.
+# Revalidate the SDK contract when updating; no cloud call is made on installation.
+github-copilot-sdk==1.0.15

@@ -1,0 +1,9 @@
+# Install inside Lumen's private virtual environment, not global Python.
+pywebview>=5.3,<7
+psutil>=6,<8
+keyring>=25,<27
+pywinpty>=2.0.13,<4; sys_platform == "win32"
+pywin32>=308,<400; sys_platform == "win32"
+PySide6>=6.7,<7; sys_platform == "linux"
+
+websocket-client>=1.8,<2

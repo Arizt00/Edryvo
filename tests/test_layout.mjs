@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {defaultLayout,normalizeLayout,layoutPreset,movePanel,sideOf,PANEL_IDS,SIDES} from '../web/src/layout-state.js';
+
+const assertUnique=state=>assert.deepEqual(SIDES.flatMap(side=>state.groups[side]).sort(),[...PANEL_IDS].sort());
+test('default layout has exactly three independent docks',()=>{const s=defaultLayout();assertUnique(s);assert.equal(s.active.right,'assistant');});
+test('null or stale layout restores safe defaults',()=>{for(const s of [null,[],42,'bad',{version:1}])assert.deepEqual(normalizeLayout(s),defaultLayout());});
+test('unknown panels and duplicate panel instances are rejected',()=>{const s=normalizeLayout({version:2,groups:{left:['project','evil','project'],right:['project','assistant'],bottom:['console','assistant']}});assertUnique(s);assert.deepEqual(s.groups.left,['project']);});
+test('incomplete groups restore every missing panel',()=>{const s=normalizeLayout({version:2,groups:{right:['console']}});assertUnique(s);assert.equal(sideOf(s,'console'),'right');});
+test('active panel can never refer to a hidden or foreign pane',()=>{const s=normalizeLayout({version:2,groups:{right:['assistant','console']},hidden:['assistant'],active:{right:'assistant'}});assert.equal(s.active.right,'console');});
+test('unknown hidden IDs and duplicates are ignored',()=>{const s=normalizeLayout({version:2,hidden:['project','project','x']});assert.deepEqual(s.hidden,['project']);});
+test('sizes reject non-numeric and non-finite values',()=>{for(const bad of ['340px',null,{},Infinity,NaN])assert.equal(normalizeLayout({version:2,sizes:{left:bad}}).sizes.left,undefined);});
+test('sizes are clamped to recoverable bounds',()=>{const s=normalizeLayout({version:2,sizes:{left:-100,right:9000,bottom:20000}});assert.deepEqual(s.sizes,{left:200,right:620,bottom:720});});
+test('grouped preset shares right dock without hidden duplicates',()=>{const s=layoutPreset('grouped');assert.deepEqual(s.groups.right,['assistant','console']);assert.deepEqual(s.groups.bottom,[]);assertUnique(s);});
+test('focus preserves panels in state but hides all of them',()=>{const s=layoutPreset('focus');assert.deepEqual(s.hidden,PANEL_IDS);assertUnique(s);assert.equal(s.active.left,null);});
+test('move unhides and activates a pane without mutating input',()=>{const s=layoutPreset('focus'),before=JSON.stringify(s),next=movePanel(s,'assistant','bottom');assert.equal(JSON.stringify(s),before);assert.equal(next.active.bottom,'assistant');assert.ok(!next.hidden.includes('assistant'));assertUnique(next);});
+test('same-group reorder changes order without duplication',()=>{const s=layoutPreset('grouped'),next=movePanel(s,'console','right',0);assert.deepEqual(next.groups.right,['console','assistant']);assertUnique(next);});
+test('invalid destination or panel does not alter layout',()=>{const s=defaultLayout();assert.deepEqual(movePanel(s,'project','outside'),s);assert.deepEqual(movePanel(s,'unknown','right'),s);});
+test('serializing and restoring custom grouping is lossless',()=>{const s=movePanel(layoutPreset('grouped'),'project','right',1);s.sizes.right=410;assert.deepEqual(normalizeLayout(JSON.parse(JSON.stringify(s))),s);});
+test('300 successive moves maintain a valid unique inventory',()=>{let s=defaultLayout();for(let i=0;i<300;i++){s=movePanel(s,PANEL_IDS[i%3],SIDES[(i+Math.floor(i/3))%3],i%4);assertUnique(s);for(const side of SIDES)assert.ok(s.active[side]===null||s.groups[side].includes(s.active[side]));}});
+test('unsupported preset metadata cannot become an HTML control',()=>{const s=normalizeLayout({...defaultLayout(),preset:'<script>'});assert.equal(s.preset,'custom');});

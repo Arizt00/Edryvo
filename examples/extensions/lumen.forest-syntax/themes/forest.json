@@ -1,0 +1,30 @@
+{
+  "name": "Lumen Forest Syntax",
+  "colors": {
+    "editor.background": "#081D15",
+    "editor.foreground": "#DEECE3",
+    "editorLineNumber.foreground": "#748D7C",
+    "editorCursor.foreground": "#99E2B7"
+  },
+  "tokenColors": [
+    {
+      "scope": "keyword",
+      "settings": {
+        "foreground": "#9ADDB4"
+      }
+    },
+    {
+      "scope": "string",
+      "settings": {
+        "foreground": "#EFCB96"
+      }
+    },
+    {
+      "scope": "comment",
+      "settings": {
+        "foreground": "#94AB9C",
+        "fontStyle": "italic"
+      }
+    }
+  ]
+}

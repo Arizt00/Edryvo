@@ -1,0 +1,68 @@
+/* R5: a shared rhythm for files, controls and floating surfaces. */
+:root{--space-control:8px;--radius-control:12px;--radius-float:20px;--shadow-control:0 3px 10px color-mix(in srgb,var(--text) 6%,transparent)}
+:root:not([data-theme=dark]):not([data-theme=forest]){--muted:#626d98;--secondary:#515d8b;--accent-bright:#7955d5}
+.editor-tabbar{height:56px;min-height:56px;padding:7px 10px;gap:8px;align-items:center;overflow:hidden}
+.editor-tabbar>.icon-button{flex:0 0 30px;width:30px;height:32px;border-radius:10px}
+.editor-tabbar>.tabbar-space{flex:1 1 0;min-width:0}
+.file-tabs{display:flex;align-items:center;gap:6px;min-width:0;padding:2px;scroll-padding-inline:8px;scrollbar-width:none}
+.file-tabs::-webkit-scrollbar{display:none}
+.file-tab,.file-tabs.is-grouped .file-tab.active{position:relative;height:38px;min-height:38px;min-width:105px;max-width:250px;flex:0 0 auto;padding:0 10px;gap:8px;border:1px solid transparent;border-radius:12px;font-size:11.5px;font-weight:450;background:transparent;color:var(--secondary)}
+.file-tab.active,.file-tabs.is-grouped .file-tab.active{background:color-mix(in srgb,var(--selected) 72%,var(--glass))!important;border:1px solid color-mix(in srgb,var(--accent) 22%,var(--glass-edge));box-shadow:var(--inset),var(--shadow-control)!important;color:var(--text);font-weight:600}
+.file-tab.active:after{display:none}
+.file-tab:hover:not(.active){background:var(--hover);border-color:var(--glass-edge)}
+.file-tab .file-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:190px}
+.file-tab .file-type{border-radius:6px;background:transparent;flex:none}
+.file-tab .tab-close{width:20px;min-width:20px;height:20px;display:grid;place-items:center;border-radius:6px;opacity:.5;margin-left:2px}
+.file-tab .tab-close:hover{opacity:1;background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.file-tab:is(.active,:hover,:focus-visible) .tab-close{visibility:visible;opacity:1}
+.file-tab:focus-visible,.file-group:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.file-groups{gap:6px;padding:2px;max-width:56%;scrollbar-width:none;flex:0 1 auto}
+.file-group{position:relative;min-height:38px;max-width:190px;padding:7px 11px;gap:8px;border-radius:12px;border:1px solid var(--glass-edge);background:var(--glass);box-shadow:var(--inset);font-size:11.5px;flex-shrink:0}
+.file-group.active{color:var(--text);border-color:color-mix(in srgb,var(--accent) 26%,var(--border));background:color-mix(in srgb,var(--selected) 48%,var(--glass))}
+.file-group>svg:first-child{color:var(--folder)}
+.file-group>svg:last-child{width:12px;opacity:.6}
+.file-group small{min-width:18px;padding:2px 5px;text-align:center;background:color-mix(in srgb,var(--accent) 9%,transparent);color:var(--secondary);font-variant-numeric:tabular-nums}
+.file-tabs.is-grouped{flex:0 1 auto;min-width:90px;max-width:42%;border-left:1px solid var(--border);padding-left:8px}
+.file-tabs.is-grouped .file-tab.active{min-width:90px;flex:0 1 auto;max-width:100%}
+.breadcrumbs{height:31px;min-height:31px;padding:0 16px;gap:9px;overflow:hidden;white-space:nowrap}
+.breadcrumbs[hidden]{display:none!important}
+.breadcrumbs .last{min-width:0;text-overflow:ellipsis;overflow:hidden;color:var(--secondary)}
+.breadcrumbs>.icon,.breadcrumbs>.file-type{flex:none}
+.popover{border-radius:16px;padding:7px;min-width:240px;max-width:min(400px,calc(100vw - 24px));transform-origin:top center}
+.popover .menu-item{min-height:36px;padding:8px 11px;border-radius:9px;gap:11px}
+.popover .menu-item>span:not(.menu-shortcut):not(.theme-swatch){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.popover .menu-shortcut{flex:none;font-size:10px;color:var(--muted);margin-left:auto}
+.popover .menu-separator{margin:6px 8px}
+.popover .menu-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.glass-options{padding:6px;border-radius:15px}.glass-option{border-radius:9px;margin:2px 0;min-height:36px}
+.platform-header{gap:20px;min-width:0}.platform-title{min-width:0}.platform-title h2{line-height:1.22;letter-spacing:-.6px}.platform-header>.icon-button{flex:none}
+.platform-content,.settings-content,.debug-page{scroll-padding-block:20px;overscroll-behavior:contain}
+.settings-navigation button{gap:12px;min-height:40px}.settings-navigation button>span{min-width:0;overflow-wrap:anywhere}
+.settings-content>section{min-width:0}.preference-row{gap:22px;padding-block:18px}.preference-control{flex:0 1 260px}
+.extension-card-top{align-items:flex-start}.extension-card h4{margin-top:0;line-height:1.5}.extension-card p{overflow-wrap:anywhere}.extension-card-actions{gap:8px;flex-wrap:wrap}
+.ai-actions,.home-actions{gap:10px}.ai-action-card{padding:10px 12px;min-height:64px;height:auto}.ai-action-card>div{min-width:0}.ai-action-card small{overflow-wrap:anywhere}
+.assistant-hero{min-height:354px;max-height:none;flex:0 0 354px;justify-content:flex-end;padding-top:216px;margin-bottom:12px}
+.assistant-hero .melody-art{width:210px!important;height:210px!important;top:0!important;left:50%!important;right:auto!important;translate:-50% 0}
+.assistant-hero .melody-copy{padding:0 0 24px;max-width:100%}
+.assistant-hero h3{font-size:29px;line-height:1.15;margin-bottom:8px}
+.assistant-hero h4{font-size:18px;line-height:1.35;white-space:normal;margin-bottom:9px}
+.assistant-hero p{max-width:none;font-size:12px;line-height:1.6}
+.assistant-hero .handwritten{font-size:13px;line-height:1.35;bottom:0;right:3px;rotate:-5deg}
+.chat-message{max-width:100%;min-width:0}.ai-stream pre,.chat-message pre{overflow:auto;max-width:100%;border-radius:12px}.assistant-body{overscroll-behavior:contain}.ai-live-control{flex-wrap:wrap}
+.assistant-body{overflow:hidden}.assistant-scroll{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--border-strong) transparent;padding-right:3px}
+.assistant-body.chatting .assistant-scroll{display:flex;flex-direction:column;overflow:hidden}.assistant-body.chatting .chat-messages{min-height:0;overflow:auto}
+.assistant-body>.ai-current-document,.assistant-body>.ai-live-control,.assistant-body>.melody-disclaimer{flex-shrink:0}
+.assistant-body>.ai-composer{margin-top:8px;flex:0 0 95px}.assistant-body>.ai-live-control{padding-block:8px}.assistant-body>.melody-disclaimer{padding-top:7px}
+.platform-switch{width:46px!important;min-width:46px!important;max-width:46px!important;flex:0 0 46px!important}
+.toast{max-width:min(420px,calc(100vw - 32px));line-height:1.6}.toast>span{overflow-wrap:anywhere}
+.tree-row{margin:2px 0;border-radius:10px;min-height:32px}.tree-row .label{min-width:0;overflow:hidden;text-overflow:ellipsis}
+@media(prefers-reduced-motion:no-preference){
+  :root:not([data-motion=off]) :is(.file-tab,.file-group,.menu-item,.glass-option,.palette-result,.home-action,.ai-action-card,.settings-navigation button,.rail-item,.icon-button){transition:background-color 160ms ease,border-color 160ms ease,box-shadow 180ms ease,translate 180ms cubic-bezier(.2,.8,.2,1),opacity 160ms ease}
+  :root:not([data-motion=off]) :is(.file-tab,.file-group,.menu-item,.glass-option):hover{translate:0 -1px}
+  :root:not([data-motion=off]) :is(.file-tab,.file-group,.menu-item,.icon-button):active{translate:0 0}
+}
+:root[data-motion=off] :is(.file-group,.palette-result,.home-action,.ai-action-card){transform:none;translate:none;scale:1;animation:none}
+@media(prefers-reduced-motion:reduce){.file-group,.palette-result,.home-action,.ai-action-card{transform:none!important;translate:none!important;scale:1!important}}
+@media(max-width:1180px){.file-group{max-width:142px}.file-tab{max-width:195px}.file-groups{max-width:48%}.editor-tabbar{gap:4px;padding-inline:7px}.file-tabs.is-grouped{max-width:45%}}
+@media(max-width:800px){.file-group{max-width:112px;padding-inline:8px}.file-group small{display:none}.preference-row{gap:14px}.platform-header{gap:12px}.file-tabs.is-grouped{border-left:0;padding-left:2px}}
+@media(max-height:800px){.assistant-hero{min-height:308px;flex-basis:308px;padding-top:172px}.assistant-hero .melody-art{width:166px!important;height:166px!important}.assistant-hero h3{font-size:26px}}
