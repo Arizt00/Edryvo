@@ -6,6 +6,10 @@ Pestañas redondeadas agrupadas por carpeta, selección mediante menú, rutas di
 
 La revisión automatizada cubre 1050, 1366 y 1920 píxeles de ancho. Esto no equivale a certificar todos los DPI, lectores de pantalla o dispositivos.
 
+Proyecto, Asistente y Terminal se pueden dejar flotantes con el botón de su cabecera o al arrastrarlos al centro del espacio. Se mueven por la cabecera y se redimensionan desde la esquina inferior; Escape cancela el arrastre. Los tres botones superiores permiten acoplarlos a izquierda, derecha o abajo. Cerrar un panel conserva su sesión. «Organizar y agrupar paneles» permite recuperarlo; Ctrl+J alterna la Terminal. Las posiciones se recuerdan y se reajustan para seguir visibles al reducir la ventana.
+
+La selección de Terminal utiliza una línea fina sin recuadro lila. La burbuja de Melody es más pequeña y está separada de los controles del proveedor; todo el panel lateral del asistente queda 16 px por debajo de la fila del editor. La entrada de terminal se envía en orden, incluso al escribir rápidamente mientras el proceso responde.
+
 ## Lantern Live
 
 Ctrl+Alt+L activa el archivo abierto sin navegar a Depuración. Al cambiar de pestaña, Lantern sigue el nuevo archivo. Tras un intervalo de estabilidad, analiza el búfer; una revisión incompleta espera y una válida sustituye a la anterior. No exige guardar y no sobrescribe el original.

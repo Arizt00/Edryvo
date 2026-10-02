@@ -13,7 +13,7 @@ export class DockManager {
     this.focusRestore=null;this.savedFocus={};this.drag=null;this.listeners=[];this.sizeFrame=0;
     this.panels=Object.fromEntries(Object.entries(PANEL_SELECTORS).map(([id,selector])=>[id,workspace.querySelector(selector)]));
     this.editor=workspace.querySelector('#editor-panel');
-    this.state=this.read();this.slots={};this.root.classList.add('docking-enabled');
+    this.state=this.read();this.slots={};this.floats={};this.root.classList.add('docking-enabled');
     for(const side of SIDES) {
       const slot=document.createElement('section');slot.className='dock-slot';slot.dataset.dockSide=side;
       slot.id='dock-'+side;slot.setAttribute('aria-label','Paneles: '+SIDE_LABELS[side]);
@@ -27,6 +27,8 @@ export class DockManager {
     this.scrim=document.createElement('button');this.scrim.className='dock-scrim';this.scrim.hidden=true;this.scrim.setAttribute('aria-label','Cerrar panel lateral');this.root.appendChild(this.scrim);
     this.listen(this.scrim,'click',()=>{this.compactOpen=false;this.render();});
     for(const [id,panel] of Object.entries(this.panels)) {
+      const actions=panel.querySelector(id==='console'?'.terminal-tools':'.heading-actions');
+      actions.insertAdjacentHTML('beforeend',`<button class="icon-button pane-float" data-panel-float="${id}" title="Dejar ${PANEL_LABELS[id]} flotante" aria-label="Dejar ${PANEL_LABELS[id]} flotante">${icon('layout')}</button>${id!=='console'?`<button class="icon-button pane-close" data-dock-hide="${id}" title="Cerrar panel ${PANEL_LABELS[id]}" aria-label="Cerrar panel ${PANEL_LABELS[id]}">${icon('close')}</button>`:''}`);
       if(id==='console')continue;
       const button=document.createElement('button');button.className='icon-button pane-collapse';button.dataset.collapsePanel=id;
       panel.querySelector('.heading-actions').appendChild(button);
@@ -37,8 +39,8 @@ export class DockManager {
   read(){try{return normalizeLayout(JSON.parse(localStorage.getItem(LAYOUT_KEY)||localStorage.getItem('lumen.layout.v2')||'null'));}catch(_){return defaultLayout();}}
   save(){try{localStorage.setItem(LAYOUT_KEY,JSON.stringify(this.state));}catch(_){/* Session remains usable in storage-restricted webviews. */}}
   snapshot(){return JSON.parse(JSON.stringify(this.state));}
-  visibleIds(side){return this.state.groups[side].filter(id=>!this.state.hidden.includes(id));}
-  isVisible(id){const side=sideOf(this.state,id);return !this.state.collapsed.includes(side)&&!this.state.hidden.includes(id)&&this.state.active[side]===id;}
+  visibleIds(side){return this.state.groups[side].filter(id=>!this.state.hidden.includes(id)&&!this.state.floating[id]);}
+  isVisible(id){const side=sideOf(this.state,id);return !this.state.hidden.includes(id)&&(!!this.state.floating[id]||(!this.state.collapsed.includes(side)&&this.state.active[side]===id));}
   announce(message){document.querySelector('#layout-announcement').textContent=message;}
   transition(change,animate=true){
     const apply=()=>{change();this.state=normalizeLayout(this.state);this.save();this.render();};
@@ -71,6 +73,7 @@ export class DockManager {
   }
   toggle(id){this.isVisible(id)?this.hide(id):this.show(id);}
   select(id,focusTab=false){
+    if(this.state.floating[id]){this.show(id);this.raiseFloat(id);return;}
     const side=sideOf(this.state,id),changed=this.state.active[side]!==id;
     this.state.active[side]=id;this.state.collapsed=this.state.collapsed.filter(value=>value!==side);this.state.hidden=this.state.hidden.filter(item=>item!==id);this.save();this.render();
     if(changed)this.motion.enter(this.panels[id],3);
@@ -112,6 +115,43 @@ export class DockManager {
     this.announce(this.state.railCompact?'Navegación compacta: solo iconos.':'Navegación con etiquetas.');
   }
   organize(id){this.root.dispatchEvent(new CustomEvent('lumen:organize',{bubbles:true,detail:{panel:id}}));}
+  floatBounds(id,rect){
+    const area=this.root.getBoundingClientRect(),left=(this.root.querySelector('.activity-rail')?.getBoundingClientRect().width||48)+8;
+    const width=Math.min(Math.max(id==='assistant'?320:280,rect.width),Math.max(280,area.width-left-8));
+    const height=Math.min(Math.max(id==='assistant'?450:200,rect.height),Math.max(200,area.height-8));
+    return {x:Math.max(left,Math.min(area.width-width-8,rect.x)),y:Math.max(0,Math.min(area.height-height-8,rect.y)),width,height};
+  }
+  floatPanel(id,rect){
+    if(!this.panels[id])return;
+    const area=this.root.getBoundingClientRect(),width=id==='console'?650:id==='assistant'?390:330,height=id==='console'?300:Math.min(640,area.height-24);
+    this.transition(()=>{this.state.floating[id]=this.floatBounds(id,rect||this.state.floating[id]||{x:(area.width-width)/2,y:24,width,height});this.state.hidden=this.state.hidden.filter(x=>x!==id);this.state.preset='custom';});
+    this.raiseFloat(id);this.announce(PANEL_LABELS[id]+' flotante. Arrastra su cabecera; sus controles permiten acoplarlo o cerrarlo.');
+  }
+  raiseFloat(id){const frames=Object.entries(this.floats).filter(([key])=>key!==id).sort((a,b)=>Number(a[1].style.zIndex)-Number(b[1].style.zIndex));if(this.floats[id])frames.push([id,this.floats[id]]);frames.forEach(([,frame],i)=>frame.style.zIndex=String(20+i));}
+  placeFloat(id){
+    const rect=this.floatBounds(id,this.state.floating[id]);this.state.floating[id]=rect;
+    Object.assign(this.floats[id].style,{left:rect.x+'px',top:rect.y+'px',width:rect.width+'px',height:rect.height+'px'});
+  }
+  renderFloats(){
+    for(const [id,panel] of Object.entries(this.panels)){
+      if(!this.state.floating[id]){this.floats[id]?.remove();delete this.floats[id];continue;}
+      let frame=this.floats[id];const created=!frame;
+      if(!frame){
+        frame=document.createElement('section');frame.className='floating-panel';frame.dataset.floatingPanel=id;frame.setAttribute('aria-label',PANEL_LABELS[id]+' flotante');
+        frame.innerHTML=`<header class="floating-title" data-dock-handle="${id}"><span>${icon(PANEL_ICONS[id])}${PANEL_LABELS[id]}</span><small>Flotante</small><div>${SIDES.map(side=>`<button class="icon-button" data-float-dock="${id}" data-float-side="${side}" title="Acoplar ${SIDE_LABELS[side]}" aria-label="Acoplar ${PANEL_LABELS[id]} ${SIDE_LABELS[side]}">${icon('dock-'+side)}</button>`).join('')}<button class="icon-button" data-dock-hide="${id}" title="Cerrar panel" aria-label="Cerrar ${PANEL_LABELS[id]} flotante">${icon('close')}</button></div></header><div class="floating-content"></div><button class="floating-resize" data-floating-resize="${id}" aria-label="Cambiar tamaño de ${PANEL_LABELS[id]}" title="Arrastra para cambiar tamaño; flechas para ajuste fino">${icon('grip')}</button>`;
+        this.root.appendChild(frame);this.floats[id]=frame;this.raiseFloat(id);
+      }
+      const content=frame.querySelector('.floating-content');if(panel.parentElement!==content)content.appendChild(panel);
+      frame.hidden=this.state.hidden.includes(id);panel.hidden=frame.hidden;panel.inert=frame.hidden;panel.removeAttribute('role');panel.removeAttribute('aria-labelledby');this.placeFloat(id);if(created&&!frame.hidden)this.motion.enter(frame,4);
+    }
+  }
+  resizeFloat(event,id){
+    event.preventDefault();event.stopPropagation();this.motion.cancelLayout();this.raiseFloat(id);
+    const start={...this.state.floating[id]},x=event.clientX,y=event.clientY;
+    const move=e=>{this.state.floating[id]=this.floatBounds(id,{...start,width:start.width+e.clientX-x,height:start.height+e.clientY-y});this.placeFloat(id);};
+    const end=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end);window.removeEventListener('pointercancel',end);window.removeEventListener('blur',end);this.save();this.onChange();};
+    window.addEventListener('pointermove',move);window.addEventListener('pointerup',end);window.addEventListener('pointercancel',end);window.addEventListener('blur',end);
+  }
   render(){
     const compact=false; // Side panels stay in the grid at every supported desktop size.
     this.root.classList.toggle('rail-compact',this.state.railCompact);
@@ -131,6 +171,7 @@ export class DockManager {
       const tabs=slot.querySelector('.dock-tabs');
       // No duplication of panes, textarea values, output or listeners.
       for(const id of this.state.groups[side]){
+        if(this.state.floating[id])continue;
         const panel=this.panels[id];if(panel.parentElement!==slot.querySelector('.dock-content'))slot.querySelector('.dock-content').appendChild(panel);
         panel.hidden=id!==active||this.state.hidden.includes(id);panel.inert=panel.hidden;
         if(visible.length>1){panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby','dock-tab-'+id);}
@@ -151,6 +192,7 @@ export class DockManager {
       const handle=slot.querySelector('.resize-handle');
       if(handle){handle.setAttribute('aria-valuenow',String(Math.round(size)));handle.setAttribute('aria-valuemin',String(limits[side].min));handle.setAttribute('aria-valuemax',String(limits[side].max));}
     }
+    this.renderFloats();
     for(const button of this.root.querySelectorAll('[data-collapse-panel]')){
       const side=sideOf(this.state,button.dataset.collapsePanel);
       button.hidden=side==='bottom';button.innerHTML=icon('panel-collapse-'+side);
@@ -217,6 +259,8 @@ export class DockManager {
   bindEvents(){
     this.listen(this.root,'click',event=>{
       if(this.suppressClick){event.preventDefault();event.stopImmediatePropagation();return;}
+      const floating=event.target.closest('[data-panel-float]');if(floating){this.floatPanel(floating.dataset.panelFloat);return;}
+      const anchor=event.target.closest('[data-float-dock]');if(anchor){this.move(anchor.dataset.floatDock,anchor.dataset.floatSide);return;}
       const collapse=event.target.closest('[data-collapse-panel],[data-dock-collapse]');
       if(collapse){this.collapse(collapse.dataset.dockCollapse||sideOf(this.state,collapse.dataset.collapsePanel));return;}
       const expand=event.target.closest('[data-dock-expand],[data-dock-restore]');
@@ -226,6 +270,11 @@ export class DockManager {
       const close=event.target.closest('[data-dock-hide]');if(close)this.hide(close.dataset.dockHide);
     },true);
     this.listen(this.root,'keydown',event=>{
+      const resize=event.target.closest('[data-floating-resize]');
+      if(resize&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){
+        event.preventDefault();const id=resize.dataset.floatingResize,rect=this.state.floating[id],step=event.shiftKey?30:10;
+        this.state.floating[id]=this.floatBounds(id,{...rect,width:rect.width+(event.key==='ArrowRight'?step:event.key==='ArrowLeft'?-step:0),height:rect.height+(event.key==='ArrowDown'?step:event.key==='ArrowUp'?-step:0)});this.placeFloat(id);this.save();this.onChange();return;
+      }
       const tab=event.target.closest('[data-dock-tab]');if(!tab)return;
       const side=sideOf(this.state,tab.dataset.dockTab),ids=this.visibleIds(side),index=ids.indexOf(tab.dataset.dockTab);
       if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){
@@ -240,15 +289,20 @@ export class DockManager {
   }
   beginDrag(event){
     if(event.button!==0||event.isPrimary===false||event.target.closest('.resize-handle'))return;
+    const resize=event.target.closest('[data-floating-resize]');if(resize){this.resizeFloat(event,resize.dataset.floatingResize);return;}
+    const float=event.target.closest('[data-floating-panel]');if(float)this.raiseFloat(float.dataset.floatingPanel);
     const grip=event.target.closest('[data-dock-start]');
     const heading=event.target.closest('[data-dock-handle]');
     if(!grip&&(!heading||event.target.closest('button,input,textarea,select,a')))return;
     const id=grip?.dataset.dockStart||heading?.dataset.dockHandle;if(!this.panels[id])return;
-    const start={id,x:event.clientX,y:event.clientY,pointerId:event.pointerId,started:false,target:null};this.drag=start;
+    const original=this.state.floating[id]?{...this.state.floating[id]}:null,rect=(this.floats[id]||this.panels[id]).getBoundingClientRect();
+    const start={id,x:event.clientX,y:event.clientY,clientX:event.clientX,clientY:event.clientY,offsetX:event.clientX-rect.left,offsetY:event.clientY-rect.top,width:rect.width,height:rect.height,original,pointerId:event.pointerId,started:false,target:null};this.drag=start;
     const move=e=>{
       if(this.drag!==start)return;
       if(!start.started&&Math.hypot(e.clientX-start.x,e.clientY-start.y)<6)return;
-      if(!start.started){start.started=true;this.targets.hidden=false;this.ghost.hidden=false;this.ghost.innerHTML=icon(PANEL_ICONS[id])+`<span>${PANEL_LABELS[id]}</span><kbd>esc</kbd>`;document.body.classList.add('docking-drag');}
+      if(!start.started){start.started=true;this.targets.hidden=false;this.ghost.hidden=!!original;this.ghost.innerHTML=icon(PANEL_ICONS[id])+`<span>${PANEL_LABELS[id]}</span><kbd>esc</kbd>`;document.body.classList.add('docking-drag');}
+      start.clientX=e.clientX;start.clientY=e.clientY;
+      if(original){this.state.floating[id]=this.floatBounds(id,{...original,x:original.x+e.clientX-start.x,y:original.y+e.clientY-start.y});this.placeFloat(id);}
       e.preventDefault();this.ghost.style.transform=`translate(${Math.min(innerWidth-230,e.clientX+18)}px,${Math.min(innerHeight-58,e.clientY+18)}px)`;
       let target=null;
       for(const el of this.targets.querySelectorAll('[data-drop-side]')){const r=el.getBoundingClientRect();const hit=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;el.classList.toggle('target-active',hit);if(hit)target=el.dataset.dropSide;}
@@ -263,7 +317,12 @@ export class DockManager {
     const drag=this.drag;if(!drag)return;drag.cleanup();this.drag=null;
     this.targets.hidden=true;this.ghost.hidden=true;document.body.classList.remove('docking-drag');
     this.targets.querySelectorAll('.target-active').forEach(el=>el.classList.remove('target-active'));
-    if(drag.started){this.suppressClick=true;setTimeout(()=>this.suppressClick=false,0);if(!cancelled&&drag.target)this.move(drag.id,drag.target);}
+    if(drag.started){
+      this.suppressClick=true;setTimeout(()=>this.suppressClick=false,0);
+      if(cancelled){if(drag.original){this.state.floating[drag.id]=drag.original;this.placeFloat(drag.id);}return;}
+      if(drag.target)this.move(drag.id,drag.target);
+      else {const area=this.root.getBoundingClientRect();if(drag.clientX>=area.left&&drag.clientX<=area.right&&drag.clientY>=area.top&&drag.clientY<=area.bottom)this.floatPanel(drag.id,{x:drag.clientX-area.left-drag.offsetX,y:drag.clientY-area.top-drag.offsetY,width:drag.width,height:drag.height});else if(drag.original){this.state.floating[drag.id]=drag.original;this.placeFloat(drag.id);}}
+    }
   }
   dispose(){this.finishDrag(true);cancelAnimationFrame(this.sizeFrame);this.listeners.forEach(remove=>remove());this.ghost.remove();}
 }

@@ -131,7 +131,7 @@ class Preview{
         if(e.terminal!==undefined){
           const profiles=await platform.api('/terminals/profiles');const profile=profiles.profiles.find(p=>p.id===platform.prefs['terminal.defaultProfile'])||profiles.profiles[0];
           if(!profile)throw Error('No hay un perfil de terminal disponible para la extensión.');
-          const terminal=await platform.openTerminal(profile.id);if(terminal)await platform.api('/terminals/write',{id:terminal.id,data:String(e.terminal)+'\r'});
+          const terminal=await platform.openTerminal(profile.id);if(terminal)await platform.terminals.get(terminal.id).input.write(String(e.terminal)+'\r');
         }
         if(e.edits){if(relativeUri(e.path)!==snapshot.path)throw Error('Esta propuesta modifica varios archivos. La revisión del plugin admite el archivo activo en esta preview.');edits.push(...e.edits);}
       }

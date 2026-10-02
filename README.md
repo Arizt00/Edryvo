@@ -11,6 +11,7 @@ El primer inicio permite elegir tema, idioma, distribución y perfil. Una instal
 ## Trabajo diario
 
 - Pestañas agrupadas por carpeta, selector de archivos, menús contextuales, renombrado, eliminación recuperable y apertura en otra ventana.
+- Proyecto, Asistente y Terminal pueden cerrarse, recuperarse, acoplarse o quedar flotantes dentro del área de trabajo. El contenido se conserva al moverlos; posición y tamaño se recuerdan.
 - Ruta superior ligada al archivo activo. Búsqueda de archivos, texto y comandos.
 - Autoguardado configurable o guardado manual, sin notificaciones repetidas en cada autoguardado.
 - Depuración integrada con pila, variables, puntos de interrupción y entrada al programa, según el adaptador.

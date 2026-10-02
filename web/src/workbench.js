@@ -2,6 +2,7 @@ import {ACCOUNT_PROVIDERS,accountPanel,bindAccount} from './accounts.js';
 import {icon,escapeHTML,setFileIcons} from './icons.js';
 import {languageFor} from './editor.js';
 import {LiveEditSession} from './live-edit.js';
+import {OrderedTerminalInput} from './terminal-input.js';
 
 const PLATFORM_CATEGORIES=[
  ['general','globe','General','General'],['appearance','sun','Apariencia','Appearance'],['editor','code','Editor de texto','Text editor'],
@@ -372,19 +373,20 @@ export class LumenPlatform {
   }
   async attachTerminal(result){
     const terminal={...result,offset:0,closed:false};this.terminals.set(result.id,terminal);
+    terminal.input=new OrderedTerminalInput(data=>this.api('/terminals/write',{id:result.id,data}));
     terminal.mount=document.createElement('div');terminal.mount.className='pty-session';terminal.mount.dataset.sessionId=result.id;this.ptyMount.append(terminal.mount);
     try{await this.loadTerminalEngine();}catch(error){this.host.notify(this.t('Motor xterm no disponible; consola interactiva básica activa.','xterm unavailable; basic interactive console active.'));}
     if(this.TerminalCtor){
       terminal.xterm=new this.TerminalCtor({fontFamily:this.prefs['editor.fontFamily'],fontSize:this.prefs['terminal.fontSize'],cursorBlink:this.prefs['terminal.cursorBlink'],scrollback:this.prefs['terminal.scrollback'],allowProposedApi:false,convertEol:false});
       terminal.fit=new this.FitCtor();terminal.xterm.loadAddon(terminal.fit);terminal.xterm.open(terminal.mount);this.themeTerminal(terminal);
-      terminal.xterm.onData(data=>this.safe(()=>this.api('/terminals/write',{id:result.id,data})));
+      terminal.xterm.onData(data=>this.safe(()=>terminal.input.write(data)));
       terminal.xterm.attachCustomKeyEventHandler(event=>{if((event.ctrlKey||event.metaKey)&&event.altKey&&['f','t'].includes(event.key.toLowerCase()))return false;return true;});
     }else{
       terminal.mount.classList.add('pty-basic');terminal.mount.innerHTML=`<div class="pty-basic-note">${this.t('PTY real · Vista básica. Instala xterm para programas de pantalla completa.','Real PTY · Basic view. Install xterm for full-screen applications.')}</div><pre class="pty-basic-output" role="log"></pre><form class="pty-basic-input"><span>❯</span><input aria-label="${this.t('Entrada de terminal','Terminal input')}" spellcheck="false" autocomplete="off"><button type="button" class="text-button pty-interrupt">Ctrl C</button><button class="icon-button" aria-label="${this.t('Enviar','Send')}">${this.glyph('send')}</button></form>`;
       terminal.output=terminal.mount.querySelector('pre');const input=terminal.mount.querySelector('input');
-      terminal.mount.querySelector('form').onsubmit=event=>{event.preventDefault();const data=input.value+'\r';input.value='';this.safe(()=>this.api('/terminals/write',{id:result.id,data}));};
-      terminal.mount.querySelector('.pty-interrupt').onclick=()=>this.safe(()=>this.api('/terminals/write',{id:result.id,data:'\u0003'}));
-      input.onkeydown=event=>{if(event.ctrlKey&&['c','d'].includes(event.key.toLowerCase())){event.preventDefault();this.safe(()=>this.api('/terminals/write',{id:result.id,data:event.key.toLowerCase()==='c'?'\u0003':'\u0004'}));}};
+      terminal.mount.querySelector('form').onsubmit=event=>{event.preventDefault();const data=input.value+'\r';input.value='';this.safe(()=>terminal.input.write(data));};
+      terminal.mount.querySelector('.pty-interrupt').onclick=()=>this.safe(()=>terminal.input.write('\u0003'));
+      input.onkeydown=event=>{if(event.ctrlKey&&['c','d'].includes(event.key.toLowerCase())){event.preventDefault();this.safe(()=>terminal.input.write(event.key.toLowerCase()==='c'?'\u0003':'\u0004'));}};
     }
     this.selectTerminal(result.id);this.pollTerminal(terminal);return result;
   }
@@ -407,15 +409,15 @@ export class LumenPlatform {
     try{
       const data=await this.api('/terminals/read?id='+terminal.id+'&offset='+terminal.offset);terminal.offset=data.offset;
       if(data.data){if(terminal.xterm)terminal.xterm.write(data.data);else{terminal.output.textContent=(terminal.output.textContent+this.stripTerminal(data.data)).slice(-180000);terminal.output.scrollTop=terminal.output.scrollHeight;}}
-      if(data.closed){terminal.closed=true;this.renderActiveTerminal();return;}
-    }catch(error){terminal.closed=true;if(terminal.output)terminal.output.textContent+='\n'+error.message;this.renderActiveTerminal();return;}
+      if(data.closed){terminal.closed=true;terminal.input.close();this.renderActiveTerminal();return;}
+    }catch(error){terminal.closed=true;terminal.input.close(error);if(terminal.output)terminal.output.textContent+='\n'+error.message;this.renderActiveTerminal();return;}
     this.later(()=>this.pollTerminal(terminal),document.hidden?1000:80);
   }
   stripTerminal(text){return text.replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g,'').replace(/\x1b\[[0-?]*[ -/]*[@-~]/g,'').replace(/\r/g,'');}
   async closeTerminal(id){
     const t=this.terminals.get(id);if(!t)return;
     if(!t.closed&&this.prefs['terminal.confirmClose']&&!await this.host.confirmDialog(this.t('Cerrar terminal','Close terminal'),this.t('Se terminarán la shell y sus procesos asociados.','The shell and its child processes will be terminated.'),this.t('Cerrar sesión','Close session')))return;
-    await this.api('/terminals/close',{id});t.xterm?.dispose();t.mount.remove();this.terminals.delete(id);
+    t.input.close();await this.api('/terminals/close',{id});t.xterm?.dispose();t.mount.remove();this.terminals.delete(id);
     if(this.activeTerminal===id){const next=this.terminals.keys().next().value;if(next)this.selectTerminal(next);else this.useConsole();}
     this.renderActiveTerminal();
   }
@@ -449,7 +451,7 @@ export class LumenPlatform {
       this.host.closeModal();let terminal=this.terminals.get(this.activeTerminal);
       if(!terminal||terminal.closed){const profiles=await this.api('/terminals/profiles');const first=profiles.profiles.find(p=>p.available!==false);if(!first)throw new Error(this.t('No hay una terminal disponible.','No terminal available.'));const created=await this.openTerminal(first.id);if(!created)return;terminal=this.terminals.get(created.id);}
       this.selectTerminal(terminal.id);
-      if(terminal.xterm)await this.api('/terminals/write',{id:terminal.id,data:plan.command});else{terminal.mount.querySelector('input').value=plan.command;terminal.mount.querySelector('input').focus();}
+      if(terminal.xterm)await terminal.input.write(plan.command);else{terminal.mount.querySelector('input').value=plan.command;terminal.mount.querySelector('input').focus();}
     });
   }
   async runTask(id){
@@ -612,8 +614,8 @@ export class LumenPlatform {
     };document.addEventListener('keydown',this.keyHandler);
   }
   workspaceChanged(){
-    clearTimeout(this.saveTimer);clearTimeout(this.changeTimer);for(const t of this.terminals.values()){t.xterm?.dispose();t.mount.remove();}this.terminals.clear();this.activeTerminal=null;this.showingPTY=false;this.renderActiveTerminal();
+    clearTimeout(this.saveTimer);clearTimeout(this.changeTimer);for(const t of this.terminals.values()){t.input.close();t.xterm?.dispose();t.mount.remove();}this.terminals.clear();this.activeTerminal=null;this.showingPTY=false;this.renderActiveTerminal();
     for(const s of this.lspSessions.values())s.disposables.forEach(d=>d.dispose());this.lspSessions.clear();this.diagnosticMap.clear();this.lastContent.clear();this.aiGeneration++;this.aiJob=null;this.conversation=crypto.randomUUID?.()||String(Date.now());this.closePage();this.updateSystemStatus();
   }
-  dispose(){this.disposed=true;this.timers.forEach(clearTimeout);clearTimeout(this.saveTimer);clearTimeout(this.changeTimer);clearTimeout(this.syntaxTimer);this.terminalObserver?.disconnect();document.removeEventListener('click',this.globalClick);document.removeEventListener('keydown',this.keyHandler);for(const t of this.terminals.values())t.xterm?.dispose();for(const s of this.lspSessions.values())s.disposables.forEach(d=>d.dispose());this.contributionDisposables.forEach(d=>d.dispose());}
+  dispose(){this.disposed=true;this.timers.forEach(clearTimeout);clearTimeout(this.saveTimer);clearTimeout(this.changeTimer);clearTimeout(this.syntaxTimer);this.terminalObserver?.disconnect();document.removeEventListener('click',this.globalClick);document.removeEventListener('keydown',this.keyHandler);for(const t of this.terminals.values()){t.input.close();t.xterm?.dispose();}for(const s of this.lspSessions.values())s.disposables.forEach(d=>d.dispose());this.contributionDisposables.forEach(d=>d.dispose());}
 }

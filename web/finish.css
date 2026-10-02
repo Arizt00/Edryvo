@@ -42,7 +42,7 @@
 .extension-card-top{align-items:flex-start}.extension-card h4{margin-top:0;line-height:1.5}.extension-card p{overflow-wrap:anywhere}.extension-card-actions{gap:8px;flex-wrap:wrap}
 .ai-actions,.home-actions{gap:10px}.ai-action-card{padding:10px 12px;min-height:64px;height:auto}.ai-action-card>div{min-width:0}.ai-action-card small{overflow-wrap:anywhere}
 .assistant-hero{min-height:354px;max-height:none;flex:0 0 354px;justify-content:flex-end;padding-top:216px;margin-bottom:12px}
-.assistant-hero .melody-art{width:210px!important;height:210px!important;top:0!important;left:50%!important;right:auto!important;translate:-50% 0}
+.assistant-hero .melody-art{width:190px!important;height:190px!important;top:12px!important;left:50%!important;right:auto!important;translate:-50% 0}
 .assistant-hero .melody-copy{padding:0 0 24px;max-width:100%}
 .assistant-hero h3{font-size:29px;line-height:1.15;margin-bottom:8px}
 .assistant-hero h4{font-size:18px;line-height:1.35;white-space:normal;margin-bottom:9px}
@@ -65,4 +65,24 @@
 @media(prefers-reduced-motion:reduce){.file-group,.palette-result,.home-action,.ai-action-card{transform:none!important;translate:none!important;scale:1!important}}
 @media(max-width:1180px){.file-group{max-width:142px}.file-tab{max-width:195px}.file-groups{max-width:48%}.editor-tabbar{gap:4px;padding-inline:7px}.file-tabs.is-grouped{max-width:45%}}
 @media(max-width:800px){.file-group{max-width:112px;padding-inline:8px}.file-group small{display:none}.preference-row{gap:14px}.platform-header{gap:12px}.file-tabs.is-grouped{border-left:0;padding-left:2px}}
-@media(max-height:800px){.assistant-hero{min-height:308px;flex-basis:308px;padding-top:172px}.assistant-hero .melody-art{width:166px!important;height:166px!important}.assistant-hero h3{font-size:26px}}
+@media(max-height:800px){.assistant-hero{min-height:308px;flex-basis:308px;padding-top:172px}.assistant-hero .melody-art{width:150px!important;height:150px!important}.assistant-hero h3{font-size:26px}}
+/* Console selection uses a quiet baseline, without a colored tile. */
+.terminal-tab.active,.pty-tab.active{background:transparent!important;color:var(--text);box-shadow:none!important;border-radius:0}
+.terminal-tab.active:after{display:block;left:10px;right:10px;bottom:0;height:2px;background:var(--accent);opacity:.6}
+.pty-tab.active{box-shadow:inset 0 -1px var(--accent)!important}
+.heading-actions{flex-shrink:0;gap:3px}.heading-actions .icon-button{width:23px;min-width:23px}
+.panel-heading h1{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.workspace.docking-enabled>.floating-panel{position:absolute;display:flex;flex-direction:column;min-width:0;min-height:0;border:1px solid var(--glass-edge);border-radius:20px;background:var(--glass);backdrop-filter:blur(28px) saturate(1.18);box-shadow:0 22px 65px color-mix(in srgb,var(--text) 16%,transparent),var(--inset);overflow:hidden;isolation:isolate}
+.floating-panel[hidden]{display:none!important}
+.floating-title{height:38px;min-height:38px;display:flex;align-items:center;gap:10px;padding:0 10px 0 14px;border-bottom:1px solid var(--border);cursor:grab;user-select:none;color:var(--secondary)}
+.floating-title>span{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600}.floating-title>span>.icon{width:14px;height:14px;color:var(--accent)}
+.floating-title>small{font-size:9px;opacity:.65}.floating-title>div{display:flex;gap:2px;margin-left:auto}.floating-title .icon-button{width:24px;height:26px;min-width:24px}
+.floating-content{flex:1;display:flex;min-width:0;min-height:0;overflow:hidden}
+.floating-content>.panel{width:100%!important;height:100%!important;flex:1;min-width:0;min-height:0;position:relative!important;inset:auto!important;margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
+.floating-content :is(.pane-collapse,.pane-close,.pane-float,.dock-grip){display:none!important}
+.floating-content .terminal-toolbar{flex-wrap:wrap;height:auto;min-height:44px;gap:4px;padding-block:3px}.floating-content .terminal-tabs{min-height:35px;height:35px;flex:1 1 auto}.floating-content .terminal-tools{margin-left:auto}
+.floating-content .assistant-hero{min-height:282px;flex-basis:282px;padding-top:156px}.floating-content .assistant-hero .melody-art{width:140px!important;height:140px!important;top:10px!important}
+.floating-resize{position:absolute;right:1px;bottom:1px;width:21px;height:21px;display:grid;place-items:center;cursor:nwse-resize;color:var(--muted);border-radius:8px;background:var(--glass);z-index:2}.floating-resize .icon{width:12px;height:12px}.floating-resize:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.dock-targets{z-index:70}.dock-ghost{z-index:90}
+/* Give the whole assistant surface breathing room below the main toolbar. */
+.dock-slot:not(.is-collapsed):not([data-dock-side=bottom]):has(>.dock-content>#assistant-panel:not([hidden])){margin-top:16px}

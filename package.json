@@ -5,10 +5,10 @@
   "type": "module",
   "description": "Lumen desktop/browser IDE developer preview: Python + JavaScript + Babylon.js + optional C/C++/ASM core.",
   "scripts": {
-    "check": "node --check backend/extension_api.cjs && node --check web/src/live-edit.js && node --check web/src/uninstall.js && node --check web/src/preview.js && node --check backend/extension_host.cjs && node --check backend/lantern_memory.cjs && node --check web/src/accounts.js && node --check web/src/lantern.js && node --check web/src/controls.js && node --check backend/emma_bridge.mjs && node --check web/src/glass.js && node --check web/src/studio.js && node --check web/src/setup.js && node --check web/src/app.js && node --check web/src/babylon-scene.js && node --check web/src/docking.js && node --check web/src/editor.js && node --check web/src/icons.js && node --check web/src/interactions.js && node --check web/src/layout-state.js && node --check web/src/motion.js && node --check web/src/theme-init.js && node --check web/src/workbench.js",
+    "check": "node --check web/src/terminal-input.js && node --check backend/extension_api.cjs && node --check web/src/live-edit.js && node --check web/src/uninstall.js && node --check web/src/preview.js && node --check backend/extension_host.cjs && node --check backend/lantern_memory.cjs && node --check web/src/accounts.js && node --check web/src/lantern.js && node --check web/src/controls.js && node --check backend/emma_bridge.mjs && node --check web/src/glass.js && node --check web/src/studio.js && node --check web/src/setup.js && node --check web/src/app.js && node --check web/src/babylon-scene.js && node --check web/src/docking.js && node --check web/src/editor.js && node --check web/src/icons.js && node --check web/src/interactions.js && node --check web/src/layout-state.js && node --check web/src/motion.js && node --check web/src/theme-init.js && node --check web/src/workbench.js",
     "start": "python app.py",
     "assets": "python tools/setup_assets.py",
-    "test:layout": "node --test tests/test_layout.mjs tests/test_layout03.mjs tests/test_theme_tokens.mjs",
+    "test:layout": "node --test tests/test_layout.mjs tests/test_layout03.mjs tests/test_theme_tokens.mjs tests/test_terminal_input.mjs",
     "test:platform": "python -m unittest discover -s tests -p test_platform.py -v",
     "test": "npm run test:layout"
   }
