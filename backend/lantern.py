@@ -15,13 +15,19 @@ from pathlib import Path
 from .preferences import atomic_json
 import threading
 import time
+from functools import wraps
 from .diagnostics import output_diagnostics
 
+def serialized_control(method):
+    @wraps(method)
+    def call(self,*args,**kwargs):
+        with self.control_lock:return method(self,*args,**kwargs)
+    return call
 
 class Lantern:
     def __init__(self,runtimes,runner,preview):
         self.runtimes=runtimes;self.runner=runner;self.preview=preview
-        self.lock=threading.RLock();self.event=threading.Event();self.thread=None;self.job=None
+        self.lock=threading.RLock();self.control_lock=threading.RLock();self.event=threading.Event();self.thread=None;self.job=None
         self.memory_dir=None;self.history=[];self.validation=None;self.generation=0;self.content=None;self.version=None;self.shadow=None;self.live_root=None
         self.workspace=None;self.revision=0;self.pending=0;self.stamp=None
         self.state={'active':False,'status':'idle','path':'','revision':0,'output':'','diagnostics':[],'preview':None}
@@ -75,6 +81,7 @@ class Lantern:
         while not job.done and time.monotonic()<deadline:time.sleep(.025)
         if not job.done:raise ValueError('El proceso anterior no se ha detenido; se ha evitado ejecutar dos revisiones a la vez.')
 
+    @serialized_control
     def start(self,workspace,path,content=None,version=None):
         if not workspace.trusted:raise PermissionError('Autoriza el proyecto antes de iniciar Lantern.')
         workspace.resolve(path,must_exist=content is None)
@@ -116,6 +123,7 @@ class Lantern:
                 self.pending=time.monotonic()+.55
                 self.stamp=self.signature()
 
+    @serialized_control
     def restart(self):
         with self.lock:
             if not self.state['active']:raise ValueError('Inicia una sesión Lantern primero.')
@@ -164,7 +172,7 @@ class Lantern:
                         diagnostics=output_diagnostics(check.output,path)
                         with self.lock:
                             self.state.update(status='waiting' if self.content is not None else 'error',output=check.output,
-                                diagnostics=diagnostics,error='El buffer todavía no es ejecutable.',adapter=plan['adapter'])
+                                diagnostics=diagnostics,error=diagnostics[0]['message'] if diagnostics else 'La compilación no terminó correctamente. Abre el monitor para ver la salida del compilador.',adapter=plan['adapter'])
                         continue
                 with self.lock:
                     if obsolete():continue
@@ -205,6 +213,7 @@ class Lantern:
         self.history=[h for h in self.history if h['revision']!=entry['revision']]+[entry]
         self.history=self.history[-20:];atomic_json(self.memory_dir/'history.json',self.history)
 
+    @serialized_control
     def stop(self):
         with self.lock:
             self.event.set();thread=self.thread;job=self.job;validation=self.validation;self.state['active']=False;self.state['lens']=[]

@@ -1,3 +1,5 @@
+import {installMonacoOverlays} from './monaco-overlays.js';
+import {themePalette} from './extension-theme.js';
 import {escapeHTML, icon} from './icons.js';
 // Monaco rejects outstanding worker requests when a model/provider is disposed.
 // Handle only that expected cancellation; other editor failures still surface.
@@ -64,11 +66,15 @@ export class LumenEditor {
     // Language workers resolve their own modules outside the document context.
     // An absolute base also works inside their blob/module workers in WebView2.
     window.require.config({paths:{vs:new URL('/vendor/monaco/vs',location.href).href}});
+    // The bundled translations are AMD modules and must execute after the loader,
+    // but before editor.main reads the message table.
+    if(document.documentElement.lang!=='en')await new Promise((resolve,reject)=>window.require(['vs/nls.messages.es'],resolve,reject));
     await new Promise((resolve,reject)=>{
       const timer=setTimeout(()=>reject(new Error('Monaco startup timed out')),15000);
       window.require(['vs/editor/editor.main'],()=>{clearTimeout(timer);resolve();},error=>{clearTimeout(timer);reject(error);});
     });
     this.kind='monaco';
+    this.disposables.push(installMonacoOverlays());
     for (const [id,exts] of [['nc',['.n','.nm','.ncp','.nb','.nbb']],['asm',['.asm','.S','.s']]]) {
       monaco.languages.register({id,extensions:exts});
       monaco.languages.setMonarchTokensProvider(id,{tokenizer:{root:[
@@ -90,7 +96,7 @@ export class LumenEditor {
       bracketPairColorization:{enabled:false},folding:true,showFoldingControls:'mouseover',
       overviewRulerLanes:0,hideCursorInOverviewRuler:true,overviewRulerBorder:false,
       scrollbar:{vertical:'hidden',horizontal:'hidden',verticalScrollbarSize:0,horizontalScrollbarSize:0,useShadows:false},
-      fixedOverflowWidgets:false,stickyScroll:{enabled:false},accessibilitySupport:'auto',ariaLabel:'Lumen code editor',
+      fixedOverflowWidgets:true,overflowWidgetsDomNode:document.body,stickyScroll:{enabled:false},accessibilitySupport:'auto',ariaLabel:'Lumen code editor',
       quickSuggestions:{other:true,comments:false,strings:false},suggest:{preview:true},inlineSuggest:{enabled:true},
       tabCompletion:'on',wordBasedSuggestions:'currentDocument',
     });
@@ -157,14 +163,19 @@ export class LumenEditor {
         'editorWidget.border':c('border-strong'),'editorSuggestWidget.background':c('surface'),
         'editorSuggestWidget.foreground':c('text'),'editorSuggestWidget.border':c('border'),
         'editorGutter.background':c('editor'),'minimap.background':c('editor'),
-        'scrollbarSlider.background':c('border-strong')+'70','scrollbarSlider.hoverBackground':c('border-strong')+'b0',
+        'scrollbarSlider.background':c('border-strong').slice(0,7)+'70','scrollbarSlider.hoverBackground':c('border-strong').slice(0,7)+'b0',
         'editorSuggestWidget.selectedBackground':c('selected'),'editorSuggestWidget.selectedForeground':c('text'),
         'editorSuggestWidget.highlightForeground':c('accent'),'editorSuggestWidget.focusHighlightForeground':c('accent'),
         'editorHoverWidget.background':c('surface'),'editorHoverWidget.border':c('border'),
         'editorError.foreground':c('error-color')||'#df3958','editorGhostText.foreground':c('muted'),
         'list.hoverBackground':c('hover'),'list.activeSelectionBackground':c('selected'),'focusBorder':'#00000000'},
     });
-    monaco.editor.setTheme('lumen-theme');
+    if(this.extensionTheme){
+      const theme=this.extensionTheme,{colors,dark}=themePalette(theme),rules=[];
+      const aliases={storage:'keyword',constant:'number','constant.numeric':'number','entity.name.function':'function','support.function':'function','entity.name.type':'type','support.type':'type'};
+      for(const entry of theme.data?.tokenColors||[])for(const scope of Array.isArray(entry.scope)?entry.scope:String(entry.scope||'').split(',')){const settings=entry.settings||{};if(/^#[0-9a-f]{6}$/i.test(settings.foreground||''))rules.push({token:aliases[scope.trim()]||scope.trim(),foreground:settings.foreground.slice(1),fontStyle:settings.fontStyle||''});}
+      monaco.editor.defineTheme('lumen-extension-theme',{base:dark?'vs-dark':'vs',inherit:true,rules,colors});monaco.editor.setTheme('lumen-extension-theme');
+    }else monaco.editor.setTheme('lumen-theme');
   }
   initBase() {
     this.kind='base';

@@ -17,7 +17,7 @@ class JavaDebugger(PythonDebugger):
         main=(package.group(1)+'.' if package else '')+file.stem
         worker=Path(__file__).with_name('LumenJavaDebugger.java')
         self.update(status='running',path=path,engine='JDK JDI')
-        self.process=subprocess.Popen([java,'--add-modules=jdk.jdi','-Dfile.encoding=UTF-8',str(worker),str(classes),main,path,','.join(map(str,points))],cwd=ws.root,
+        self.process=subprocess.Popen([java,'--add-modules=jdk.jdi','-Dfile.encoding=UTF-8','-Dstdout.encoding=UTF-8','-Dstderr.encoding=UTF-8',str(worker),str(classes),main,path,','.join(map(str,points))],cwd=ws.root,
             stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,encoding='utf-8',errors='replace',bufsize=1,env=child_environment(),creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
         threading.Thread(target=self._read,args=(self.process,),daemon=True).start();threading.Thread(target=self._errors,args=(self.process,),daemon=True).start()
         return self.snapshot()

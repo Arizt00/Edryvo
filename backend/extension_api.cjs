@@ -71,5 +71,25 @@ module.exports=function createAPI(host,options){
   // Missing namespaces/methods fail by name, without pretending to implement them.
   for(const name of ['workspace','window','languages','extensions','debug','tasks','env'])vscode[name]=new Proxy(vscode[name],{get(target,key){if(key in target||typeof key==='symbol'||key==='then')return target[key];throw Error(`La extensión necesita vscode.${name}.${key}, aún no disponible en Lumen preview.`);}});
   const context={subscriptions:[],extensionPath:options.root,extensionUri:Uri.file(options.root),extension:extensions.find(e=>e.id===options.id),extensionMode:1,storagePath:storage,globalStoragePath:storage,storageUri:Uri.file(storage),globalStorageUri:Uri.file(storage),logUri:Uri.file(storage),logPath:storage,asAbsolutePath:p=>path.join(options.root,p),workspaceState:memento('workspace-state.json'),globalState:memento('global-state.json'),environmentVariableCollection:{persistent:false,replace:()=>{throw Error('Configura variables del proceso desde Lumen.');}}};
-  return {vscode,context,syncDocument,getDiagnostics:()=>current?[...diagnostics.values()].flatMap(map=>map.get(current.uri.toString())||[]):[],diagnosticCollections:diagnostics,readVirtual:async value=>{const u=Uri.parse(value);const p=virtual.get(u.scheme);if(!p)throw Error('Documento virtual no registrado.');return p.provideTextDocumentContent(u);}};
+  const failures=new WeakMap();
+  vscode.workspace.onWillSaveTextDocument=event('willSave').event;
+  vscode.TextDocumentSaveReason={Manual:1,AfterDelay:2,FocusOut:3};
+  async function willSave(reason=1){
+    const edits=[],deadline=Date.now()+1500,doc=current;
+    for(const listener of event('willSave').listeners){
+      if(Date.now()>=deadline)break;if((failures.get(listener)||0)>=3)continue;
+      const pending=[];let dispatch=true,timer;
+      try{
+        const returned=listener({document:doc,reason,waitUntil:value=>{if(!dispatch)throw Error('waitUntil debe llamarse durante el evento de guardado.');pending.push(Promise.resolve(value));}});
+        // A returned promise is not waitUntil, but its rejection must be consumed.
+        returned?.catch?.(error=>console.error(error.message));dispatch=false;
+        const values=await Promise.race([Promise.all(pending),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Tiempo de guardado agotado.')),Math.max(1,deadline-Date.now()));})]);
+        for(const value of values)if(Array.isArray(value))edits.push(...value);
+      }catch(error){failures.set(listener,(failures.get(listener)||0)+1);console.error(error.message);}
+      finally{dispatch=false;clearTimeout(timer);}
+    }
+    return {edits};
+  }
+  function didSave(){if(current){current.isDirty=false;event('save').fire(current);}}
+  return {vscode,context,syncDocument,willSave,didSave,getDiagnostics:()=>current?[...diagnostics.values()].flatMap(map=>map.get(current.uri.toString())||[]):[],diagnosticCollections:diagnostics,readVirtual:async value=>{const u=Uri.parse(value);const p=virtual.get(u.scheme);if(!p)throw Error('Documento virtual no registrado.');return p.provideTextDocumentContent(u);}};
 };

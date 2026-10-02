@@ -1,6 +1,6 @@
-# Lumen Studio · 0.5.2 Preview R5
+# Lumen Studio · 0.5.2 Preview R6
 
-Lumen es un IDE de escritorio con editor Monaco, terminal integrada, depuración por lenguaje, Lantern Live y asistencia de IA. Está en desarrollo: el alcance real y las limitaciones de esta entrega se detallan en [Preview R5](docs/PREVIEW_R5.md).
+Lumen es un IDE de escritorio con editor Monaco, terminal integrada, depuración por lenguaje, Lantern Live y asistencia de IA. Está en desarrollo: el alcance real y las limitaciones de esta entrega se detallan en [Preview R6](docs/PREVIEW_R6.md).
 
 ## Usar Lumen
 
@@ -51,6 +51,6 @@ Las pruebas visuales requieren Playwright y Microsoft Edge. Las pruebas dependie
 
 ## Documentación y licencia
 
-[Lantern, cambios y límites](docs/PREVIEW_R5.md) · [Lenguajes](docs/LENGUAJES.md) · [Extensiones](docs/EXTENSIONES.md) · [Seguridad](docs/SEGURIDAD.md)
+[Lantern, cambios y límites](docs/PREVIEW_R6.md) · [Lenguajes](docs/LENGUAJES.md) · [Extensiones](docs/EXTENSIONES.md) · [Seguridad](docs/SEGURIDAD.md)
 
 Repositorio público bajo [licencia propietaria](LICENSE), sin licencia de código abierto por el momento. Las dependencias mantienen sus propias licencias: [avisos de terceros](THIRD_PARTY_NOTICES.md).

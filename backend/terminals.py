@@ -23,7 +23,7 @@ SECRET_NAMES={'OPENAI_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KEY','GOOGLE_API_
 
 def child_environment():
     env={k:v for k,v in os.environ.items() if k.upper() not in SECRET_NAMES and not k.upper().startswith('LUMEN_SECRET_')}
-    env.update({'TERM':'xterm-256color','COLORTERM':'truecolor','LUMEN_TERMINAL':'1'})
+    env.update({'TERM':'xterm-256color','COLORTERM':'truecolor','LUMEN_TERMINAL':'1','PYTHONUTF8':'1','PYTHONIOENCODING':'utf-8'})
     return env
 
 

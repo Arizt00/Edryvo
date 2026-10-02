@@ -18,7 +18,21 @@ def marker(message, line=1, column=1, severity=8, source='Lumen'):
 def output_diagnostics(text, path):
     """Normalize compiler locations without turning log text into commands."""
     result=[]
-    for line in text.splitlines():
+    lines=text.splitlines()
+    for index,line in enumerate(lines):
+        # javac omits a column and places a caret on the following source line.
+        java=re.match(r'(.+\.java):(\d+):\s*(error|warning):\s*(.*)',line)
+        if java:
+            file,ln,level,msg=java.groups()
+            if Path(file.strip()).name.casefold()==Path(path).name.casefold():
+                caret=lines[index+2] if index+2<len(lines) else ''
+                column=caret.index('^')+1 if '^' in caret else 1
+                details=[]
+                for detail in lines[index+3:index+6]:
+                    if not re.match(r'\s+(symbol|location):',detail):break
+                    details.append(detail.strip())
+                result.append(marker(msg+(' · '+' · '.join(details) if details else ''),ln,column,4 if level=='warning' else 8,'Java'))
+            continue
         match=re.search(r'(.+?)\((\d+),(\d+)\):\s*(error|warning)\s*([^:]*):\s*(.*)',line)
         if not match:match=re.search(r'(.+?):(\d+):(\d+):\s*(fatal error|error|warning)(?:\s+([^:]+))?:\s*(.*)',line)
         if match:

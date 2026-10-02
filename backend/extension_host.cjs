@@ -25,6 +25,8 @@ async function request(message){
   }
   if(!loaded)throw Error('Extensión no activada.');
   effects=[];active=message.document||active;bridge.syncDocument(active);
+  if(message.method==='willSave')return bridge.willSave(message.reason);
+  if(message.method==='didSave'){bridge.didSave();return {ok:true};}
   if(message.method==='virtual')return {text:await bridge.readVirtual(message.uri)};
   if(message.method==='command'){
     const c=commands.get(message.command);if(!c)throw Error('Comando no registrado.');

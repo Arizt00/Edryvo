@@ -5,6 +5,8 @@ import base64
 import io
 import json
 import os
+import platform
+import urllib.error
 import re
 import secrets
 import shutil
@@ -24,6 +26,25 @@ MAX_ARCHIVE=4*1024**3
 MAX_UNPACKED=8*1024**3
 MAX_MEMBER=2*1024**3
 REGISTRY='https://open-vsx.org'
+
+def target_platform():
+    machine=platform.machine().lower()
+    arch={'amd64':'x64','x86_64':'x64','aarch64':'arm64','arm64':'arm64','x86':'ia32','i386':'ia32','armv7l':'armhf'}.get(machine,machine)
+    system={'Windows':'win32','Darwin':'darwin','Linux':'linux'}.get(platform.system(),platform.system().lower())
+    return system+'-'+arch
+
+def registry_metadata(parts,version):
+    # The unqualified endpoint can return a package for an arbitrary architecture.
+    base=REGISTRY+'/api/'+'/'.join(parts)
+    for target in (target_platform(),'universal'):
+        try:
+            data=json.loads(download(base+'/'+target+'/'+version,2_000_000))
+            if data.get('error'):continue
+            if data.get('targetPlatform','universal') not in (target,'universal'):continue
+            return data
+        except urllib.error.HTTPError as exc:
+            if exc.code!=404:raise
+    raise ValueError('Esta extensión no ofrece una versión para '+target_platform()+'.')
 
 
 class CheckedRedirect(urllib.request.HTTPRedirectHandler):
@@ -107,6 +128,26 @@ def json_resource(root,relative):
         return json.loads(text)
     except (UnicodeError,ValueError) as e: raise ValueError('El recurso no contiene JSON/JSONC válido.') from e
 
+def color_theme(root,relative,seen=None):
+    """Resolve JSONC theme inheritance strictly inside its installed package."""
+    if not isinstance(relative,str) or not relative:raise ValueError('Ruta de tema no válida.')
+    root=root.resolve()
+    seen=set() if seen is None else seen
+    target=(root/relative).resolve()
+    if not target.is_relative_to(root.resolve()) or target in seen or len(seen)>=12:
+        raise ValueError('Herencia de tema circular o fuera del paquete.')
+    seen.add(target)
+    data=json_resource(root,target.relative_to(root).as_posix())
+    if not isinstance(data,dict):raise ValueError('Tema de color no válido.')
+    parent=data.get('include')
+    if parent:
+        if not isinstance(parent,str):raise ValueError('Herencia de tema no válida.')
+        base=color_theme(root,(target.parent/parent).resolve().relative_to(root.resolve()).as_posix(),seen)
+        data={**base,**data,'colors':{**base.get('colors',{}),**data.get('colors',{})},
+              'tokenColors':base.get('tokenColors',[])+data.get('tokenColors',[])}
+    return data
+
+
 def icon_theme(root,declaration,owner):
     theme_path=(root/str(safe_member(declaration.get('path','')))).resolve()
     data=json_resource(root,declaration.get('path'));definitions={};size=0
@@ -163,7 +204,7 @@ class ExtensionStore:
         self._network();parts=str(extension_id).split('.')
         if len(parts)!=2 or any(not ID_PART.fullmatch(x) for x in parts): raise ValueError('Usa publisher.nombre.')
         if version!='latest' and not VERSION.fullmatch(str(version)): raise ValueError('Versión no válida.')
-        meta=json.loads(download(REGISTRY+'/api/'+'/'.join(parts)+'/'+version,2_000_000))
+        meta=registry_metadata(parts,version)
         url=meta.get('files',{}).get('download')
         if not url: raise ValueError('Open VSX no devolvió el VSIX.')
         fd,name=tempfile.mkstemp(suffix='.vsix',prefix='.download-',dir=self.root);os.close(fd);package=Path(name)
@@ -233,7 +274,7 @@ class ExtensionStore:
             custom=manifest.get('lumen',{})
             if isinstance(custom,dict) and custom.get('commands'): supported.append('lumen.commands')
             if manifest.get('main') or custom.get('main'):
-                supported.append('runtime');warnings.append('Código Node.js ejecutable: requiere autorización para iniciar. API Lumen preview y subconjunto de VS Code; APIs no implementadas producen un error explícito.')
+                supported.append('runtime');warnings.append('Motor Python Pyrefly integrado mediante LSP: autocompletado, diagnósticos, definiciones, referencias e inlay hints. La interfaz y los comandos propios de VS Code no se ejecutan.' if eid.lower()=='meta.pyrefly' else 'Código Node.js ejecutable: requiere autorización para iniciar. API Lumen preview y subconjunto de VS Code; APIs no implementadas producen un error explícito.')
             elif manifest.get('browser'):warnings.append('La entrada browser de VS Code no es compatible con el host Node.js de esta preview.')
             if c.get('grammars'): warnings.append('Las gramáticas TextMate se conservan, pero no se ejecutan. El resaltado depende de los lenguajes integrados en Monaco.')
             if manifest.get('extensionDependencies') or manifest.get('extensionPack'): warnings.append('Las dependencias y paquetes agrupados no se instalan automáticamente.')
@@ -359,7 +400,7 @@ class ExtensionStore:
                         prefix=value.get('prefix',name);prefix=prefix[0] if isinstance(prefix,list) and prefix else prefix
                         output['snippets'].append({'name':str(name)[:160],'prefix':str(prefix)[:120],'body':body,'language':str(declaration.get('language','plaintext'))[:80],'owner':info['id']})
                 for declaration in c.get('themes',[])[:30]:
-                    data=json_resource(root,declaration.get('path'))
+                    data=color_theme(root,declaration.get('path'))
                     if isinstance(data,dict): output['themes'].append({'id':info['id']+':'+str(declaration.get('id',declaration.get('label','theme'))),'label':str(declaration.get('label','Theme'))[:160],'uiTheme':declaration.get('uiTheme','vs-dark'),'data':data,'owner':info['id']})
                 custom=manifest.get('lumen',{})
                 for declaration in c.get('iconThemes',[])[:5]:

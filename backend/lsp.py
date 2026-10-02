@@ -36,7 +36,7 @@ class LanguageSession:
                 'capabilities':{'general':{'positionEncodings':['utf-16']},'textDocument':{'synchronization':{'didSave':True},
                     'completion':{'completionItem':{'snippetSupport':True}},'hover':{'contentFormat':['plaintext','markdown']},
                     'definition':{'linkSupport':True},'inlayHint':{'dynamicRegistration':False},'semanticTokens':{'requests':{'full':True},'tokenTypes':['namespace','type','class','enum','interface','struct','typeParameter','parameter','variable','property','enumMember','event','function','method','macro','keyword','modifier','comment','string','number','regexp','operator'],'tokenModifiers':['declaration','definition','readonly','static','deprecated','abstract','async','modification','documentation','defaultLibrary'],'formats':['relative']},'publishDiagnostics':{'versionSupport':True}},'workspace':{'applyEdit':False,'configuration':True}},
-                'initializationOptions':None},timeout=12).get('capabilities',{})
+                'initializationOptions':profile.get('initializationOptions')},timeout=12).get('capabilities',{})
             if self.capabilities.get('positionEncoding','utf-16')!='utf-16':raise ValueError('Este cliente requiere posiciones LSP UTF-16.')
             self.notify('initialized',{})
         except Exception:self.close();raise
@@ -71,7 +71,13 @@ class LanguageSession:
                 if 'method' in message:
                     if 'id' in message:
                         method=message['method']
-                        if method=='workspace/configuration':result=[None for _ in message.get('params',{}).get('items',[])[:100]]
+                        if method=='workspace/configuration':
+                            result=[]
+                            for item in message.get('params',{}).get('items',[])[:100]:
+                                value=self.profile.get('settings',{})
+                                for key in str(item.get('section','')).split('.'):
+                                    if key:value=value.get(key,{}) if isinstance(value,dict) else {}
+                                result.append(value)
                         elif method=='workspace/applyEdit':result={'applied':False,'failureReason':'Lumen requires explicit user review.'}
                         else:result=None
                         self._write({'jsonrpc':'2.0','id':message['id'],'result':result})

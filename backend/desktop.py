@@ -8,7 +8,7 @@ class DesktopAPI:
         self._application = None
 
     def status(self):
-        return {'ready': self._window is not None, 'version': '0.5.2', 'revision': 5}
+        return {'ready': self._window is not None, 'version': '0.5.2', 'revision': 6}
 
     def new_window(self, path='', content=None):
         import subprocess

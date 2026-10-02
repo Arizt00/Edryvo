@@ -117,10 +117,10 @@ class Runtimes:
             go=self.executable('go');commands=[[go,'build',*(['-gcflags=all=-N -l'] if debug else []),'-o',str(target),str(file)]]
             if not check and not debug:commands.append([str(target)])
         elif lang=='java':
-            javac=self.executable('javac');java=self.executable('java');commands=[[javac,'-g','-encoding','UTF-8','-d',str(folder),str(file)]]
+            javac=self.executable('javac');java=self.executable('java');commands=[[javac,'-J-Dfile.encoding=UTF-8','-J-Dstdout.encoding=UTF-8','-J-Dstderr.encoding=UTF-8','-g','-encoding','UTF-8','-d',str(folder),str(file)]]
             package=re.search(r'^\s*package\s+([\w.]+)\s*;',file.read_text(encoding='utf-8-sig'),re.M);main=(package.group(1)+'.' if package else '')+file.stem
             target=folder
-            if not check and not debug:commands.append([java,'-cp',str(folder),main])
+            if not check and not debug:commands.append([java,'-Dfile.encoding=UTF-8','-Dstdin.encoding=UTF-8','-Dstdout.encoding=UTF-8','-Dstderr.encoding=UTF-8','-cp',str(folder),main])
         elif lang=='csharp':
             if re.search(r'\b(using\s+UnityEngine|MonoBehaviour)\b',file.read_text(encoding='utf-8-sig')):raise ValueError('Este componente pertenece a Unity. Abre el proyecto en Unity o configura una tarea y su adaptador DAP de Unity.')
             dotnet=self.executable('dotnet');projects=[]

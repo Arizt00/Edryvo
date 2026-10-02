@@ -2,6 +2,8 @@ import {ACCOUNT_PROVIDERS,accountPanel,bindAccount} from './accounts.js';
 import {icon,escapeHTML,setFileIcons} from './icons.js';
 import {languageFor} from './editor.js';
 import {LiveEditSession} from './live-edit.js';
+import {applyShellTheme} from './extension-theme.js';
+import {requestsLiveEdit} from './ai-intent.js';
 import {OrderedTerminalInput} from './terminal-input.js';
 
 const PLATFORM_CATEGORIES=[
@@ -30,7 +32,7 @@ export class LumenPlatform {
   glyph(name){return icon(name);}
   async init(){
     const [state,settings]=await Promise.all([this.api('/state'),this.api('/settings')]);this.state=state;this.commandSequence=state.commandSequence;
-    this.prefs=settings.settings;this.schema=settings.schema.filter(s=>!['ai.melodyProvider','ai.melodyModel'].includes(s.key));this.providers=state.providers;this.development=state.development;
+    this.prefs=settings.settings;this.schema=settings.schema.filter(s=>!['ai.melodyProvider','ai.melodyModel','appearance.extensionTheme'].includes(s.key));this.providers=state.providers;this.development=state.development;
     this.applyPreferences();this.createProviderBar();this.createTerminalBar();this.createStatus();this.installEvents();
     await this.loadContributions();
     this.scheduleCommands();this.scheduleHardware();
@@ -44,12 +46,15 @@ export class LumenPlatform {
     document.documentElement.style.setProperty('--motion-layout',p['appearance.motionDuration']+'ms');
     document.documentElement.style.setProperty('--pty-font',p['terminal.fontSize']+'px');
     document.documentElement.style.setProperty('--error-color',({red:'#e33655',rose:'#df458f',amber:'#bb7109',mint:'#16885e'})[p['appearance.errorColor']]||'#e33655');
+    const external=this.extensionThemes?.find(t=>t.id===p['appearance.extensionTheme']);
+    applyShellTheme(external);this.host.editor.extensionTheme=external||null;
     this.host.editor.changedTheme();this.lantern?.render();
     this.translateShell();
     for(const terminal of this.terminals.values())if(terminal.xterm){terminal.xterm.options.fontSize=p['terminal.fontSize'];terminal.xterm.options.cursorBlink=p['terminal.cursorBlink'];terminal.xterm.options.scrollback=p['terminal.scrollback'];this.themeTerminal(terminal);}
     this.updateProviderBar();this.onAppearance?.();
   }
   async savePreference(key,value){
+    if(key==='appearance.theme'&&this.prefs['appearance.extensionTheme'])await this.savePreference('appearance.extensionTheme','');
     const previous=this.prefs[key];this.prefs[key]=value;this.applyPreferences();
     // Serialize writes so quickly changing a slider cannot restore an older value.
     this.settingsWrite=this.settingsWrite.catch(()=>{}).then(()=>this.api('/settings',{settings:{[key]:value}}));
@@ -137,7 +142,7 @@ export class LumenPlatform {
     return `<div class="preference-row ${disabled?'unavailable':''}"><label for="${id}">${this.e(label)}<small>${disabled?' · '+(copilotLimit?this.t('no aplicado por Copilot SDK','not applied by Copilot SDK'):this.t('motor no instalado','engine not installed')):''}</small></label><div class="preference-control">${control}</div></div>`;
   }
   themePreviews(){return `<div class="platform-theme-previews">${['day','dark','forest'].map(id=>`<button class="platform-theme-card ${this.prefs['appearance.theme']===id?'active':''}" data-platform-theme="${id}"><span class="preview-window ${id}"><i></i><i></i><i></i></span><strong>${this.t(...PLATFORM_OPTION_NAMES[id])}</strong><small>${this.t('Composición Lumen','Lumen composition')}</small></button>`).join('')}</div>`;}
-  externalThemeOptions(){const themes=this.extensionThemes||[];return themes.length?`<div class="extension-theme-options"><h4>${this.t('Temas de sintaxis instalados (Monaco)','Installed syntax themes (Monaco)')}</h4>${themes.map((x,i)=>`<button class="secondary-button" data-external-theme="${i}">${this.e(x.label||x.id)}</button>`).join('')}</div>`:'';}
+  externalThemeOptions(){const themes=this.extensionThemes||[];return themes.length?`<div class="extension-theme-options"><h4>${this.t('Temas instalados · todo Lumen','Installed themes · all of Lumen')}</h4>${themes.map((x,i)=>`<button class="secondary-button" data-external-theme="${i}">${this.e(x.label||x.id)}</button>`).join('')}</div>`:'';}
   securitySummary(){return `<div class="platform-notice"><span>${this.glyph('shield')}</span><div><strong>${this.t('Sin permisos invisibles','No hidden permissions')}</strong><p>${this.t('Las extensiones ejecutables requieren autorización y acceso de usuario al equipo. La IA solo edita en vivo al permitir esa petición. La confirmación de confianza no puede desactivarse.','Executable extensions require permission and run with user access to this device. Live AI editing requires permission for that request. Workspace trust cannot be disabled.')}</p><button class="text-button" data-platform="audit">${this.t('Ver registro local','View local audit')}</button><button class="text-button" data-platform="revoke-trust">${this.t('Revocar confianza del proyecto','Revoke workspace trust')}</button></div></div>`;}
   keybindings(){return `<h3>${this.t('Acciones directas','Direct actions')}</h3><div class="shortcut-table">${[['Ctrl / Cmd + Shift + N','Nueva ventana','New window'],['Ctrl / Cmd + N','Nuevo archivo','New file'],['Ctrl / Cmd + O / S','Guardar archivo','Save file'],['Ctrl / Cmd + Shift + O / S','Guardar como','Save as'],['Ctrl / Cmd + Alt + L','Lantern en el archivo activo','Lantern on active file'],['F12','Ir a definición','Go to definition'],['Ctrl / Cmd + ,','Abrir ajustes','Open settings'],['Ctrl / Cmd + Shift + P','Paleta de comandos','Command palette'],['Ctrl / Cmd + B','Contraer lateral izquierdo','Collapse left panel'],['Ctrl / Cmd + Alt + B','Contraer lateral derecho','Collapse right panel'],['Ctrl / Cmd + Alt + F','Alternar concentración','Toggle focus'],['Ctrl / Cmd + Alt + T','Nueva terminal interactiva','New interactive terminal'],['Ctrl / Cmd + Alt + E','Extensiones','Extensions'],['Ctrl / Cmd + Space','Completado LSP (si hay servidor)','LSP completion (server required)'],['Ctrl / Cmd + Alt + 1 / 2 / 3','Día / oscuro / bosque','Day / dark / forest'],['F5 / Shift + F5','Ejecutar / detener tarea','Run / stop task']].map(([key,es,en])=>`<div><span>${this.t(es,en)}</span><kbd>${key}</kbd></div>`).join('')}</div><div class="platform-notice"><code>lumen focus</code><p>${this.t('El mismo comando entra y sale del modo concentración. En la consola de Lumen: focus, /focus o concentracion.','The same command enters and exits focus mode. In the Lumen console: focus, /focus or concentracion.')}</p></div>`;}
   async extensions(mode='installed',query=''){
@@ -156,7 +161,7 @@ export class LumenPlatform {
     const container=document.getElementById('extension-results');if(!container)return;
     this.extensionItems=items;
     if(!items.length){container.innerHTML=`<div class="platform-empty">${this.glyph('extensions')}<h3>${this.t('Un espacio para tus herramientas.','A space for your tools.')}</h3><p>${this.t('Todavía no hay extensiones aquí. Explora el registro o importa el paquete de ejemplo incluido.','No extensions here yet. Explore the registry or import the included sample package.')}</p><button class="primary-button" data-extension-mode="browse">${this.t('Explorar Open VSX','Explore Open VSX')}</button></div>`;return;}
-    container.innerHTML=`<div class="extension-grid">${items.map(item=>`<article class="extension-card"><div class="extension-card-top"><div class="extension-logo">${this.glyph(item.supported?.includes('themes')?'palette':'extensions')}</div><div><h4>${this.e(item.displayName||item.name)}</h4><span>${this.e(item.publisher||item.namespace||item.id?.split('.')[0])} · ${this.e(item.version)}</span></div></div><p>${this.e(item.description||this.t('Sin descripción.','No description.'))}</p><div class="extension-card-tags"><span>${mode==='installed'?this.e(item.compatibility==='partial'?this.t('Compatibilidad parcial','Partial compatibility'):this.t('Declarativa','Declarative')):this.t('Pendiente de revisión','Needs review')}</span>${mode==='installed'?`<span class="${item.enabled?'status-positive':''}">${item.enabled?this.t('Activa','Enabled'):this.t('Inactiva','Disabled')}</span>`:''}</div><div class="extension-card-actions">${mode==='installed'?`<button class="secondary-button small-button" data-extension-toggle="${this.e(item.id)}" data-enabled="${!item.enabled}">${item.enabled?this.t('Desactivar','Disable'):this.t('Activar','Enable')}</button><button class="icon-button" data-extension-remove="${this.e(item.id)}" aria-label="${this.t('Desinstalar','Uninstall')}">${this.glyph('trash')}</button>`:`<button class="primary-button small-button" data-extension-inspect="${this.e(item.id)}">${this.t('Revisar','Review')} ${this.glyph('arrow-right')}</button>`}</div></article>`).join('')}</div>`;
+    container.innerHTML=`<div class="extension-grid">${items.map(item=>`<article class="extension-card"><div class="extension-card-top"><div class="extension-logo">${this.glyph(item.supported?.includes('themes')?'palette':'extensions')}</div><div><h4>${this.e(item.displayName||item.name)}</h4><span>${this.e(item.publisher||item.namespace||item.id?.split('.')[0])} · ${this.e(item.version)}</span></div></div><p>${this.e(item.description||this.t('Sin descripción.','No description.'))}</p><div class="extension-card-tags"><span>${mode==='installed'?this.e(item.compatibility==='partial'?this.t('Compatibilidad parcial','Partial compatibility'):this.t('Declarativa','Declarative')):this.t('Pendiente de revisión','Needs review')}</span>${mode==='installed'?`<span class="${item.enabled?'status-positive':''}">${item.enabled?this.t('Activa','Enabled'):this.t('Inactiva','Disabled')}</span>`:''}</div><div class="extension-card-actions">${mode==='installed'?`<button class="secondary-button small-button" data-extension-inspect="${this.e(item.id)}">${this.t('Reinstalar paquete','Reinstall package')}</button>${(this.extensionThemes||[]).map((theme,index)=>theme.owner===item.id?`<button class="secondary-button small-button" data-external-theme="${index}">${this.t('Aplicar tema','Apply theme')} · ${this.e(theme.label)}</button>`:'').join('')}<button class="secondary-button small-button" data-extension-toggle="${this.e(item.id)}" data-enabled="${!item.enabled}">${item.enabled?this.t('Desactivar','Disable'):this.t('Activar','Enable')}</button><button class="icon-button" data-extension-remove="${this.e(item.id)}" aria-label="${this.t('Desinstalar','Uninstall')}">${this.glyph('trash')}</button>`:`<button class="primary-button small-button" data-extension-inspect="${this.e(item.id)}">${this.t('Revisar','Review')} ${this.glyph('arrow-right')}</button>`}</div></article>`).join('')}</div>`;
   }
   async importExtension(){
     if(window.pywebview?.api?.choose_extension){const path=await window.pywebview.api.choose_extension();if(path)return this.reviewExtension({path});return;}
@@ -183,7 +188,7 @@ export class LumenPlatform {
       if(status.error)throw new Error(status.error);
       if(generation!==this.extensionReviewGeneration||!document.getElementById('extension-review-progress')){await this.api('/extensions/review/cancel',{id:jobId});return;}
       const info=status.result;this.reviewedExtension=info;
-      this.host.modal(this.t('Revisión de extensión','Extension review'),`<div class="extension-review-heading"><span class="extension-logo">${this.glyph('extensions')}</span><div><h3>${this.e(info.displayName)}</h3><p>${this.e(info.id)} · ${this.e(info.version)}</p></div></div><div class="review-metadata"><span>${this.t('Origen','Source')}</span><strong>${this.e(info.source)}</strong><span>${this.t('Licencia declarada','Declared license')}</span><strong>${this.e(info.license)}</strong><span>${this.t('Capacidades activables','Activatable contributions')}</span><strong>${this.e(info.supported.join(', ')||this.t('Ninguna','None'))}</strong></div><div class="hash-line"><span>SHA-256</span><code>${info.sha256}</code></div>${info.warnings.map(w=>`<div class="platform-notice warning">${this.glyph('info')}<p>${this.e(w)}</p></div>`).join('')}<p class="review-disclaimer">${this.t('La comprobación del archivo no certifica que el editor sea fiable ni sustituye la revisión de su licencia. Su código solo se ejecuta al autorizar Iniciar motor.','Archive validation does not certify publisher trust or replace license review. Extension executables are not loaded.')}</p><div class="modal-actions"><button class="secondary-button" id="cancel-extension-review">${this.t('Cancelar','Cancel')}</button><button class="primary-button" id="confirm-extension-install">${this.t('Instalar este paquete','Install this package')}</button></div>`,{wide:true});
+      this.host.modal(this.t('Revisión de extensión','Extension review'),`<div class="extension-review-heading"><span class="extension-logo">${this.glyph('extensions')}</span><div><h3>${this.e(info.displayName)}</h3><p>${this.e(info.id)} · ${this.e(info.version)}</p></div></div><div class="review-metadata"><span>${this.t('Origen','Source')}</span><strong>${this.e(info.source)}</strong><span>${this.t('Licencia declarada','Declared license')}</span><strong>${this.e(info.license)}</strong><span>${this.t('Capacidades activables','Activatable contributions')}</span><strong>${this.e(info.supported.join(', ')||this.t('Ninguna','None'))}</strong></div><details class="extension-checksum"><summary>${this.t('Integridad del paquete · SHA-256','Package integrity · SHA-256')}</summary><code>${this.e(info.sha256)}</code></details><details class="extension-compatibility"><summary>${this.glyph('info')}${this.t('Compatibilidad y detalles técnicos','Compatibility and technical details')}<small>${info.warnings.length}</small></summary>${info.warnings.map(w=>`<p>${this.e(w)}</p>`).join('')}</details><p class="review-disclaimer">${this.t('La comprobación del archivo no certifica que el editor sea fiable ni sustituye la revisión de su licencia. Su código solo se ejecuta al autorizar Iniciar motor.','Package validation does not certify the publisher or replace license review. Code runs only after you authorize Start engine.')}</p><div class="modal-actions"><button class="secondary-button" id="cancel-extension-review">${this.t('Cancelar','Cancel')}</button><button class="primary-button" id="confirm-extension-install">${this.t('Instalar este paquete','Install this package')}</button></div>`,{wide:true});
       document.getElementById('cancel-extension-review').onclick=()=>this.safe(async()=>{await this.api('/extensions/discard',{ticket:info.ticket});this.host.closeModal();});
       document.getElementById('confirm-extension-install').onclick=()=>this.safe(async()=>{await this.api('/extensions/install',{ticket:info.ticket,consent:true});this.host.closeModal();await this.loadContributions();await this.extensions('installed');this.host.notify(this.t('Extensión instalada.','Extension installed.'));});
     }catch(error){this.host.closeModal();throw error;}
@@ -209,14 +214,12 @@ export class LumenPlatform {
     this.host.setPluginCommands(data.commands.map(c=>({id:c.id,title:c.title})));return data;
   }
   renderExtensionThemes(themes){
-    this.extensionThemes=themes;
+    this.extensionThemes=themes;this.applyPreferences();
   }
-  applyExtensionTheme(index){
-    const theme=this.extensionThemes[index];if(!theme||this.host.editor.kind!=='monaco'){this.host.notify(this.t('Los temas de sintaxis externos requieren Monaco.','External syntax themes require Monaco.'));return;}
-    const content=theme.data||theme.theme||{},rules=[];
-    for(const entry of content.tokenColors||[]){const scopes=Array.isArray(entry.scope)?entry.scope:String(entry.scope||'').split(',');for(const scope of scopes){const settings=entry.settings||{};if(/^#[0-9a-f]{6}$/i.test(settings.foreground||''))rules.push({token:scope.trim(),foreground:settings.foreground.slice(1),fontStyle:settings.fontStyle||''});}}
-    const colors={};for(const [key,value] of Object.entries(content.colors||{}))if(/^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(value))colors[key]=value;
-    window.monaco.editor.defineTheme('lumen-extension-theme',{base:theme.uiTheme==='vs'?'vs':'vs-dark',inherit:true,rules,colors});window.monaco.editor.setTheme('lumen-extension-theme');this.host.notify(this.t('Tema aplicado al editor de esta sesión. El marco Lumen conserva su tema.','Theme applied to this editor session. The Lumen frame retains its theme.'));
+  async applyExtensionTheme(index){
+    const theme=this.extensionThemes[index];if(!theme)return;
+    await this.savePreference('appearance.extensionTheme',theme.id);
+    this.host.notify(this.t('Tema aplicado a todo Lumen: ','Theme applied throughout Lumen: ')+theme.label);
   }
   async pluginCommand(id){const command=this.extensionContributions.commands?.find(c=>c.id===id);if(!command)return;if(command.kind==='openSettings')return this.settings(command.category);return this.reviewCode(command.body);}
   async snippets(){
@@ -278,13 +281,13 @@ export class LumenPlatform {
     if(this.aiJob||!question.trim())return;
     if(!this.prefs['ai.model']){await this.settings('ai');this.host.notify(this.t('Selecciona el proveedor y un modelo real antes de enviar.','Choose a provider and an actual model before sending.'));return;}
     const editor=this.host.editor,provider=this.prefs['ai.provider'],model=this.prefs['ai.model'],mode=this.prefs['ai.context'];
-    const live=edit===true;
+    const live=edit===true||requestsLiveEdit(question);
     const content=editor.getValue();const file=editor.current||'';
     if(live&&!file)throw new Error('Abre o crea un archivo antes de autorizar la edición.');
     if(content.length>64000)throw new Error(this.t('Selecciona un fragmento menor de 64000 caracteres.','Select less than 64000 characters.'));
     const consent=await this.host.confirmDialog(this.t('Revisar envío al modelo','Review model request'),this.t(
-      `Destino: ${PLATFORM_NAMES[provider]} · ${model}. Se enviarán tu pregunta y ${content.length} caracteres ${content?'de '+file:'de código'}. El proveedor puede aplicar sus propias condiciones y costes. No se enviará el resto del proyecto ni se aplicarán cambios automáticamente.`,
-      `Destination: ${PLATFORM_NAMES[provider]} · ${model}. Your question and ${content.length} characters ${content?'from '+file:'of code'} will be sent. Provider terms and charges may apply. The rest of the project will not be sent and no changes will be applied automatically.`),this.t('Enviar esta petición','Send this request'));
+      `Destino: ${PLATFORM_NAMES[provider]} · ${model}. Se enviarán tu pregunta y ${content.length} caracteres ${content?'de '+file:'de código'}. El proveedor puede aplicar sus propias condiciones y costes. No se enviará el resto del proyecto. ${live?'Has solicitado edición: confirmarás el archivo antes de aplicar cambios en vivo.':'Esta petición es de consulta y no modificará tus archivos.'}`,
+      `Destination: ${PLATFORM_NAMES[provider]} · ${model}. Your question and ${content.length} characters ${content?'from '+file:'of code'} will be sent. Provider terms and charges may apply. The rest of the project will not be sent. ${live?'You requested editing: confirm the file before live changes begin.':'This request is read-only and will not modify your files.'}`),this.t('Enviar esta petición','Send this request'));
     if(!consent)return;
     if(file!==editor.current||content!==editor.getValue())throw new Error('El archivo cambió durante la confirmación. Vuelve a enviar la petición con el contexto actual.');
     if(live&&!await this.host.confirmDialog('Autorizar edición en vivo',`La IA podrá reemplazar, añadir y borrar código solamente en ${file} para esta petición. Podrá continuar mientras trabajas en otro archivo. Si modificas o cierras ${file}, se detendrá. Se suspende el autoguardado de ese archivo y Ctrl+Z permite deshacer.`, 'Permitir esta edición'))return;
@@ -300,7 +303,7 @@ export class LumenPlatform {
     const element=this.host.appendChat('', 'assistant',`${PLATFORM_NAMES[provider]} · ${model}`);const stream=document.createElement('div');stream.className='ai-stream';element.appendChild(stream);
     let offset=0,text='',completed=false;this.liveEditing=live;this.liveEditingPath=live?file:null;if(live)clearTimeout(this.saveTimer);
     const liveSession=live?new LiveEditSession(editor,snapshot):null;
-    if(live)document.getElementById('ai-edit-file').disabled=true;
+    if(live){document.getElementById('ai-edit-file').disabled=true;document.querySelector('.ai-live-control small').textContent='Editando en vivo · '+file;}
     try{
       while(!this.disposed&&this.aiJob===result.id&&generation===this.aiGeneration){
         const update=await this.api('/ai/job?id='+encodeURIComponent(result.id)+'&offset='+offset);offset=update.offset;text+=update.delta||'';liveSession?.apply(text);if(live)this.host.refreshFileViews();
@@ -317,7 +320,7 @@ export class LumenPlatform {
         await new Promise(resolve=>setTimeout(resolve,160));
       }
     }catch(error){await this.api('/ai/cancel',{id:result.id}).catch(()=>{});stream.textContent=error.message;throw error;}
-    finally{liveSession?.dispose();if(live&&completed){this.host.notify(liveSession.complete?`Edición finalizada en ${file}. Revisa el archivo antes de guardarlo; Ctrl+Z permite deshacer.`:'La respuesta no contiene un archivo completo. Revisa los cambios parciales o usa Ctrl+Z.');}this.liveEditing=false;this.liveEditingPath=null;this.aiJob=null;document.querySelector('.send-button').disabled=false;document.getElementById('ai-edit-file').disabled=false;document.getElementById('ai-cancel-generation').hidden=true;document.querySelector('.provider-status-dot').classList.remove('generating');}
+    finally{liveSession?.dispose();if(live&&completed){this.host.notify(liveSession.complete?`Edición finalizada en ${file}. Revisa el archivo antes de guardarlo; Ctrl+Z permite deshacer.`:'La respuesta no contiene un archivo completo. Revisa los cambios parciales o usa Ctrl+Z.');}this.liveEditing=false;this.liveEditingPath=null;document.querySelector('.ai-live-control small').textContent='Preguntar no modifica tu archivo.';this.aiJob=null;document.querySelector('.send-button').disabled=false;document.getElementById('ai-edit-file').disabled=false;document.getElementById('ai-cancel-generation').hidden=true;document.querySelector('.provider-status-dot').classList.remove('generating');}
   }
   async cancelAI(){if(this.aiJob)await this.api('/ai/cancel',{id:this.aiJob});}
   async clearAI(){if(this.aiJob)await this.cancelAI();this.aiGeneration++;this.aiJob=null;document.getElementById('ai-cancel-generation').hidden=true;document.querySelector('#ai-form .send-button').disabled=false;await this.api('/ai/clear',{});this.conversation=crypto.randomUUID?.()||String(Date.now());}
@@ -390,7 +393,7 @@ export class LumenPlatform {
     }
     this.selectTerminal(result.id);this.pollTerminal(terminal);return result;
   }
-  themeTerminal(terminal){if(!terminal.xterm)return;const css=getComputedStyle(document.documentElement),get=k=>css.getPropertyValue('--'+k).trim();terminal.xterm.options.theme={background:get('terminal-bg'),foreground:get('text'),cursor:get('accent'),selectionBackground:get('selection'),black:get('bg'),red:get('danger'),green:get('success'),yellow:get('syntax-string'),blue:get('syntax-function'),magenta:get('syntax-keyword'),cyan:get('syntax-type'),white:get('text')};}
+  themeTerminal(terminal){if(!terminal.xterm)return;const css=getComputedStyle(document.documentElement),get=k=>css.getPropertyValue('--'+k).trim();terminal.xterm.options.theme={background:get('terminal-bg'),foreground:get('terminal-text')||get('text'),cursor:get('accent'),selectionBackground:get('selection'),black:get('bg'),red:get('danger'),green:get('success'),yellow:get('syntax-string'),blue:get('syntax-function'),magenta:get('syntax-keyword'),cyan:get('syntax-type'),white:get('text')};}
   selectTerminal(id){
     this.activeTerminal=id;this.showingPTY=true;this.host.dock.show('console');this.renderActiveTerminal();
     this.later(()=>{const terminal=this.terminals.get(id);if(terminal?.fit){terminal.fit.fit();this.resizeTerminal(terminal);}terminal?.xterm?.focus();terminal?.mount.querySelector('input')?.focus();},80);

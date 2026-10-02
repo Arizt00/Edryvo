@@ -39,6 +39,7 @@ SCHEMA = {
  'general.locale': ('general','es','Idioma de la interfaz','Interface language',['es','en']),
  'general.showWelcome': ('general',True,'Mostrar inicio al abrir Lumen','Show welcome when Lumen starts','bool'),
  'general.restoreLayout': ('general',True,'Recordar la distribución de paneles','Remember panel layout','bool'),
+ 'appearance.extensionTheme': ('appearance','','Tema de extensión activo','Active extension theme','string'),
  'appearance.theme': ('appearance','day','Tema','Color theme',['day','dark','forest']),
  'appearance.density': ('appearance','comfortable','Densidad','Density',['comfortable','compact']),
  'appearance.motion': ('appearance',True,'Animaciones','Animations','bool'),

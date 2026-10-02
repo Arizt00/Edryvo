@@ -34,20 +34,26 @@ export class LanternView{
       const path=this.host.editor.current;
       if(!path)throw new Error('Abre un archivo antes de iniciar Lantern.');
       this.clearLens();this.submitted=this.capture();
-      this.state=await this.host.api('/platform/lantern/start',this.submitted);
-      if(this.host.editor.current===path&&this.host.editor.getValue()!==this.submitted.content)this.changed();
+      const buffer=this.submitted;
+      this.enabled=true;await this.control(()=>this.host.api('/platform/lantern/start',buffer));
+      if(this.host.editor.current===path&&this.host.editor.getValue()!==buffer.content)this.changed();
       this.openInline();
-    }else this.state=await this.host.api('/platform/lantern/'+(action==='restart'?'restart':'stop'),{});
+    }else {if(action!=='restart'){this.enabled=false;clearTimeout(this.followTimer);clearTimeout(this.bufferTimer);}await this.control(()=>this.host.api('/platform/lantern/'+(action==='restart'?'restart':'stop'),{}));}
     this.render();this.renderLens();
   }
   async follow(){
     this.clearLens();clearTimeout(this.followTimer);this.followTimer=setTimeout(()=>this.studio.safe(async()=>{
-      const path=this.host.editor.current;if(!this.state.active)return;
-      if(!path){this.state=await this.host.api('/platform/lantern/stop',{});this.render();return;}
+      const path=this.host.editor.current;if(this.enabled===false||(!this.state.active&&!this.enabled))return;
+      if(!path){await this.control(()=>this.host.api('/platform/lantern/stop',{}));this.render();return;}
       if(path===this.state.path)return;
       this.clearLens();this.submitted=this.capture();
-      this.state=await this.host.api('/platform/lantern/start',this.submitted);this.render();
+      const buffer=this.submitted;await this.control(()=>this.host.api('/platform/lantern/start',buffer));this.render();
     }),250);
+  }
+  async control(operation){
+    const epoch=this.controlEpoch=(this.controlEpoch||0)+1;this.controlPending=true;
+    const task=(this.controlQueue||Promise.resolve()).catch(()=>{}).then(async()=>{if(epoch!==this.controlEpoch)return;const state=await operation();if(epoch===this.controlEpoch)this.state=state;});
+    this.controlQueue=task;try{await task;}finally{if(epoch===this.controlEpoch)this.controlPending=false;}
   }
   openInline(){
     this.studio.enter();if(this.host.platform.page)this.host.platform.closePage();
@@ -72,7 +78,7 @@ export class LanternView{
       root.dataset.status=s.status;
       root.querySelectorAll('[data-lantern-status]').forEach(x=>x.textContent=labels[s.status]||s.status);
       root.querySelectorAll('[data-lantern-path]').forEach(x=>{x.textContent=s.path||'Continuidad para tu código';x.title=s.path||'';});
-      root.querySelectorAll('[data-lantern-summary]').forEach(x=>x.textContent=s.active?`Revisión ${s.revision} · ${s.diagnostics?.length||0} diagnósticos${s.code!=null?' · salida '+s.code:''}`:'Ejecuta, edita y revisa cada cambio.');
+      root.querySelectorAll('[data-lantern-summary]').forEach(x=>{x.title=s.error||'';x.textContent=s.active?`Revisión ${s.revision} · ${s.diagnostics?.length||0} diagnósticos${s.code!=null?' · salida '+s.code:''}${s.error?' · '+s.error:''}`:'Ejecuta, edita y revisa cada cambio.';});
       root.querySelectorAll('[data-lantern=stop],[data-lantern=restart]').forEach(x=>x.disabled=!s.active);
       root.querySelectorAll('[data-lantern=start]').forEach(x=>x.disabled=s.active);
       const output=root.querySelector('.lantern-output');if(output&&output.textContent!==s.output){const bottom=output.scrollHeight-output.scrollTop-output.clientHeight<40;output.textContent=s.output||'Inicia Lantern para seguir la ejecución y los errores aquí.';if(bottom)output.scrollTop=output.scrollHeight;}
@@ -88,8 +94,8 @@ export class LanternView{
     this.bufferTimer=setTimeout(()=>{this.bufferQueue=(this.bufferQueue||Promise.resolve()).catch(()=>{}).then(async()=>{
       if(!this.state.active||this.host.editor.current!==buffer.path||this.host.editor.getValue()!==buffer.content)return;
       this.submitted=buffer;
-      const result=await this.host.api('/platform/lantern/buffer',buffer);
-      if(!result.ignored&&this.host.editor.current===buffer.path&&this.host.editor.getValue()===buffer.content){this.state=result;this.render();}
+      const epoch=this.controlEpoch,result=await this.host.api('/platform/lantern/buffer',buffer);
+      if(!result.ignored&&!this.controlPending&&epoch===this.controlEpoch&&this.host.editor.current===buffer.path&&this.host.editor.getValue()===buffer.content){this.state=result;this.render();}
     }).catch(e=>this.host.notify(e.message,'error'));},80);
   }
   clearLens(){
@@ -113,8 +119,9 @@ export class LanternView{
   showPreview(preview){this.studio.enter();this.host.platform.openPage('preview',`<div class="preview-toolbar"><span>${esc(preview.path)}</span><button class="secondary-button" id="refresh-preview">${icon('refresh')}Recargar</button><button class="primary-button" data-lantern="start">${icon('sparkles')}Continuar con Lantern</button></div><div class="embedded-preview"></div>`);$('.embedded-preview').append(this.frame(preview));$('#refresh-preview').onclick=()=>$('.embedded-preview').replaceChildren(this.frame(preview));}
   async poll(){
     if(this.disposed)return;
-    try{const s=await this.host.api('/platform/lantern');if(this.disposed)return;this.state=s;this.render();this.renderLens();
+    try{const epoch=this.controlEpoch;const s=await this.host.api('/platform/lantern');if(this.disposed)return;if(!this.controlPending&&epoch===this.controlEpoch){this.state=s;this.render();this.renderLens();
       if(this.matchesBuffer()&&s.status!=='preparing')this.host.editor.setDiagnostics(s.path,s.diagnostics||[],'lumen-build');
+      }
     }catch(error){if(!this.disposed)this.state={...this.state,status:'error',error:error.message};}
     this.timer=setTimeout(()=>this.poll(),document.hidden?2000:600);
   }

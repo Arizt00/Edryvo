@@ -85,7 +85,7 @@ class LumenJavaDebugger {
             source=args[2];main=args[1];for(String point:args[3].split(","))if(!point.isEmpty())points.add(Integer.parseInt(point));
             LaunchingConnector connector=Bootstrap.virtualMachineManager().defaultConnector();
             Map<String,Connector.Argument> options=connector.defaultArguments();
-            options.get("main").setValue(main);options.get("options").setValue("-Dfile.encoding=UTF-8 -cp \""+args[0]+"\"");options.get("suspend").setValue("true");
+            options.get("main").setValue(main);options.get("options").setValue("-Dfile.encoding=UTF-8 -Dstdin.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 -cp \""+args[0]+"\"");options.get("suspend").setValue("true");
             vm=connector.launch(options);
             Runtime.getRuntime().addShutdownHook(new Thread(()->{try{vm.process().destroyForcibly();}catch(Exception ignored){}}));
             Thread stdout=drain(vm.process().getInputStream()),stderr=drain(vm.process().getErrorStream());

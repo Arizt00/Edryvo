@@ -48,7 +48,7 @@ function currentRecord(){return editor?.models.get(editor.current);}
 function closePopover(){$('#popover').classList.add('hidden');popoverAnchor=null;}
 
 function applyTheme(theme,persistTheme=true) {
-  if(persistTheme&&platformUI&&platformUI.prefs['appearance.theme']!==theme)return guard(()=>platformUI.savePreference('appearance.theme',theme))();
+  if(persistTheme&&platformUI&&(platformUI.prefs['appearance.theme']!==theme||platformUI.prefs['appearance.extensionTheme']))return guard(()=>platformUI.savePreference('appearance.theme',theme))();
   if(!['day','dark','forest'].includes(theme))return;
   const changed=document.documentElement.dataset.theme!==theme;
   if(changed)motion.theme();document.documentElement.dataset.theme=theme;
@@ -130,7 +130,8 @@ function updateDocumentStatus(){
 async function saveFile(path=editor.current,{automatic=false}={}){
   if(typeof path!=='string')path=editor.current;
   const item=editor.models.get(path);if(!item)return;
-  let content=path===editor.current?editor.getValue():item.value;if(platformUI?.prefs['files.trimTrailingWhitespace'])content=content.split('\n').map(line=>line.replace(/[ \t]+$/,'')).join('\n');if(platformUI?.prefs['files.insertFinalNewline']&&!content.endsWith('\n'))content+='\n';if(path===editor.current&&content!==editor.getValue())editor.insertText(content,true);
+  await platformUI?.beforeSave?.(path,automatic);
+  let content=path===editor.current?editor.getValue():item.model?.getValue()??item.value;if(platformUI?.prefs['files.trimTrailingWhitespace'])content=content.split('\n').map(line=>line.replace(/[ \t]+$/,'')).join('\n');if(platformUI?.prefs['files.insertFinalNewline']&&!content.endsWith('\n'))content+='\n';if(path===editor.current&&content!==editor.getValue())editor.insertText(content,true);
   item.value=content;
   if(path!==editor.current&&item.model&&item.model.getValue()!==content)item.model.setValue(content);
   const result=await api('/save',{path:item.path,content:item.value,revision:item.revision,newline:item.newline,bom:item.bom});

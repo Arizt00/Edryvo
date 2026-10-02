@@ -9,7 +9,7 @@ for package in ('webview','keyring','copilot'):
     if importlib.util.find_spec(package):hidden+=collect_submodules(package)
 data=[(str(ROOT/'web'),'web'),(str(ROOT/'licenses'),'licenses'),(str(ROOT/'README.md'),'.'),(str(ROOT/'LICENSE'),'.'),(str(ROOT/'THIRD_PARTY_NOTICES.md'),'.'),(str(ROOT/'LEEME_PRIMERO.txt'),'.'),(str(ROOT/'config/runtime-defaults.json'),'config'),(str(ROOT/'debugger-support'),'debugger-support'),(str(ROOT/'examples/lantern/counter.c'),'examples/lantern'),(str(ROOT/'examples/lantern/counter.cpp'),'examples/lantern'),(str(ROOT/'examples/lantern/counter.n'),'examples/lantern'),(str(ROOT/'backend/LumenJavaDebugger.java'),'backend'),(str(ROOT/'backend/emma_bridge.mjs'),'backend'),(str(ROOT/'backend/lantern_memory.cjs'),'backend'),(str(ROOT/'backend/extension_host.cjs'),'backend'),(str(ROOT/'backend/extension_api.cjs'),'backend')]
 # Package documentation deliberately: historical QA can contain local user paths.
-for name in ('PREVIEW_R5.md','LENGUAJES.md','EXTENSIONES.md','SEGURIDAD.md'):
+for name in ('PREVIEW_R6.md','PREVIEW_R5.md','LENGUAJES.md','EXTENSIONES.md','SEGURIDAD.md'):
     data.append((str(ROOT/'docs'/name),'docs'))
 # Only the shipped examples belong in the bundle, never compiler/profile caches.
 for file in (ROOT/'workspace').rglob('*'):

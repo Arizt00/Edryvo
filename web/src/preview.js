@@ -42,6 +42,8 @@ class Preview{
     document.addEventListener('click',e=>{const exec=e.target.closest('[data-extension-execute]');if(exec)this.safe(()=>this.startExtension(exec.dataset.extensionExecute));});
     this.extensionObserver=new MutationObserver(()=>this.extensionButtons());this.extensionObserver.observe(document.body,{childList:true,subtree:true});
     const load=host.platform.loadContributions.bind(host.platform);host.platform.loadContributions=async(...args)=>{const result=await load(...args);const status=await host.platform.api('/extensions/runtime');this.registerExtensions(status.hosts);return result;};
+    host.platform.beforeSave=(path,automatic)=>this.documentSaveEvent(path,'willSave',automatic);
+    const afterSave=host.platform.afterSave.bind(host.platform);host.platform.afterSave=async path=>{await this.documentSaveEvent(path,'didSave');await afterSave(path);};
     this.activeChanged();this.renderGroups();this.languageFeatures();
   }
   safe(fn){return Promise.resolve().then(fn).catch(e=>this.host.notify(e.message,'error',7000));}
@@ -85,8 +87,8 @@ class Preview{
   async startExtension(id){
     if(this.runtimeHosts?.some(x=>x.id===id&&x.running)){const stopped=await this.host.platform.api('/extensions/runtime/stop',{id});this.registerExtensions(stopped.hosts);return;}
     if(!await this.host.platform.host.ensureTrust())return;
-    if(!await this.host.confirmDialog('Ejecutar '+id,'Este plugin ejecutará código Node.js con tus permisos de usuario. Tendrá acceso al equipo y a los documentos que consultes. El proceso separado evita que bloquee la interfaz; no es un aislamiento de seguridad.','Autorizar motor'))return;
-    const data=await this.host.platform.api('/extensions/runtime/start',{id,consent:true});this.registerExtensions(data.hosts);this.host.notify('Motor iniciado. Comandos disponibles en la paleta.');
+    if(!await this.host.confirmDialog('Ejecutar '+id,'Este plugin ejecutará su motor con tus permisos de usuario. Tendrá acceso al equipo y a los documentos que consultes. El proceso separado evita que bloquee la interfaz; no es un aislamiento de seguridad.','Autorizar motor'))return;
+    const data=await this.host.platform.api('/extensions/runtime/start',{id,consent:true});this.registerExtensions(data.hosts);this.host.notify(data.hosts.find(x=>x.id===id)?.engine||'Motor iniciado. Comandos disponibles en la paleta.');
   }
   registerExtensions(hosts){
     for(const p of this.providers)p.dispose?.();this.providers=[];this.runtimeHosts=hosts;document.querySelectorAll('[data-extension-execute]').forEach(b=>b.textContent=hosts.some(x=>x.id===b.dataset.extensionExecute&&x.running)?'Detener motor':'Iniciar motor');const platform=this.host.platform,m=window.monaco,ed=this.host.editor;
@@ -111,8 +113,9 @@ class Preview{
           let timer,poll,disposed=false;const refresh=()=>{clearTimeout(timer);clearTimeout(poll);timer=setTimeout(async()=>{const model=ed.view.getModel();if(disposed||!model||doc(model).language!==language)return;const version=model.getVersionId(),path=doc(model).path;try{const items=await call(ext,'diagnostics',model);if(!model.isDisposed()&&model.getVersionId()===version){const markers=items.map(d=>{const line=d.startLineNumber||d.line||1,column=d.startColumn||d.column||1;const range=model.validateRange(new m.Range(line,column,d.endLineNumber||d.endLine||line,d.endColumn||column+1));return {...range,message:String(d.message||''),severity:typeof d.severity==='number'?d.severity:({warning:m.MarkerSeverity.Warning,info:m.MarkerSeverity.Info,hint:m.MarkerSeverity.Hint}[d.severity]||m.MarkerSeverity.Error),source:ext.id};});ed.setDiagnostics(path,markers,'plugin-'+ext.id);if(!disposed&&ed.view.getModel()===model)poll=setTimeout(refresh,1800);}}catch(e){this.host.notify(e.message,'error');}},450);};
           const a=ed.view.onDidChangeModelContent(refresh),b=ed.view.onDidChangeModel(refresh);this.providers.push({dispose(){disposed=true;clearTimeout(timer);clearTimeout(poll);a.dispose();b.dispose();for(const [path] of ed.models)ed.setDiagnostics(path,[],'plugin-'+ext.id);}});refresh();
         }
-        if(p.kind==='completion')this.providers.push(m.languages.registerCompletionItemProvider(language,{triggerCharacters:p.triggers||[],provideCompletionItems:async(model,pos)=>{const word=model.getWordUntilPosition(pos);const items=await call(ext,'completion',model,{position:{line:pos.lineNumber-1,character:pos.column-1}});return {suggestions:items.map(i=>({...i,insertText:typeof i.insertText==='object'?i.insertText.value:(i.insertText||i.label),insertTextRules:typeof i.insertText==='object'?4:i.insertTextRules,documentation:typeof i.documentation==='object'?{value:i.documentation.value,isTrusted:false}:i.documentation,range:new m.Range(pos.lineNumber,word.startColumn,pos.lineNumber,word.endColumn)}))};}}));
+        if(p.kind==='completion')this.providers.push(m.languages.registerCompletionItemProvider(language,{triggerCharacters:p.triggers||[],provideCompletionItems:async(model,pos)=>{const word=model.getWordUntilPosition(pos);const items=await call(ext,'completion',model,{position:{line:pos.lineNumber-1,character:pos.column-1}});return {suggestions:items.map(i=>({...i,insertText:i.textEdit?.newText??(typeof i.insertText==='object'?i.insertText.value:(i.insertText||i.label)),insertTextRules:typeof i.insertText==='object'?4:i.insertTextRules,documentation:typeof i.documentation==='object'?{value:i.documentation.value,isTrusted:false}:i.documentation,range:mr(i.textEdit?.range||i.textEdit?.replace)||new m.Range(pos.lineNumber,word.startColumn,pos.lineNumber,word.endColumn),additionalTextEdits:i.additionalTextEdits?.map(e=>({range:mr(e.range),text:e.newText}))}))};}}));
         if(p.kind==='inlay')this.providers.push(m.languages.registerInlayHintsProvider(language,{provideInlayHints:async(model,range)=>({hints:(await call(ext,'inlay',model,{range:{start:{line:range.startLineNumber-1,character:range.startColumn-1},end:{line:range.endLineNumber-1,character:range.endColumn-1}}})).map(h=>({...h,position:{lineNumber:h.position.line+1,column:h.position.character+1}})),dispose(){}})}));
+        if(p.kind==='references')this.providers.push(m.languages.registerReferenceProvider(language,{provideReferences:async(model,pos)=>(await call(ext,'references',model,{position:{line:pos.lineNumber-1,character:pos.column-1}})).map(d=>{const path=relativeUri(d.uri);return {uri:ed.models.get(path)?.model?.uri||m.Uri.parse('file:///'+path),range:mr(d.range)};})}));
         if(p.kind==='definition')this.providers.push(m.languages.registerDefinitionProvider(language,{provideDefinition:async(model,pos)=>{const items=await call(ext,'definition',model,{position:{line:pos.lineNumber-1,character:pos.column-1}});return items.map(d=>{const path=d.path||(d.uri||d.targetUri?relativeUri(d.uri||d.targetUri):doc(model).path);return {uri:ed.models.get(path)?.model?.uri||m.Uri.parse('file:///'+path),range:mr(d.range||d.targetSelectionRange||d.targetRange)};});}}));
       }
     }
@@ -144,6 +147,19 @@ class Preview{
       if(typeof data.result?.text==='string')return platform.reviewCode(data.result.text,snapshot);if(typeof data.result==='string')this.host.notify(data.result);
     };
     platform.host.setPluginCommands([...platform.extensionContributions.commands,...[...this.runtimeCommands].map(([id,c])=>({id,title:c.title}))]);
+  }
+  async documentSaveEvent(path,method,automatic=false){
+    const ed=this.host.editor,record=ed.models.get(path),model=record?.model;if(!record)return;
+    for(const ext of (this.runtimeHosts||[]).filter(x=>x.running)){
+      const text=model?.getValue()??record.value,version=model?.getVersionId();
+      let result;try{result=await this.host.platform.api('/extensions/runtime/request',{id:ext.id,method,reason:automatic?2:1,document:{path,text,version,language:languageFor(path),dirty:ed.isDirty(path)}});}catch(error){this.host.notify(ext.id+': '+error.message,'error');continue;}
+      if(method!=='willSave'||!result.edits?.length)continue;
+      if(!model||model.isDisposed()||model.getVersionId()!==version)throw Error('El archivo cambió antes de guardar. Repite el guardado.');
+      const edits=result.edits.map(e=>{const r=e.range;const range=new monaco.Range(r.start.line+1,r.start.character+1,r.end.line+1,r.end.character+1);if(typeof e.newText!=='string'||!monaco.Range.equalsRange(range,model.validateRange(range)))throw Error('La extensión devolvió una edición de guardado inválida.');return {range,text:e.newText};});
+      const ordered=edits.map(e=>[model.getOffsetAt(e.range.getStartPosition()),model.getOffsetAt(e.range.getEndPosition())]).sort((a,b)=>a[0]-b[0]);
+      if(ordered.some((r,i)=>i&&r[0]<ordered[i-1][1]))throw Error('La extensión devolvió ediciones de guardado solapadas.');
+      model.pushStackElement();model.pushEditOperations(null,edits,()=>null);model.pushStackElement();record.value=model.getValue();
+    }
   }
   languageFeatures(){
     const m=window.monaco;if(!m)return;

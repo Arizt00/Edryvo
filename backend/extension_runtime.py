@@ -9,6 +9,7 @@ import uuid
 from .extensions import json_resource
 from .runtime_paths import find_tool
 from .terminals import child_environment
+from .extension_lsp import PyreflyHost
 
 
 class Host:
@@ -66,6 +67,10 @@ class ExtensionRuntime:
             info=self.store.installed.get(eid)
             if not info or not info.get('enabled'):raise ValueError('Activa primero la extensión instalada.')
             root=(self.store.root/info['directory']/'extension').resolve();manifest=json_resource(root,'package.json')
+            if eid.lower()=='meta.pyrefly':
+                self.stop(eid);self.hosts[eid]=PyreflyHost(root,workspace)
+                self.store.prefs.audit('extension.execute',extension=eid,engine='native-lsp')
+                return self.snapshot()
             entry=(root/manifest.get('lumen',{}).get('main',manifest.get('main',''))).resolve()
             if entry.suffix not in ('.js','.cjs','.mjs') and entry.with_suffix('.js').is_file():entry=entry.with_suffix('.js')
             if not entry.is_relative_to(root) or not entry.is_file() or entry.suffix not in ('.js','.cjs','.mjs'):raise ValueError('La extensión necesita un main Node.js compatible con la API preview.')
@@ -85,10 +90,10 @@ class ExtensionRuntime:
         host=self.hosts.get(body.get('id'))
         if not host:raise ValueError('Inicia el motor de la extensión primero.')
         method=body.get('method')
-        if method not in ('command','provide','virtual'):raise ValueError('Operación no válida.')
+        if method not in ('command','provide','virtual','willSave','didSave'):raise ValueError('Operación no válida.')
         document=body.get('document',{})
         if document.get('path'):workspace.resolve(document['path'],must_exist=False)
-        return host.request({k:body[k] for k in ('method','command','kind','document','position','range','uri','arguments') if k in body})
+        return host.request({k:body[k] for k in ('method','command','kind','document','position','range','uri','arguments','reason') if k in body})
     def stop(self,eid):
         with self.lock:
             host=self.hosts.pop(eid,None)
