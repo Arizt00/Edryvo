@@ -28,7 +28,7 @@ La API de extensiones continúa siendo parcial: tareas, webviews y otros servici
 | Sistema | Paquete | Instalación |
 |---|---|---|
 | Windows 10/11 x64 | `LumenStudio-0.5.2-R8-Windows-Setup.exe` | Ejecutar el instalador gráfico. Necesita Edge WebView2. |
-| Ubuntu 22.04/24.04 y derivados compatibles x64 | `LumenStudio-0.5.2-R8-Linux-amd64.deb` | Abrir con el gestor de paquetes, o `sudo apt install ./LumenStudio-0.5.2-R8-Linux-amd64.deb`. |
+| Ubuntu 24.04 y derivados compatibles x64 | `LumenStudio-0.5.2-R8-Linux-amd64.deb` | Abrir con el gestor de paquetes, o `sudo apt install ./LumenStudio-0.5.2-R8-Linux-amd64.deb`. |
 | Linux x64, instalación por usuario | `LumenStudio-0.5.2-R8-Linux-amd64.tar.gz` | Extraer y ejecutar `sh install.sh`. Necesita las bibliotecas de Qt/Chromium indicadas en el `.deb`; no necesita Python global. |
 | macOS 14 o posterior, Apple Silicon | `LumenStudio-0.5.2-R8-macOS-arm64.dmg` | Abrir y arrastrar `Lumen Studio.app` a `Applications`. |
 | macOS 15 o posterior, Intel | `LumenStudio-0.5.2-R8-macOS-x86_64.dmg` | Abrir y arrastrar `Lumen Studio.app` a `Applications`. |
@@ -44,3 +44,5 @@ Los ejecutables de Windows no tienen firma Authenticode y los de macOS tienen la
 La pipeline ejecuta pruebas de backend, crea los paquetes y comprueba el runtime empaquetado, la interfaz nativa, el puente de escritorio, Forge con un búfer sin guardar y la ventana independiente. Solo publica si todos los sistemas completan las verificaciones. Cada paquete conserva un manifiesto con el commit de origen, arquitectura, tamaño y SHA-256.
 
 Los adaptadores de depuración mantienen los [límites de R7](PREVIEW_R7.md). Esta revisión no afirma soporte de todas las distribuciones Linux.
+
+La primera ejecución de GitHub Actions de R8 no pudo arrancar: GitHub comunicó un bloqueo de la cuenta por facturación. Windows y Linux se construyen y verifican localmente. Los `.dmg` de macOS están preparados en la pipeline, pero permanecen pendientes de construcción y verificación en Mac; no se publican como si hubieran sido probados. El `.deb` declara la versión de glibc del entorno de construcción y no ofrece compatibilidad con Ubuntu 22.04.

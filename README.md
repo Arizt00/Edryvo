@@ -4,7 +4,7 @@ Lumen es un IDE de escritorio con editor Monaco, terminal integrada, depuración
 
 ## Usar Lumen
 
-Instalador `.exe` para Windows 10/11 x64 (Edge WebView2), `.deb` y portable para Linux x64 compatible con Ubuntu 22.04+, y `.dmg` separados para macOS Apple Silicon e Intel. Los paquetes incluyen el runtime Python del IDE; los compiladores y SDK de tus proyectos se preparan aparte. Los ejecutables de esta preview no tienen firma Authenticode ni notarización de Apple. Consulta [las instrucciones de cada plataforma](docs/PREVIEW_R8.md).
+Instalador `.exe` para Windows 10/11 x64 (Edge WebView2), `.deb` y portable para Linux x64 compatible con Ubuntu 24.04. La pipeline prepara `.dmg` separados para macOS Apple Silicon e Intel; su publicación queda pendiente de construcción y verificación en Mac. Los paquetes incluyen el runtime Python del IDE; los compiladores y SDK de tus proyectos se preparan aparte. Los ejecutables de esta preview no tienen firma Authenticode ni notarización de Apple. Consulta [las instrucciones de cada plataforma](docs/PREVIEW_R8.md).
 
 El primer inicio permite elegir tema, idioma, distribución y perfil. Una instalación nueva comienza sin archivos recientes inventados. Los paneles principales usan superficies al 92 % en Día y al 94 % en Oscuro y Bosque, con colores de sintaxis integrados e iridiscencia animada configurable.
 
