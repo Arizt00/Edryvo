@@ -16,7 +16,7 @@ import time
 from backend.preferences import atomic_json
 from backend.package_sizes import PackageCatalog
 
-VERSION = '0.5.2'
+from backend.version import VERSION, REVISION
 ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
 PACKAGES = {
     'python': ('Python', 'Python.Python.3.12'), 'javascript': ('JavaScript / TypeScript · Node.js', 'OpenJS.NodeJS.LTS'),
@@ -276,7 +276,7 @@ def main():
     api = Installer()
     server = ThreadingHTTPServer(('127.0.0.1', 0), partial(StaticHandler, directory=str(ROOT / 'web')))
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    api.window = webview.create_window('Instalar Lumen Studio 0.5.2 · R5', f'http://127.0.0.1:{server.server_port}/', js_api=InstallerAPI(api),
+    api.window = webview.create_window(f'Instalar Lumen Studio {VERSION} · R{REVISION}', f'http://127.0.0.1:{server.server_port}/', js_api=InstallerAPI(api),
         width=1100, height=850, min_size=(850, 660), background_color='#F6F7FD')
     api.window.events.closing += lambda: False if api.status()['status'] == 'installing' else None
     try: webview.start()

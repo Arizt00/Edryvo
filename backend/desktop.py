@@ -34,8 +34,14 @@ class DesktopAPI:
         api._window=child;self._children[key]=child
         def closed():
             self._children.pop(key,None)
-            try:self._window.evaluate_js('window.dispatchEvent(new CustomEvent("lumen:native-return",{detail:'+__import__('json').dumps({'panel':panel,'path':path})+'}))')
-            except Exception:pass
+            # Qt evaluation can wait for a renderer already closing. Never keep
+            # the native closed-event thread alive waiting for its JS response.
+            if self._window.events.closed.is_set():return
+            def notify_parent():
+                if self._window.events.closed.is_set():return
+                try:self._window.evaluate_js('window.dispatchEvent(new CustomEvent("lumen:native-return",{detail:'+__import__('json').dumps({'panel':panel,'path':path})+'}))')
+                except Exception:pass
+            __import__('threading').Thread(target=notify_parent,daemon=True).start()
         child.events.closed+=closed
         return {'opened':True,'panel':panel}
 

@@ -356,8 +356,11 @@ export class LumenPlatform {
     this.host.modal(this.t('Abrir una terminal','Open a terminal'),`<p>${this.t('Sesiones persistentes con los permisos de tu usuario. No se ejecutan dentro de una sandbox.','Persistent sessions with your user permissions. They do not run in a sandbox.')}</p><div class="terminal-profile-list">${data.profiles.map(p=>`<button class="terminal-profile" data-open-terminal="${this.e(p.id)}" ${!data.interactiveAvailable?'disabled':''}><span class="terminal-profile-glyph">${this.glyph('terminal')}</span><span><strong>${this.e(p.label)}${p.id===this.prefs['terminal.defaultProfile']?' · '+this.t('predeterminada','default'):''}</strong><small>${this.e(p.argv[0])}</small></span><span class="capability-badge">${p.kind.toUpperCase()}</span>${this.glyph('arrow-right')}</button>`).join('')}</div>${!data.profiles.length?`<p>${this.t('No se detectaron shells compatibles.','No compatible shells detected.')}</p>`:''}${!data.interactiveAvailable?`<div class="platform-notice warning"><p>${this.t('Falta pywinpty para el terminal ConPTY de Windows. Instala requirements-desktop.txt.','pywinpty is required for ConPTY on Windows. Install requirements-desktop.txt.')}</p></div>`:''}<div class="platform-notice"><p>${this.t('CMD y PowerShell aparecen en Windows si están disponibles. WSL enumera las distribuciones instaladas, incluida Kali. CMake se administra en Herramientas: no es una shell.','CMD and PowerShell appear on Windows when available. WSL lists installed distributions, including Kali. CMake is managed in Tools: it is not a shell.')}</p></div>`);
     document.querySelectorAll('[data-open-terminal]').forEach(button=>button.onclick=()=>this.safe(()=>this.openTerminal(button.dataset.openTerminal)));
   }
-  async loadTerminalEngine(){
+  loadTerminalEngine(){
     if(this.TerminalCtor||!this.state.xterm)return;
+    return this.terminalEngineLoading ||= this.loadTerminalEngineOnce().catch(error=>{this.terminalEngineLoading=null;throw error;});
+  }
+  async loadTerminalEngineOnce(){
     const load=src=>new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.onload=resolve;script.onerror=()=>reject(new Error('Terminal renderer could not load'));document.head.append(script);});
     if(window.require?.config&&window.define?.amd){
       window.require.config({paths:{'lumen-xterm':'/vendor/xterm/xterm','lumen-fit':'/vendor/xterm-fit/addon-fit'}});

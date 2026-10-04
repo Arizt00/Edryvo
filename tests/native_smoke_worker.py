@@ -47,9 +47,12 @@ def main():
                 api.detach_panel('forge','first.py');forge=api._children['forge']
                 until(lambda:forge.evaluate_js('!!window.lumen?.ready'))
                 assert forge.evaluate_js('document.documentElement.dataset.detachedPanel')=='forge'
+                forge.evaluate_js("window.__qaErrors=[];window.addEventListener('error',e=>__qaErrors.push(e.message))")
                 until(lambda:forge.evaluate_js('!document.querySelector("[data-action=hacker-python]").disabled'))
                 forge.evaluate_js('document.querySelector("[data-action=hacker-python]").click()')
                 until(lambda:any('LUMEN NATIVE R8 ñ' in session.read(0)['data'] for session in app.features.terminals.sessions.values()))
+                until(lambda:forge.evaluate_js("!!document.querySelector('.xterm-screen')"))
+                assert not forge.evaluate_js('window.__qaErrors')
                 assert file.read_text(encoding='utf-8')=='print("DISK")\n'
                 checks.append('Separate Forge window executes unsaved UTF-8 Python in real PTY')
                 forge.evaluate_js('document.querySelector("[data-action=forge-terminal]").click()')

@@ -34,7 +34,7 @@ def main():
 
 def probe(executable,prefix):
     report=ROOT/f'dist/{prefix}-{sys.platform}-{architecture()}-verification.json'
-    env={**os.environ,'QTWEBENGINE_CHROMIUM_FLAGS':'--disable-gpu','QTWEBENGINE_DISABLE_SANDBOX':'1'}
+    env={**os.environ,'QT_QPA_PLATFORM':'xcb','QTWEBENGINE_CHROMIUM_FLAGS':'--disable-gpu','QTWEBENGINE_DISABLE_SANDBOX':'1'}
     subprocess.run([str(executable),'--python-child',str(ROOT/'tests/native_smoke_worker.py'),'--report',str(report)],env=env,check=True,timeout=180)
     result=json.loads(report.read_text(encoding='utf-8'));assert not result['errors'] and len(result['checks'])==4,result
     print('PASS installer integrity and actual packaged native GUI:',sys.platform,architecture(),flush=True)
