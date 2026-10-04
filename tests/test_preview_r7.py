@@ -139,7 +139,7 @@ class PreviewR7(unittest.TestCase):
     def test_update_selects_only_newer_verified_official_installer(self):
         asset={'name':'LumenStudio-Setup-0.5.2-R8.exe','size':100,'digest':'sha256:'+'a'*64,'browser_download_url':'https://github.com/Arizt00/LumenStudio/releases/download/v0.5.2-preview.8/LumenStudio-Setup-0.5.2-R8.exe'}
         release={'tag_name':'v0.5.2-preview.8','html_url':'https://github.com/Arizt00/LumenStudio/releases/tag/v0.5.2-preview.8','assets':[asset]}
-        self.assertEqual(update_asset([release])['version'],release['tag_name']);self.assertIsNone(update_asset([release],release['tag_name']))
+        self.assertEqual(update_asset([release],'v0.5.2-preview.7','win32','AMD64')['version'],release['tag_name']);self.assertIsNone(update_asset([release],release['tag_name']))
         self.assertIsNone(update_asset([{**release,'draft':True}]))
         self.assertIsNone(update_asset([{**release,'assets':[{**asset,'digest':None}]}]))
         self.assertIsNone(update_asset([{**release,'assets':[{**asset,'browser_download_url':'https://example.com/setup.exe'}]}]))
@@ -157,8 +157,10 @@ class PreviewR7(unittest.TestCase):
                 prefs=Preferences(Path(t));downloads=Downloads(Path(t));updater=Updates(prefs,downloads)
                 asset={'version':'v0.5.2-preview.8','name':'LumenStudio-Setup-R8.exe','url':f'http://127.0.0.1:{server.server_port}/setup.exe','sha256':hashlib.sha256(payload).hexdigest(),'size':len(payload)}
                 updater.data['available']=asset;updater.download();wait_for(lambda:updater.snapshot()['status']=='ready')
-                installer=updater.installer();self.assertEqual(installer.read_bytes(),payload)
-                installer.write_bytes(b'changed');self.assertRaises(ValueError,updater.installer);updater.shutdown();downloads.shutdown()
+                with patch('backend.updates.sys.platform','win32'),patch('backend.updates.platform.machine',return_value='AMD64'):
+                    installer=updater.installer();self.assertEqual(installer.read_bytes(),payload)
+                    installer.write_bytes(b'changed');self.assertRaises(ValueError,updater.installer)
+                updater.shutdown();downloads.shutdown()
         finally:server.shutdown();server.server_close()
 
 if __name__=='__main__':unittest.main()

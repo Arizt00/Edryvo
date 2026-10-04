@@ -1,4 +1,5 @@
 import {icon,escapeHTML} from './icons.js';
+import {outsideViewport} from './document-drag.js';
 import {defaultLayout,normalizeLayout,layoutPreset,movePanel,setCollapsed,sideOf,SIDES,LAYOUT_KEY,PRESET_NAMES} from './layout-state.js';
 
 const PANEL_LABELS={project:'Proyecto',assistant:'Asistente',console:'Consola'};
@@ -303,7 +304,7 @@ export class DockManager {
       if(this.drag!==start)return;
       if(!start.started&&Math.hypot(e.clientX-start.x,e.clientY-start.y)<6)return;
       if(!start.started){start.started=true;this.targets.hidden=false;this.ghost.hidden=!!original;this.ghost.innerHTML=icon(PANEL_ICONS[id])+`<span>${PANEL_LABELS[id]}</span><kbd>esc</kbd>`;document.body.classList.add('docking-drag');}
-      start.clientX=e.clientX;start.clientY=e.clientY;
+      start.clientX=e.clientX;start.clientY=e.clientY;start.screenX=e.screenX;start.screenY=e.screenY;
       if(original){this.state.floating[id]=this.floatBounds(id,{...original,x:original.x+e.clientX-start.x,y:original.y+e.clientY-start.y});this.placeFloat(id);}
       e.preventDefault();this.ghost.style.transform=`translate(${Math.min(innerWidth-230,e.clientX+18)}px,${Math.min(innerHeight-58,e.clientY+18)}px)`;
       let target=null;
@@ -311,8 +312,9 @@ export class DockManager {
       if(!target){const underneath=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-dock-side]');target=underneath?.dataset.dockSide||null;}
       start.target=target;
     };
-    const up=()=>this.finishDrag(false),cancel=()=>this.finishDrag(true);
-    start.cleanup=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',cancel);window.removeEventListener('blur',cancel);};
+    const capture=event.target;try{capture.setPointerCapture(event.pointerId);}catch(_){}
+    const up=e=>{start.clientX=e.clientX;start.clientY=e.clientY;start.screenX=e.screenX;start.screenY=e.screenY;this.finishDrag(false);},cancel=()=>this.finishDrag(true);
+    start.cleanup=()=>{try{capture.releasePointerCapture(event.pointerId);}catch(_){}window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',cancel);window.removeEventListener('blur',cancel);};
     window.addEventListener('pointermove',move,{passive:false});window.addEventListener('pointerup',up);window.addEventListener('pointercancel',cancel);window.addEventListener('blur',cancel);
   }
   finishDrag(cancelled){
@@ -322,6 +324,10 @@ export class DockManager {
     if(drag.started){
       this.suppressClick=true;setTimeout(()=>this.suppressClick=false,0);
       if(cancelled){if(drag.original){this.state.floating[drag.id]=drag.original;this.placeFloat(drag.id);}return;}
+      if(this.onDetach&&outsideViewport(drag.clientX,drag.clientY,innerWidth,innerHeight)){
+        if(drag.original){this.state.floating[drag.id]=drag.original;this.placeFloat(drag.id);}
+        this.onDetach(drag.id,{x:drag.screenX-40,y:drag.screenY-24});return;
+      }
       if(drag.target)this.move(drag.id,drag.target);
       else {const area=this.root.getBoundingClientRect();if(drag.clientX>=area.left&&drag.clientX<=area.right&&drag.clientY>=area.top&&drag.clientY<=area.bottom)this.floatPanel(drag.id,{x:drag.clientX-area.left-drag.offsetX,y:drag.clientY-area.top-drag.offsetY,width:drag.width,height:drag.height});else if(drag.original){this.state.floating[drag.id]=drag.original;this.placeFloat(drag.id);}}
     }

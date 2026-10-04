@@ -1,4 +1,4 @@
-# Extensiones · Preview R7
+# Extensiones · Preview R8
 
 Lumen consulta Open VSX y permite importar VSIX. El paquete se inspecciona antes de instalarlo: rutas, enlaces, duplicados, tamaño expandido y manifiesto. Las actualizaciones siguen el mismo proceso.
 
@@ -36,3 +36,9 @@ El índice de paquetes se lee en UTF-8, se actualiza con un bloqueo entre proces
 Language Support for Java de Red Hat usa un adaptador nativo de Eclipse JDT LS. Su configuración y caché se escriben en el perfil de Lumen, sin modificar el paquete instalado. Se verificaron diagnósticos sobre texto sin guardar, autocompletado de la biblioteca estándar, hover y definición en Windows. Pyrefly mantiene su adaptador nativo. La capa LSP también transporta formato y tokens semánticos cuando el servidor los ofrece.
 
 Esto amplía la compatibilidad, pero no proporciona paridad total con VS Code: webviews, APIs específicas de UI, contribuciones de tareas y otros servicios todavía pueden impedir la activación de un paquete. Los fallos muestran la API o herramienta que falta. [Alcance de R7](PREVIEW_R7.md).
+
+## Editor y árboles de R8
+
+`registerTreeDataProvider` y `createTreeView` consultan nodos reales del plugin. Las vistas se abren desde Vistas de extensiones en la barra del editor y permiten expandir, actualizar y ejecutar comandos. Los argumentos de los nodos conservan su identidad y sus métodos en el motor Node.
+
+Los proveedores de ayuda de firmas, plegado, enlaces HTTP/HTTPS/correo y renombrado están conectados al editor Monaco. Las ediciones de renombrado se limitan al proyecto abierto. El transporte de `WorkspaceEdit` y `SemanticTokensBuilder` conserva los campos necesarios para aplicarlos. No todas las opciones de estas APIs ni los servicios de interfaz de VS Code están disponibles. [Alcance de R8](PREVIEW_R8.md).

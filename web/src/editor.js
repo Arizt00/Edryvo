@@ -125,10 +125,12 @@ export class LumenEditor {
   }
   pathFor(model){return [...this.models].find(([,r])=>r.model===model)?.[0]||null;}
   paintPaneLabels(){for(const p of this.panes||[]){const name=this.pathFor(p.view?.getModel());p.node.querySelector('span').textContent=name||'Elige un archivo';p.node.classList.toggle('focused',p.view===this.view);}this.mount.classList.toggle('is-split',(this.panes?.length||0)>1);}
-  split(path){
+  split(path,side='right'){
     if(this.kind!=='monaco')throw Error('La vista dividida requiere el editor Monaco incluido en la distribución.');
     let pane=this.panes[1];
     if(!pane){pane=this.createPane();pane.view=monaco.editor.create(pane.content,{...this.view.getRawOptions(),model:null,automaticLayout:true,overflowWidgetsDomNode:document.body});this.bindPane(pane);}
+    this.mount.dataset.splitAxis=['top','bottom'].includes(side)?'vertical':'horizontal';
+    pane.node.style.order=['left','top'].includes(side)?'-1':'1';
     pane.view.setModel(this.models.get(path||this.current)?.model||null);this.view=pane.view;this.current=this.pathFor(pane.view.getModel());this.paintPaneLabels();pane.view.focus();this.callbacks.active?.(this.current);
   }
   closeSplit(){

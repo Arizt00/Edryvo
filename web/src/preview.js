@@ -1,5 +1,6 @@
 import {icon,escapeHTML as esc} from './icons.js';
 import {languageFor} from './editor.js';
+import {DocumentDrag} from './document-drag.js';
 const $=s=>document.querySelector(s);
 
 export function installPreview(host){return new Preview(host);}
@@ -14,12 +15,9 @@ class Preview{
     this.context=document.createElement('small');this.context.className='ai-current-document';live.before(this.context);
     const assistantScroll=document.createElement('div');assistantScroll.className='assistant-scroll';$('#assistant-body').prepend(assistantScroll);
     for(const selector of ['#assistant-hero','#ai-actions','.assistant-lantern','#chat-messages']){const item=$(selector);if(item)assistantScroll.append(item);}
-    $('#file-tabs').addEventListener('dragstart',e=>{const path=e.target.closest('[data-tab]')?.dataset.tab;if(!path)return;const r=host.editor.models.get(path);this.dragged=path;e.dataTransfer.setData('application/x-lumen-document',JSON.stringify({path,workspace:host.service().workspace,content:r.model?.getValue()??r.value}));this.drop.hidden=false;});
-    document.addEventListener('dragend',()=>{this.drop.hidden=true;this.dragged=null;});
+    this.documentDrag=new DocumentDrag({...host,panel:$('#editor-panel'),safe:fn=>this.safe(fn),onStart:path=>{this.dragged=path;this.drop.hidden=false;},onEnd:()=>{this.drop.hidden=true;this.dragged=null;},detach:(path,position)=>host.detachEditor(path,position)});
     this.drop.ondragover=e=>{e.preventDefault();e.dataTransfer.dropEffect='move';};
-    this.drop.ondrop=e=>{e.preventDefault();e.stopPropagation();this.safe(async()=>{const data=JSON.parse(e.dataTransfer.getData('application/x-lumen-document'));await this.newWindow(data.path,data.content);});this.drop.hidden=true;};
-    $('#editor-panel').addEventListener('dragover',e=>{if(e.dataTransfer.types.includes('application/x-lumen-document'))e.preventDefault();});
-    $('#editor-panel').addEventListener('drop',e=>{if(this.dragged||!e.dataTransfer.types.includes('application/x-lumen-document'))return;e.preventDefault();this.safe(async()=>{const data=JSON.parse(e.dataTransfer.getData('application/x-lumen-document'));if(data.workspace!==host.service().workspace)throw Error('Abre una ventana de este proyecto para recibir sus archivos.');if(host.editor.models.has(data.path)&&host.editor.isDirty(data.path)&&!await host.confirmDialog('Recibir archivo','El búfer de destino tiene cambios. ¿Reemplazarlo por el de la otra ventana?','Reemplazar búfer'))return;await host.openFile(data.path);if(typeof data.content==='string'&&data.content.length<=2_000_000)host.editor.insertText(data.content,true);});});
+    this.drop.ondrop=e=>{e.preventDefault();e.stopPropagation();this.safe(async()=>{const data=JSON.parse(e.dataTransfer.getData('application/x-lumen-document'));await this.host.detachEditor(data.path);});this.drop.hidden=true;};
     $('#file-tabs').addEventListener('contextmenu',e=>{const path=e.target.closest('[data-tab]')?.dataset.tab;if(!path)return;e.preventDefault();
       const paths=[...host.editor.models.keys()],close=async names=>{for(const p of names){await host.closeFile(p);if(host.editor.models.has(p))break;}};
       host.showMenu(e.target.closest('[data-tab]'),[
@@ -41,6 +39,7 @@ class Preview{
       ],path.split('/').at(-1));});
     document.addEventListener('click',e=>{const exec=e.target.closest('[data-extension-execute]');if(exec)this.safe(()=>this.startExtension(exec.dataset.extensionExecute));});
     this.extensionObserver=new MutationObserver(()=>this.extensionButtons());this.extensionObserver.observe(document.body,{childList:true,subtree:true});
+    const viewButton=document.createElement('button');viewButton.className='icon-button';viewButton.title='Vistas de extensiones';viewButton.setAttribute('aria-label',viewButton.title);viewButton.innerHTML=icon('extensions');$('.editor-tabbar').append(viewButton);viewButton.onclick=()=>this.safe(()=>this.extensionViews());
     const load=host.platform.loadContributions.bind(host.platform);host.platform.loadContributions=async(...args)=>{const result=await load(...args);const status=await host.platform.api('/extensions/runtime');this.registerExtensions(status.hosts);return result;};
     host.platform.beforeSave=(path,automatic)=>this.documentSaveEvent(path,'willSave',automatic);
     const afterSave=host.platform.afterSave.bind(host.platform);host.platform.afterSave=async path=>{await this.documentSaveEvent(path,'didSave');await afterSave(path);};
@@ -91,6 +90,19 @@ class Preview{
     document.querySelectorAll('[data-extension-toggle]').forEach(toggle=>{const card=toggle.closest('.extension-card');if(card.querySelector('[data-extension-execute]'))return;const item=this.host.platform.extensionItems?.find(x=>x.id===toggle.dataset.extensionToggle);if(!item?.supported?.includes('runtime'))return;const b=document.createElement('button');b.className='secondary-button small-button';b.dataset.extensionExecute=item.id;b.textContent=this.runtimeHosts?.some(x=>x.id===item.id&&x.running)?'Detener motor':'Iniciar motor';toggle.before(b);});
     if($('.tools-content')&&!$('#download-tools-link')){const b=document.createElement('button');b.id='download-tools-link';b.className='secondary-button';b.textContent='Descargar compilador · hasta 500 GB';b.onclick=()=>this.safe(()=>this.downloads());$('.tools-content .section-heading').append(b);}
   }
+  async extensionViews(){
+    const hosts=(this.runtimeHosts||[]).filter(x=>x.running&&x.views?.length);
+    this.host.platform.openPage('extension-views',`<section class="extension-views-page"><h3>Vistas de tus extensiones</h3><p>Contenido real de los motores activos. Expande los nodos o ejecuta sus comandos.</p>${hosts.map((h,i)=>`<article class="extension-tree-card" data-extension-tree="${i}"><h4>${esc(h.id)}</h4></article>`).join('')||'<p>Inicia una extensión que registre TreeDataProvider o TreeView para ver su contenido.</p>'}</section>`);
+    for(let i=0;i<hosts.length;i++)for(const view of hosts[i].views){const section=document.createElement('section');section.className='extension-tree-view';section.innerHTML=`<header><strong>${esc(view.id)}</strong><button class="icon-button" aria-label="Actualizar ${esc(view.id)}">${icon('refresh')}</button></header><div class="extension-tree-nodes"></div>`;document.querySelector(`[data-extension-tree="${i}"]`).append(section);const refresh=()=>this.safe(()=>this.treeChildren(hosts[i],view.id,section.lastElementChild));section.querySelector('button').onclick=refresh;await refresh();}
+  }
+  async treeChildren(ext,view,container,element){
+    const data=await this.host.platform.api('/extensions/runtime/request',{id:ext.id,method:'tree',view,element});if(!container.isConnected)return;
+    container.replaceChildren();
+    for(const item of data.items){const row=document.createElement('button');row.className='extension-tree-row';row.title=typeof item.tooltip==='string'?item.tooltip:'';row.innerHTML=icon(item.collapsibleState?'chevron-right':'file')+`<span>${esc(item.label)}</span><small>${esc(item.description||'')}</small>`;container.append(row);const children=document.createElement('div');children.className='extension-tree-children';children.hidden=true;container.append(children);
+      row.onclick=()=>this.safe(async()=>{if(item.collapsibleState){children.hidden=!children.hidden;row.setAttribute('aria-expanded',String(!children.hidden));if(!children.hidden)await this.treeChildren(ext,view,children,item.key);}else if(item.command)await this.host.platform.pluginCommand(ext.id+':'+item.command.command,item.command.arguments||[]);});
+      if(item.collapsibleState===2){children.hidden=false;row.setAttribute('aria-expanded','true');await this.treeChildren(ext,view,children,item.key);}
+    }
+  }
   async startExtension(id){
     if(this.runtimeHosts?.some(x=>x.id===id&&x.running)){const stopped=await this.host.platform.api('/extensions/runtime/stop',{id});this.registerExtensions(stopped.hosts);return;}
     if(!await this.host.platform.host.ensureTrust())return;
@@ -112,6 +124,10 @@ class Preview{
       const contents=value=>(Array.isArray(value)?value:[value]).filter(Boolean).map(c=>typeof c==='string'?{value:c}:{value:c.value||String(c),isTrusted:false});
       for(const p of ext.providers){const language=p.language;
         if(p.kind==='hover')this.providers.push(m.languages.registerHoverProvider(language,{provideHover:async(model,pos)=>{const items=await call(ext,'hover',model,{position:{line:pos.lineNumber-1,character:pos.column-1}});return items.length?{contents:items.flatMap(i=>contents(i.contents)),range:mr(items[0].range)}:null;}}));
+        if(p.kind==='signature')this.providers.push(m.languages.registerSignatureHelpProvider(language,{signatureHelpTriggerCharacters:p.triggers||[],provideSignatureHelp:async(model,pos)=>{const items=await call(ext,'signature',model,{position:{line:pos.lineNumber-1,character:pos.column-1}});return items.length?{value:items[0],dispose(){}}:null;}}));
+        if(p.kind==='links')this.providers.push(m.languages.registerLinkProvider(language,{provideLinks:async model=>({links:(await call(ext,'links',model)).flatMap(i=>{const raw=typeof i.target==='string'?i.target:i.target?.external;try{const url=new URL(raw);return ['http:','https:','mailto:'].includes(url.protocol)?[{range:mr(i.range),url:url.href}]:[];}catch{return [];}}),dispose(){}})}));
+        if(p.kind==='folding')this.providers.push(m.languages.registerFoldingRangeProvider(language,{provideFoldingRanges:async model=>(await call(ext,'folding',model)).map(r=>({start:r.start+1,end:r.end+1,kind:r.kind==='comment'?m.languages.FoldingRangeKind.Comment:r.kind==='imports'?m.languages.FoldingRangeKind.Imports:r.kind==='region'?m.languages.FoldingRangeKind.Region:undefined}))}));
+        if(p.kind==='rename')this.providers.push(m.languages.registerRenameProvider(language,{provideRenameEdits:async(model,pos,newName)=>{const items=await call(ext,'rename',model,{newName,position:{line:pos.lineNumber-1,character:pos.column-1}});return {edits:items.flatMap(i=>(i.changes||[]).flatMap(c=>c.edits.map(e=>({resource:ed.models.get(relativeUri(c.uri))?.model?.uri||m.Uri.parse('file:///'+relativeUri(c.uri)),textEdit:{range:mr(e.range),text:e.newText},versionId:undefined}))))};}}));
         if(p.kind==='format')this.providers.push(m.languages.registerDocumentFormattingEditProvider(language,{provideDocumentFormattingEdits:async model=>(await call(ext,'format',model)).map(e=>({range:mr(e.range),text:e.newText}))}));
         if(p.kind==='semantic'&&p.legend)this.providers.push(m.languages.registerDocumentSemanticTokensProvider(language,{getLegend:()=>p.legend,provideDocumentSemanticTokens:async model=>{const items=await call(ext,'semantic',model);return items.length?{data:new Uint32Array(items[0].data),resultId:items[0].resultId}:null;},releaseDocumentSemanticTokens(){}}));
         if(p.kind==='symbols')this.providers.push(m.languages.registerDocumentSymbolProvider(language,{provideDocumentSymbols:async model=>{const convert=s=>({...s,range:mr(s.range),selectionRange:mr(s.selectionRange||s.range),children:(s.children||[]).map(convert)});return (await call(ext,'symbols',model)).map(convert);}}));

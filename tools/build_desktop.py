@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
-"""Build the current platform's standalone bundle; optional native installer.
-
-Dependencies are explicit. This script never acquires certificates, silently
-installs build tools, signs a release or pretends to cross-compile.
-"""
+"""Build and package on the target OS. macOS signing/notarization is separate."""
 from __future__ import annotations
 import argparse
 import hashlib
+import importlib.metadata
 import importlib.util
 import json
 import platform
@@ -14,38 +11,139 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
+import zipfile
 from pathlib import Path
+
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT))
+from backend.version import VERSION, REVISION, RELEASE_TAG
+
+
+def sha256(file):
+    digest=hashlib.sha256()
+    with file.open('rb') as stream:
+        for block in iter(lambda:stream.read(1024*1024),b''):digest.update(block)
+    return digest.hexdigest()
+
+
+def architecture():
+    machine=platform.machine().lower()
+    return {'amd64':'x86_64','x64':'x86_64','aarch64':'arm64'}.get(machine,machine)
+
+
+def collect_licenses():
+    """Record actual dependency versions and preserve their distributed licenses."""
+    destination=ROOT/'licenses/native-python'
+    destination.mkdir(parents=True,exist_ok=True)
+    inventory=[]
+    for distribution in importlib.metadata.distributions():
+        name=distribution.metadata.get('Name','unknown')
+        folder=destination/name.lower().replace('_','-')
+        files=[]
+        for relative in distribution.files or []:
+            if '..' in relative.parts or not any(part.lower().startswith(('license','copying','notice')) for part in relative.parts):continue
+            source=Path(distribution.locate_file(relative))
+            if not source.is_file() or source.stat().st_size>2_000_000:continue
+            target=folder/Path(*relative.parts[1:])
+            target.parent.mkdir(parents=True,exist_ok=True)
+            shutil.copy2(source,target)
+            files.append(target.relative_to(destination).as_posix())
+        inventory.append({'name':name,'version':distribution.version,'license':distribution.metadata.get('License-Expression') or distribution.metadata.get('License',''),'files':files})
+    (destination/'PACKAGE_INVENTORY.json').write_text(json.dumps(sorted(inventory,key=lambda x:x['name'].lower()),ensure_ascii=False,indent=2),encoding='utf-8')
+
+
+def prepare_mac_icon():
+    from PIL import Image
+    target=ROOT/'packaging/macos/lumen.icns';target.parent.mkdir(parents=True,exist_ok=True)
+    with Image.open(ROOT/'web/assets/lumen.ico') as image:
+        image.convert('RGBA').resize((1024,1024),Image.Resampling.LANCZOS).save(target,format='ICNS')
+
+
+def desktop_entry(executable,icon):
+    return '[Desktop Entry]\nType=Application\nName=Lumen Studio\nComment=Editor, Lantern Live y Forge\nExec="'+executable+'"\nIcon='+icon+'\nTerminal=false\nCategories=Development;IDE;\nStartupWMClass=Lumen Studio\n'
+
+
+def linux_packages(bundle,prefix):
+    if not shutil.which('dpkg-deb'):raise RuntimeError('dpkg-deb es necesario para crear el instalador .deb.')
+    arch={'x86_64':'amd64','arm64':'arm64'}.get(architecture())
+    if not arch:raise RuntimeError('Arquitectura Linux no admitida.')
+    deb=ROOT/f'dist/{prefix}-Linux-{arch}.deb'
+    with tempfile.TemporaryDirectory(prefix='lumen-deb-') as temp:
+        stage=Path(temp);install=stage/'opt/lumen-studio'
+        shutil.copytree(bundle,install,symlinks=True)
+        control=stage/'DEBIAN';control.mkdir()
+        kib=sum(p.stat().st_size for p in install.rglob('*') if p.is_file())//1024
+        (control/'control').write_text(f'Package: lumen-studio\nVersion: {VERSION}~preview.{REVISION}\nSection: devel\nPriority: optional\nArchitecture: {arch}\nMaintainer: Lumen Studio <lumen@users.noreply.github.com>\nInstalled-Size: {kib}\nDepends: libc6 (>= 2.35), libstdc++6, libgl1, libopengl0, libegl1, libxkbcommon0, libxkbcommon-x11-0, libxcb-cursor0, libxcb-xinerama0, libxcb-icccm4, libxcb-keysyms1, libxcb-image0, libxcb-render-util0, libnss3, libnspr4, libasound2 | libasound2t64, libxcomposite1, libxdamage1, libxrandr2, libxtst6, libxi6, libdbus-1-3, xdg-utils\nHomepage: https://github.com/Arizt00/LumenStudio\nDescription: Lumen Studio IDE preview\n Editor Monaco, Lantern Live, Forge y ventanas nativas independientes.\n Incluye su runtime; los SDK de proyectos se preparan aparte.\n',encoding='utf-8')
+        bin_dir=stage/'usr/bin';bin_dir.mkdir(parents=True)
+        (bin_dir/'lumen').write_text('#!/bin/sh\nexec /opt/lumen-studio/lumen "$@"\n',encoding='utf-8');(bin_dir/'lumen').chmod(0o755)
+        apps=stage/'usr/share/applications';apps.mkdir(parents=True)
+        (apps/'lumen-studio.desktop').write_text(desktop_entry('/opt/lumen-studio/lumen','lumen-studio'),encoding='utf-8')
+        icons=stage/'usr/share/icons/hicolor/scalable/apps';icons.mkdir(parents=True)
+        shutil.copy2(ROOT/'web/assets/lumen.svg',icons/'lumen-studio.svg')
+        notices=stage/'usr/share/doc/lumen-studio';notices.mkdir(parents=True)
+        shutil.copy2(ROOT/'LICENSE',notices/'copyright')
+        subprocess.run(['dpkg-deb','--root-owner-group','--build',str(stage),str(deb)],check=True)
+    portable=ROOT/f'dist/{prefix}-Linux-{arch}.tar.gz'
+    with tarfile.open(portable,'w:gz') as archive:
+        archive.add(bundle,arcname='LumenStudio')
+        info=archive.gettarinfo(str(ROOT/'packaging/linux/install-bundle.sh'),arcname='install.sh');info.mode=0o755
+        with (ROOT/'packaging/linux/install-bundle.sh').open('rb') as stream:archive.addfile(info,stream)
+    return [deb,portable]
+
+
+def mac_package(prefix):
+    output=ROOT/f'dist/{prefix}-macOS-{architecture()}.dmg'
+    with tempfile.TemporaryDirectory(prefix='lumen-dmg-') as temp:
+        stage=Path(temp)
+        shutil.copytree(ROOT/'dist/Lumen Studio.app',stage/'Lumen Studio.app',symlinks=True)
+        (stage/'Applications').symlink_to('/Applications',target_is_directory=True)
+        (stage/'LEEME.txt').write_text('Lumen Studio '+VERSION+f' R{REVISION}\n\nArrastra Lumen Studio.app a Applications.\nIncluye Python; prepara los SDK de tus proyectos por separado.\nPreview sin firma de Developer ID ni notarización de Apple.\nSi macOS bloquea esta preview, revisa Privacidad y seguridad tras verificar la descarga.\nNo es necesario desactivar Gatekeeper.\n',encoding='utf-8')
+        subprocess.run(['hdiutil','create','-volname','Lumen Studio','-srcfolder',str(stage),'-ov','-format','UDZO',str(output)],check=True)
+    return [output]
+
 
 def main():
-    p=argparse.ArgumentParser(description='Construir Lumen en el sistema de destino')
-    p.add_argument('--installer',action='store_true');p.add_argument('--plan',action='store_true');p.add_argument('--require-assets',action='store_true');a=p.parse_args()
+    parser=argparse.ArgumentParser(description='Construir Lumen en el sistema de destino')
+    parser.add_argument('--installer',action='store_true')
+    parser.add_argument('--plan',action='store_true')
+    parser.add_argument('--require-assets',action='store_true')
+    parser.add_argument('--package-only',action='store_true',help='Empaquetar un bundle ya construido en este sistema')
+    args=parser.parse_args()
     command=[sys.executable,'-m','PyInstaller','--noconfirm','--clean',str(ROOT/'packaging/lumen.spec')]
-    print(json.dumps({'platform':sys.platform,'machine':platform.machine(),'argv':command,'signed':False,'installerRequested':a.installer},indent=2))
-    if a.plan:return 0
-    if not importlib.util.find_spec('PyInstaller') or not importlib.util.find_spec('webview'):
-        p.error('Instala requirements-build.txt en un entorno virtual de construcción antes de continuar.')
-    if a.require_assets:
-        for path in ('monaco/vs/loader.js','babylon/babylon.js','xterm/xterm.js','xterm-fit/addon-fit.js','three/three.core.js'):
-            if not (ROOT/'web/vendor'/path).is_file():p.error('Falta '+path+'. Ejecuta tools/setup_assets.py.')
-    subprocess.run(command,cwd=ROOT,check=True)
-    outputs=[]
-    if a.installer:
+    print(json.dumps({'platform':sys.platform,'architecture':architecture(),'version':RELEASE_TAG,'argv':command,'signed':False,'installerRequested':args.installer},indent=2),flush=True)
+    if args.plan:return 0
+    if not args.package_only:
+        if not importlib.util.find_spec('PyInstaller') or not importlib.util.find_spec('webview'):parser.error('Instala requirements-build.txt en un entorno virtual de construcción.')
+        if args.require_assets:
+            for path in ('monaco/vs/loader.js','babylon/babylon.js','xterm/xterm.js','xterm-fit/addon-fit.js','three/three.core.js'):
+                if not (ROOT/'web/vendor'/path).is_file():parser.error('Falta '+path+'. Ejecuta tools/setup_assets.py.')
+        collect_licenses()
+        if sys.platform=='darwin':prepare_mac_icon()
+        subprocess.run(command,cwd=ROOT,check=True)
+    outputs=[];prefix=f'LumenStudio-{VERSION}-R{REVISION}'
+    if args.installer:
         if sys.platform=='win32':
-            subprocess.run([sys.executable,'-m','PyInstaller','--noconfirm','--clean',str(ROOT/'packaging/uninstaller.spec')],check=True,cwd=ROOT)
-            subprocess.run([sys.executable,'-m','PyInstaller','--noconfirm','--clean',str(ROOT/'packaging/installer.spec')],check=True,cwd=ROOT)
-            outputs=list((ROOT/'dist').glob('LumenStudio-*-Windows-Setup.exe'))
-        elif sys.platform=='darwin':
-            out=ROOT/'dist/LumenStudio-0.5.2-macOS.dmg'
-            subprocess.run(['hdiutil','create','-volname','Lumen Studio','-srcfolder',str(ROOT/'dist/Lumen Studio.app'),'-ov','-format','UDZO',str(out)],check=True);outputs=[out]
-        else:
-            out=ROOT/('dist/LumenStudio-0.5.2-linux-'+platform.machine()+'.tar.gz')
-            with tarfile.open(out,'w:gz') as archive:
-                archive.add(ROOT/'dist/LumenStudio',arcname='LumenStudio')
-                archive.add(ROOT/'packaging/linux/install-bundle.sh',arcname='install.sh')
-            outputs=[out]
-    manifest={'version':'0.5.2','platform':sys.platform,'architecture':platform.machine(),'signed':False,'outputs':[{'name':x.name,'sha256':hashlib.sha256(x.read_bytes()).hexdigest()} for x in outputs]}
-    (ROOT/'dist/BUILD_MANIFEST.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
-    print('Bundle generado. Las firmas, notarización y pruebas en destino siguen siendo pasos explícitos de publicación.')
+            for name in ('uninstaller','installer'):
+                subprocess.run([sys.executable,'-m','PyInstaller','--noconfirm','--clean',str(ROOT/f'packaging/{name}.spec')],check=True,cwd=ROOT)
+            output=ROOT/f'dist/{prefix}-Windows-Setup.exe'
+            if not output.is_file():raise RuntimeError('No se generó el instalador .exe.')
+            outputs=[output]
+            portable=ROOT/f'dist/{prefix}-Windows-Portable.zip'
+            with zipfile.ZipFile(portable,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
+                for file in (ROOT/'dist/LumenStudio').rglob('*'):
+                    if file.is_file():archive.write(file,'LumenStudio/'+file.relative_to(ROOT/'dist/LumenStudio').as_posix())
+            outputs.append(portable)
+        elif sys.platform=='darwin':outputs=mac_package(prefix)
+        elif sys.platform.startswith('linux'):outputs=linux_packages(ROOT/'dist/LumenStudio',prefix)
+        else:parser.error('Sistema de distribución no admitido.')
+    try:commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+    except (OSError,subprocess.SubprocessError):commit=None
+    manifest={'version':RELEASE_TAG,'platform':sys.platform,'architecture':architecture(),'sourceCommit':commit,'signed':False,'outputs':[{'name':x.name,'bytes':x.stat().st_size,'sha256':sha256(x)} for x in outputs]}
+    name=f'{prefix}-{sys.platform}-{architecture()}'
+    (ROOT/f'dist/{name}-manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
+    (ROOT/f'dist/{name}-SHA256.txt').write_text(''.join(f"{x['sha256']}  {x['name']}\n" for x in manifest['outputs']),encoding='utf-8')
+    print('Paquetes nativos generados con manifiesto y SHA-256.',flush=True)
     return 0
+
 if __name__=='__main__':raise SystemExit(main())

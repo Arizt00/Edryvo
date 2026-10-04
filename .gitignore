@@ -12,6 +12,8 @@ qa-output/
 
 /dist/
 /build/
+/packaging/macos/lumen.icns
+/licenses/native-python/
 
 /config/runtime-local.json
 /.r5-*

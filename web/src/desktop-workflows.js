@@ -22,7 +22,8 @@ export class DesktopWorkflows{
       const b=document.createElement('button');b.className='icon-button';b.title='Abrir '+{project:'Proyecto',assistant:'asistente',console:'terminal'}[panel]+' en el escritorio';b.setAttribute('aria-label',b.title);b.innerHTML=icon('arrow-up-right');b.onclick=()=>this.safe(()=>this.detach(panel));node.querySelector(panel==='console'?'.terminal-tools':'.heading-actions').append(b);
     }
     this.returned=e=>{if(e.detail.panel==='forge'){this.forgeWindowOpen=false;return;}if(e.detail.panel!=='editor'){h.dock.nativeDetached.delete(e.detail.panel);h.dock.show(e.detail.panel);}};window.addEventListener('lumen:native-return',this.returned);
-    this.detachEditor=()=>this.safe(()=>this.detach('editor',h.editor.current));window.addEventListener('lumen:detach-editor',this.detachEditor);
+    this.detachEditor=e=>this.safe(()=>this.detach(e.detail?.panel||'editor',e.detail?.path||h.editor.current,e.detail?.position));window.addEventListener('lumen:detach-editor',this.detachEditor);
+    h.dock.onDetach=(panel,position)=>this.safe(()=>this.detach(panel,'',position));
     h.commands.push(['split-editor','layout','Editor: ver dos archivos a la vez','Ctrl \\'],['close-split-editor','close','Editor: cerrar división',''],['detach-editor','plus','Editor: sacar al escritorio',''],['forge-window','build','Forge: abrir en otra ventana',''],['forge-terminal','terminal','Forge: abrir en la terminal integrada',''],['hacker','build','Forge: activar / desactivar controles',''],['hacker-python','play','Forge: ejecutar Python desde el búfer',''],['hacker-gdb','bug','Forge: compilar C y abrir GDB integrado',''],['updates','download','Lumen: comprobar actualizaciones de GitHub','']);
     if(this.query.has('panel'))await this.detached();
     this.pollBuffers();this.pollUpdates();
@@ -115,13 +116,13 @@ export class DesktopWorkflows{
     }catch(error){this.forgeError=true;throw error;}
     finally{this.forgeBusy=false;this.paintHacker();}
   }
-  async detach(panel,path=''){
+  async detach(panel,path='',position){
     const h=this.host,api=window.pywebview?.api;
     if(panel==='editor'&&!path)throw Error('Abre un archivo para separarlo.');
     if(panel==='editor'||panel==='assistant'){
       const target=path||h.editor.current;if(target)await this.share(target);path=target||'';
     }
-    if(api?.detach_panel)await api.detach_panel(panel,path);
+    if(api?.detach_panel)await api.detach_panel(panel,path,position||null);
     else{
       const url=new URL(location.href);url.search=new URLSearchParams({panel,file:path});
       const child=window.open(url.href,'_blank','width=900,height=760');if(!child)throw Error('Permite las ventanas emergentes para separar el panel.');
@@ -138,7 +139,9 @@ export class DesktopWorkflows{
     this.paintHacker();
     const notice=document.createElement('div');notice.className='native-workspace-notice';notice.textContent='La carpeta cambió en la ventana principal. Tu texto permanece aquí: cópialo antes de cerrar y vuelve a abrir el panel.';$('#app').prepend(notice);
   }
-  async share(path){
+  bufferWrite(fn){const request=(this.bufferWrites||Promise.resolve()).catch(()=>{}).then(fn);this.bufferWrites=request;return request;}
+  share(path){return this.bufferWrite(()=>this.shareUnlocked(path));}
+  async shareUnlocked(path){
     const r=this.host.editor.models.get(path);if(!r)return;
     const all=await this.host.platform.api('/buffers'),old=all.buffers.find(x=>x.path===path);
     const text=r.model?.getValue()??r.value;
@@ -147,7 +150,8 @@ export class DesktopWorkflows{
     if(result.conflict)throw Error('Otra ventana acaba de editar este archivo. Repite la acción.');this.shared.set(path,result.buffer);
   }
   queue(path){this.pending.add(path);clearTimeout(this.publishTimer);this.publishTimer=setTimeout(()=>this.safe(()=>this.publish()),100);}
-  async publish(){
+  publish(){return this.bufferWrite(()=>this.publishUnlocked());}
+  async publishUnlocked(){
     if(this.publishing)return;this.publishing=true;
     try{for(const path of [...this.pending]){
       this.pending.delete(path);const r=this.host.editor.models.get(path),base=this.shared.get(path);if(!r||!base)continue;

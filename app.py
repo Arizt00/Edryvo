@@ -153,7 +153,7 @@ def main():
             api._window.events.maximized += lambda: setattr(api, "_maximized", True)
             api._window.events.restored += lambda: setattr(api, "_maximized", False)
             try:
-                webview.start()
+                webview.start(gui='qt' if sys.platform.startswith('linux') else None)
             finally:
                 application.features.shutdown()
                 application.runner.shutdown()

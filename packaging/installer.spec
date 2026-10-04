@@ -4,4 +4,4 @@ ROOT=Path(SPECPATH).parent
 data=[(str(ROOT/'dist/Uninstall-Lumen.exe'),'.'),(str(ROOT/'web'),'web'),(str(ROOT/'dist/LumenStudio'),'payload')]+collect_data_files('webview')
 a=Analysis([str(ROOT/'installer.py')],pathex=[str(ROOT)],datas=data,binaries=[],hiddenimports=collect_submodules('webview'),excludes=['playwright','tkinter','PySide6','PyQt5','PyQt6'],noarchive=False)
 pyz=PYZ(a.pure)
-exe=EXE(pyz,a.scripts,a.binaries,a.datas,[],name='LumenStudio-0.5.2-Windows-Setup',console=False,upx=False,strip=False,version=str(ROOT/'packaging/version.txt'),icon=str(ROOT/'web/assets/lumen.ico') if (ROOT/'web/assets/lumen.ico').exists() else None)
+exe=EXE(pyz,a.scripts,a.binaries,a.datas,[],name='LumenStudio-0.5.2-R8-Windows-Setup',console=False,upx=False,strip=False,version=str(ROOT/'packaging/version.txt'),icon=str(ROOT/'web/assets/lumen.ico') if (ROOT/'web/assets/lumen.ico').exists() else None)

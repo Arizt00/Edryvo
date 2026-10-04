@@ -113,10 +113,10 @@ class ExtensionRuntime:
         host=self.hosts.get(body.get('id'))
         if not host:raise ValueError('Inicia el motor de la extensión primero.')
         method=body.get('method')
-        if method not in ('command','provide','virtual','willSave','didSave'):raise ValueError('Operación no válida.')
+        if method not in ('command','provide','virtual','willSave','didSave','tree'):raise ValueError('Operación no válida.')
         document=body.get('document',{})
         if document.get('path'):workspace.resolve(document['path'],must_exist=False)
-        return host.request({k:body[k] for k in ('method','command','kind','document','position','range','uri','arguments','reason') if k in body})
+        return host.request({k:body[k] for k in ('method','command','kind','document','position','range','uri','arguments','reason','newName','view','element') if k in body})
     def stop(self,eid,forget=False):
         with self.lock:
             if forget:

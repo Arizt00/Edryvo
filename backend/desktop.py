@@ -1,5 +1,6 @@
 """Explicit WebView2 bridge. Native objects MUST remain private to avoid JS introspection."""
 import sys
+from .version import VERSION, REVISION
 
 class DesktopAPI:
     def __init__(self):
@@ -10,9 +11,9 @@ class DesktopAPI:
         self._children = {}
 
     def status(self):
-        return {'ready': self._window is not None, 'version': '0.5.2', 'revision': 7}
+        return {'ready': self._window is not None, 'version': VERSION, 'revision': REVISION}
 
-    def detach_panel(self, panel, path=''):
+    def detach_panel(self, panel, path='', position=None):
         """Independent native window, sharing backend processes and document hub."""
         import webview
         from urllib.parse import urlencode
@@ -24,7 +25,12 @@ class DesktopAPI:
             return {'opened':True,'existing':True}
         api=DesktopAPI();api._application=self._application;api._url=self._url;api._panel=panel
         query=urlencode({'panel':panel,'file':path})
-        child=webview.create_window('Lumen · '+{'project':'Proyecto','assistant':'Melody','console':'Terminal','editor':path or 'Editor','forge':'Forge'}[panel],self._url+'/?'+query,js_api=api,width=940 if panel in ('editor','forge') else 640,height=760,min_size=(380,320),easy_drag=False,background_color='#191d28')
+        coordinates={}
+        if isinstance(position,dict):
+            for axis in ('x','y'):
+                value=position.get(axis)
+                if isinstance(value,(int,float)) and -100_000<=value<=100_000:coordinates[axis]=round(value)
+        child=webview.create_window('Lumen · '+{'project':'Proyecto','assistant':'Melody','console':'Terminal','editor':path or 'Editor','forge':'Forge'}[panel],self._url+'/?'+query,js_api=api,width=940 if panel in ('editor','forge') else 640,height=760,min_size=(380,320),easy_drag=False,background_color='#191d28',**coordinates)
         api._window=child;self._children[key]=child
         def closed():
             self._children.pop(key,None)
@@ -43,7 +49,15 @@ class DesktopAPI:
         installer=self._application.features.updates.installer()
         # The user launches the downloaded installer when ready. The current
         # editor stays open, so unsaved buffers are never forcibly discarded.
-        process=subprocess.Popen([str(installer)],cwd=installer.parent,creationflags=subprocess.CREATE_NO_WINDOW if sys.platform=='win32' else 0)
+        if sys.platform=='darwin':
+            command=['/usr/bin/open',str(installer)]
+        elif sys.platform.startswith('linux'):
+            import shutil
+            opener=shutil.which('xdg-open')
+            if not opener:raise ValueError('Instala xdg-utils para abrir el paquete de actualización.')
+            command=[opener,str(installer)]
+        else:command=[str(installer)]
+        process=subprocess.Popen(command,cwd=installer.parent,creationflags=subprocess.CREATE_NO_WINDOW if sys.platform=='win32' else 0)
         return {'opened':True,'pid':process.pid}
 
     def new_window(self, path='', content=None):

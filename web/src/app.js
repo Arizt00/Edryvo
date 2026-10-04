@@ -11,9 +11,10 @@ import {PRESET_NAMES,sideOf} from './layout-state.js';
 import {installInteractions} from './interactions.js';
 import {LumenPlatform} from './workbench.js';
 import {DesktopWorkflows} from './desktop-workflows.js';
+import {WorkspaceProfiles} from './workspace-profiles.js';
 
 const motion=new LumenMotion();
-let dock=null,polish=null,platformUI=null,studio=null,previewUI=null,desktopUI=null,tabsSignature='';
+let dock=null,polish=null,platformUI=null,studio=null,previewUI=null,desktopUI=null,workspaceProfiles=null,tabsSignature='';
 
 const $=selector=>document.querySelector(selector);
 const $$=selector=>[...document.querySelectorAll(selector)];
@@ -76,7 +77,7 @@ function treeMarkup(nodes,depth=0){
     const isOpen=openFolders.has(node.path),selected=editor?.current===node.path;
     const indent=16+depth*20;
     if(node.directory)return `<div class="tree-node"><button class="tree-row" data-dir="${esc(node.path)}" style="padding-left:${indent}px" aria-expanded="${isOpen}"><span class="tree-chevron">${icon(isOpen?'chevron-down':'chevron-right')}</span><span class="folder-icon">${icon('folder')}</span><span class="label">${esc(node.name)}</span></button><div class="tree-children${isOpen?'':' closed'}">${treeMarkup(node.children||[],depth+1)}</div></div>`;
-    return `<button class="tree-row${selected?' active':''}" data-file="${esc(node.path)}" title="${esc(node.path)}" style="padding-left:${indent+20}px">${fileIcon(node.path)}<span class="label">${esc(node.name)}</span></button>`;
+    return `<button class="tree-row${selected?' active':''}" draggable="true" data-file="${esc(node.path)}" title="${esc(node.path)}" style="padding-left:${indent+20}px">${fileIcon(node.path)}<span class="label">${esc(node.name)}</span></button>`;
   }).join('');
 }
 function renderTree(){
@@ -568,9 +569,10 @@ async function start(){
     await platformUI.init();
     studio=new LenonStudio({api,platform:platformUI,dock,editor,motion,modal,closeModal,notify,ensureTrust,openFile,saveFile,palette:openPalette,refreshTree,service:()=>service,files:allFiles});
     await studio.init();
-    previewUI=installPreview({api,editor,studio,platform:platformUI,dock,modal,closeModal,confirmDialog,notify,openFile,saveFile,refreshTree,renderTabs,closeFile,revealFile,service:()=>service,showMenu,perform});
+    previewUI=installPreview({api,editor,studio,platform:platformUI,dock,modal,closeModal,confirmDialog,notify,openFile,saveFile,refreshTree,renderTabs,closeFile,revealFile,service:()=>service,showMenu,perform,detachEditor:(path,position)=>desktopUI.detach('editor',path,position)});
     if(service.startup?.path){await openFile(service.startup.path);if(typeof service.startup.content==='string')editor.insertText(service.startup.content,true);}
     desktopUI=new DesktopWorkflows({api,editor,studio,platform:platformUI,dock,notify,openFile,ensureTrust,watchJob,showConsole:()=>showTerminal(),service:()=>service,commands:commandDefinitions});await desktopUI.init();
+    workspaceProfiles=new WorkspaceProfiles({editor,studio,platform:platformUI,preview:previewUI,perform,ensureTrust});
     installExplorerMenu({api,editor,notify,modal,closeModal,confirmDialog,saveFile,openFile,refreshTree,showMenu,lantern:studio.lantern,workspace:()=>service.workspace,newWindow:path=>previewUI.newWindow(path),search:path=>studio.search(path),refreshDocuments:()=>{renderTabs();updateDocumentStatus();previewUI.activeChanged();}});
     document.documentElement.removeAttribute('data-booting');
     $('#engine-label').textContent='Local workspace';
@@ -578,7 +580,7 @@ async function start(){
     window.lumen={get theme(){return document.documentElement.dataset.theme;},get editorKind(){return editor.kind;},get graphicsKind(){return [...(studio?.scenes.values()||[])].some(s=>s.kind==='babylon')?'babylon':'css';},get graphicsAPI(){return document.querySelector('canvas[data-engine]')?.dataset.engine||'CSS';},get activeFile(){return editor.current;},get ready(){return true;},get platformReady(){return !!platformUI?.state;},get platformPage(){return platformUI?.page;},get languageServers(){return platformUI?.lspSessions.size||0;},get layout(){return dock.snapshot();},get motionEnabled(){return motion.enabled;}};
   }catch(error){document.documentElement.removeAttribute('data-booting');$('#connection-overlay').classList.remove('hidden');$('#connection-overlay p').textContent='No se pudo iniciar la interfaz: '+error.message;console.error(error);}
 }
-window.addEventListener('pagehide',event=>{if(!event.persisted){desktopUI?.dispose();studio?.dispose();platformUI?.dispose();scene?.dispose();dock?.dispose();motion.dispose();polish?.dispose();}});
+window.addEventListener('pagehide',event=>{if(!event.persisted){workspaceProfiles?.dispose();previewUI?.documentDrag.dispose();desktopUI?.dispose();studio?.dispose();platformUI?.dispose();scene?.dispose();dock?.dispose();motion.dispose();polish?.dispose();}});
 document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='\\'){event.preventDefault();guard(()=>perform('split-editor'))();}});
 $('#retry-connection').onclick=()=>location.reload();
 start();

@@ -1,10 +1,10 @@
-# Lumen Studio · 0.5.2 Preview R7
+# Lumen Studio · 0.5.2 Preview R8
 
-Lumen es un IDE de escritorio con editor Monaco, terminal integrada, depuración por lenguaje, Lantern Live y asistencia de IA. Está en desarrollo: el alcance real y las limitaciones de esta entrega se detallan en [Preview R7](docs/PREVIEW_R7.md).
+Lumen es un IDE de escritorio con editor Monaco, terminal integrada, depuración por lenguaje, Lantern Live y asistencia de IA. Está en desarrollo: los instaladores por sistema se detallan en [Preview R8](docs/PREVIEW_R8.md), junto a los [límites del IDE](docs/PREVIEW_R7.md).
 
 ## Usar Lumen
 
-Windows 10/11 x64, con Microsoft Edge WebView2. El instalador incluye el runtime Python del IDE; los compiladores y SDK de tus proyectos se seleccionan aparte. El paquete portable debe extraerse completo: `lumen.exe` necesita `_internal`. Los ejecutables de esta preview no están firmados con Authenticode.
+Instalador `.exe` para Windows 10/11 x64 (Edge WebView2), `.deb` y portable para Linux x64 compatible con Ubuntu 22.04+, y `.dmg` separados para macOS Apple Silicon e Intel. Los paquetes incluyen el runtime Python del IDE; los compiladores y SDK de tus proyectos se preparan aparte. Los ejecutables de esta preview no tienen firma Authenticode ni notarización de Apple. Consulta [las instrucciones de cada plataforma](docs/PREVIEW_R8.md).
 
 El primer inicio permite elegir tema, idioma, distribución y perfil. Una instalación nueva comienza sin archivos recientes inventados. Los paneles principales usan superficies al 92 % en Día y al 94 % en Oscuro y Bosque, con colores de sintaxis integrados e iridiscencia animada configurable.
 
@@ -13,6 +13,8 @@ El primer inicio permite elegir tema, idioma, distribución y perfil. Una instal
 - Pestañas agrupadas por carpeta, selector de archivos, menús contextuales, renombrado, eliminación recuperable y apertura en otra ventana.
 - Proyecto, Asistente y Terminal pueden cerrarse, recuperarse, acoplarse, flotar dentro del área de trabajo o abrirse en ventanas nativas independientes en otro monitor.
 - Dos archivos de código simultáneos con Ctrl+\. El editor separado comparte el búfer sin guardar y detecta cambios simultáneos.
+- Arrastra archivos a los bordes para dividir el editor en filas o columnas; arrastra pestañas y encabezados de panel fuera de Lumen para separarlos en otra ventana o monitor.
+- Estilos persistentes con herramientas propias: desarrollo general, vista web sin guardar, exploración CSV/TSV y paleta/contraste para diseño.
 - Forge: espacio de ejecución y depuración con contexto del archivo, herramientas detectadas, Python desde el búfer actual y C con GCC y GDB integrado.
 - La última carpeta y las extensiones instaladas se conservan; los motores previamente autorizados se recuperan en proyectos de confianza.
 - Actualizaciones de GitHub: comprobación al iniciar y cada seis horas, descarga automática configurable e instalación elegida por el usuario.

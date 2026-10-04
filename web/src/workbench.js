@@ -65,7 +65,7 @@ export class LumenPlatform {
     const labels=[['[data-view="explorer"].rail-item','Explorador','Explorer'],['[data-view="search"].rail-item','Buscar','Search'],['[data-view="git"].rail-item','Control de código','Source Control'],['[data-view="run"].rail-item','Depuración','Run & Debug'],['[data-action="extensions"].rail-item','Extensiones','Extensions'],['[data-action="toggle-ai"].rail-item','Melody','Melody']];
     for(const [selector,es,en] of labels){const el=document.querySelector(selector);if(el){const span=el.lastElementChild;if(span)span.textContent=this.t(es,en);}}
     const text=(selector,es,en)=>{const el=document.querySelector(selector);if(el){const node=[...el.childNodes].find(n=>n.nodeType===Node.TEXT_NODE&&n.textContent.trim());if(el.matches('[data-terminal]')&&node)node.textContent=this.t(es,en);else el.textContent=this.t(es,en);}};
-    text('.brand-tagline','0.5.2 · R7','0.5.2 · R7');text('.search-placeholder','Buscar archivos, símbolos, comandos...','Search files, symbols, commands...');
+    text('.brand-tagline','0.5.2 · R8','0.5.2 · R8');text('.search-placeholder','Buscar archivos, símbolos, comandos...','Search files, symbols, commands...');
     text('.assistant-heading-title h2','Melody','Melody');text('.assistant-kicker','TU ESPACIO PARA PENSAR','YOUR SPACE TO THINK');
     text('.assistant-hero h3','Hola,','Hello,');text('.layout-button-label','Espacio','Layout');
     text('.ai-action-card[data-ai-action="generate"] strong','Generar','Generate');text('.ai-action-card[data-ai-action="refactor"] strong','Refactorizar','Refactor');

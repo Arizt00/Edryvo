@@ -114,7 +114,7 @@ class PlatformServices:
         if path=='/diagnostics/output':return {'diagnostics':output_diagnostics(str(body.get('output',''))[:512000],str(body.get('path','')))}
         if path=='/studio':return self.studio.update(body)
         if path=='/languages/config':return self.runtimes.save(body)
-        if path=='/preview':return self.preview.start(ws,body.get('path',''))
+        if path=='/preview':return self.preview.start(ws,body.get('path',''),body.get('buffers'))
         if path=='/debug/start':
             self.lantern.stop()
             return self.debugger.start(ws,body.get('path',''),body.get('breakpoints',[]))

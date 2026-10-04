@@ -1,6 +1,6 @@
 # Componentes de Lumen Studio 0.5.2
 
-Esta distribución Windows contiene bibliotecas locales. No requiere una CDN para cargar su interfaz.
+Las distribuciones contienen bibliotecas locales. No requieren una CDN para cargar su interfaz. La tabla siguiente documenta la distribución Windows original. Los paquetes R8 incluyen además `licenses/native-python/PACKAGE_INVENTORY.json` con las versiones y licencias reales de su sistema de construcción. Linux añade PySide6/QtWebEngine y qtpy; macOS añade PyObjC/Cocoa/WebKit. Sus avisos de licencia se conservan junto al inventario y en el runtime empaquetado.
 
 | Componente | Versión de esta entrega | Procedencia |
 |---|---|---|

@@ -21,21 +21,22 @@ async function request(message){
     for(const command of manifest.contributes?.commands||[])if(commands.has(command.command))commands.get(command.command).title=command.title;
     const capabilities=providers.map(({kind,language,legend,triggers})=>({kind,language,legend,triggers}));
     if(bridge.diagnosticCollections.size)for(const language of manifest.contributes?.languages||[])capabilities.push({kind:'diagnostics',language:language.id});
-    return {commands:[...commands].map(([id,c])=>({id,title:c.title})),providers:capabilities,tokens};
+    return {commands:[...commands].map(([id,c])=>({id,title:c.title})),providers:capabilities,tokens,views:bridge.treeViews.snapshot()};
   }
   if(!loaded)throw Error('Extensión no activada.');
   effects=[];active=message.document||active;bridge.syncDocument(active);
   if(message.method==='willSave')return bridge.willSave(message.reason);
   if(message.method==='didSave'){bridge.didSave();return {ok:true};}
   if(message.method==='virtual')return {text:await bridge.readVirtual(message.uri)};
+  if(message.method==='tree')return message.view?bridge.treeViews.children(message.view,message.element):{views:bridge.treeViews.snapshot()};
   if(message.method==='command'){
     const c=commands.get(message.command);if(!c)throw Error('Comando no registrado.');
-    return {result:await c.fn(...(c.fn.vscodeCommand?[]:[{...active}]),...(message.arguments||[])),effects};
+    return {result:await c.fn(...(c.fn.vscodeCommand?[]:[{...active}]),...bridge.treeViews.arguments(message.arguments||[])),effects};
   }
   if(message.method==='provide'){
     const result=[];
     for(const p of providers.filter(p=>p.kind===message.kind&&(p.language===active.language||p.language==='*'))){
-      const value=await p.fn({...active,position:message.position,range:message.range});
+      const value=await p.fn({...active,position:message.position,range:message.range,newName:message.newName});
       result.push(...(Array.isArray(value)?value:(value?.items||value?.hints||(value?[value]:[]))));
     }
     if(message.kind==='diagnostics')result.push(...bridge.getDiagnostics().map(d=>({line:d.range.start.line+1,column:d.range.start.character+1,endLine:d.range.end.line+1,endColumn:d.range.end.character+1,message:d.message,severity:['error','warning','info','hint'][d.severity||0]})));

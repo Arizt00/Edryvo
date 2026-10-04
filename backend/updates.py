@@ -2,12 +2,14 @@
 import copy
 import json
 import re
+import platform
 import sys
 import threading
 import time
 import urllib.request
 
-CURRENT='v0.5.2-preview.7'
+from .version import RELEASE_TAG
+CURRENT=RELEASE_TAG
 REPOSITORY='Arizt00/LumenStudio'
 API='https://api.github.com/repos/'+REPOSITORY+'/releases?per_page=15'
 
@@ -17,12 +19,27 @@ def version_key(tag):
     return (*map(int,m.groups()[:3]),int(m[4]) if m[4] else 1_000_000) if m else None
 
 
-def update_asset(releases, current=CURRENT):
+def package_matches(name, system=None, machine=None):
+    """Never offer a Windows installer to Linux/macOS or the wrong CPU build."""
+    system=system or sys.platform
+    machine=(machine or platform.machine()).lower()
+    architecture={'amd64':'x86_64','x64':'x86_64','aarch64':'arm64'}.get(machine,machine)
+    if system=='win32':
+        return architecture=='x86_64' and bool(re.fullmatch(r'LumenStudio[-_].*(?:Setup|Installer|Instalador).*\.exe',name,re.I))
+    if system=='darwin':
+        return bool(re.fullmatch(r'LumenStudio[-_].*-macOS-'+re.escape(architecture)+r'\.dmg',name,re.I))
+    if system.startswith('linux'):
+        arch={'x86_64':'amd64','arm64':'arm64'}.get(architecture,architecture)
+        return bool(re.fullmatch(r'LumenStudio[-_].*-Linux-'+re.escape(arch)+r'\.deb',name,re.I))
+    return False
+
+
+def update_asset(releases, current=CURRENT, system=None, machine=None):
     if not isinstance(releases,list):raise ValueError('GitHub no devolvió una lista de versiones.')
     newer=[r for r in releases if isinstance(r,dict) and not r.get('draft') and version_key(r.get('tag_name')) and version_key(r['tag_name'])>version_key(current)]
     for release in sorted(newer,key=lambda r:version_key(r['tag_name']),reverse=True):
         for asset in release.get('assets',[]):
-            if isinstance(asset,dict) and isinstance(asset.get('name'),str) and re.fullmatch(r'LumenStudio[-_].*(?:Setup|Installer|Instalador).*\.exe',asset['name'],re.I):
+            if isinstance(asset,dict) and isinstance(asset.get('name'),str) and package_matches(asset['name'],system,machine):
                 digest=asset.get('digest','')
                 url=asset.get('browser_download_url','')
                 if not isinstance(digest,str) or not re.fullmatch(r'sha256:[a-f0-9]{64}',digest):continue
@@ -87,7 +104,7 @@ class Updates:
         if state['status']!='ready':raise ValueError('La actualización aún no se ha descargado y verificado.')
         from pathlib import Path
         file=Path(state['transfer']['path']).resolve()
-        if file.parent!=self.downloads.root.resolve() or file.suffix.lower()!='.exe':raise ValueError('Instalador no válido.')
+        if file.parent!=self.downloads.root.resolve() or not package_matches(file.name):raise ValueError('Instalador no válido para este sistema.')
         # Recheck before execution, even if the user modified the downloaded file.
         import hashlib
         digest=hashlib.sha256()
