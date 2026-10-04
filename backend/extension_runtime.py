@@ -9,7 +9,8 @@ import uuid
 from .extensions import json_resource
 from .runtime_paths import find_tool
 from .terminals import child_environment
-from .extension_lsp import PyreflyHost
+from .extension_lsp import PyreflyHost, JavaLanguageHost
+from .preferences import atomic_json
 
 
 class Host:
@@ -58,9 +59,25 @@ class Host:
 
 
 class ExtensionRuntime:
-    def __init__(self, store):self.store=store;self.hosts={};self.lock=threading.RLock()
+    def __init__(self, store):
+        self.store=store;self.hosts={};self.lock=threading.RLock();self.errors={}
+        self.approvals_path=store.root/'runtime-approvals.json'
+        try:self.approvals=json.loads(self.approvals_path.read_text(encoding='utf-8'))
+        except (OSError,ValueError):self.approvals={}
+        if not isinstance(self.approvals,dict):self.approvals={}
     def snapshot(self):
-        with self.lock:return {'hosts':[{'id':key,'running':host.process.poll() is None,**host.capabilities,'logs':host.logs} for key,host in self.hosts.items()]}
+        with self.lock:return {'hosts':[{'id':key,'running':host.process.poll() is None,**host.capabilities,'logs':host.logs} for key,host in self.hosts.items()],'errors':dict(self.errors)}
+    def approve(self,workspace,eid):
+        key=str(workspace.root);self.approvals[key]=list(set(self.approvals.get(key,[]))|{eid});atomic_json(self.approvals_path,self.approvals);self.errors.pop(eid,None)
+    def restore(self,workspace):
+        if not workspace.trusted:return self.snapshot()
+        with self.lock:
+            for eid in self.approvals.get(str(workspace.root),[]):
+                if eid in self.hosts or eid in self.errors:continue
+                if not self.store.installed.get(eid,{}).get('enabled'):continue
+                try:self.start(workspace,eid,True)
+                except Exception as error:self.errors[eid]=str(error)
+        return self.snapshot()
     def start(self, workspace, eid, consent):
         if consent is not True or not workspace.trusted:raise PermissionError('Autoriza la extensión ejecutable en un proyecto de confianza.')
         with self.lock:
@@ -69,7 +86,12 @@ class ExtensionRuntime:
             root=(self.store.root/info['directory']/'extension').resolve();manifest=json_resource(root,'package.json')
             if eid.lower()=='meta.pyrefly':
                 self.stop(eid);self.hosts[eid]=PyreflyHost(root,workspace)
+                self.approve(workspace,eid)
                 self.store.prefs.audit('extension.execute',extension=eid,engine='native-lsp')
+                return self.snapshot()
+            if eid.lower()=='redhat.java':
+                self.stop(eid);self.hosts[eid]=JavaLanguageHost(root,workspace,self.store.root/'.runtime-data'/eid)
+                self.approve(workspace,eid)
                 return self.snapshot()
             entry=(root/manifest.get('lumen',{}).get('main',manifest.get('main',''))).resolve()
             if entry.suffix not in ('.js','.cjs','.mjs') and entry.with_suffix('.js').is_file():entry=entry.with_suffix('.js')
@@ -83,6 +105,7 @@ class ExtensionRuntime:
                 except (OSError,ValueError):pass
             options={'extensionId':eid,'manifest':manifest,'extensions':extensions,'storage':str(self.store.root/'.runtime-data'/eid),'locale':self.store.prefs.get('general.locale')}
             self.stop(eid);self.hosts[eid]=Host(node,root,entry,workspace,options)
+            self.approve(workspace,eid)
             self.store.prefs.audit('extension.execute',extension=eid)
         return self.snapshot()
     def request(self, workspace, body):
@@ -94,8 +117,12 @@ class ExtensionRuntime:
         document=body.get('document',{})
         if document.get('path'):workspace.resolve(document['path'],must_exist=False)
         return host.request({k:body[k] for k in ('method','command','kind','document','position','range','uri','arguments','reason') if k in body})
-    def stop(self,eid):
+    def stop(self,eid,forget=False):
         with self.lock:
+            if forget:
+                for key,ids in self.approvals.items():self.approvals[key]=[x for x in ids if x!=eid]
+                atomic_json(self.approvals_path,self.approvals)
+            self.errors.pop(eid,None)
             host=self.hosts.pop(eid,None)
             if host:host.close()
         return self.snapshot()

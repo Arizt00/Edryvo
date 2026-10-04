@@ -1,4 +1,4 @@
-# Extensiones · Preview R6
+# Extensiones · Preview R7
 
 Lumen consulta Open VSX y permite importar VSIX. El paquete se inspecciona antes de instalarlo: rutas, enlaces, duplicados, tamaño expandido y manifiesto. Las actualizaciones siguen el mismo proceso.
 
@@ -25,3 +25,14 @@ Las pruebas automatizadas usan paquetes reales de prueba instalados en el mismo 
 El registro utilizado es [Open VSX](https://open-vsx.org/). El contrato de referencia es la [API de VS Code](https://code.visualstudio.com/api/references/vscode-api); Lumen implementa únicamente el subconjunto descrito.
 
 R6 añade selección de variante por plataforma, reinstalación, herencia de temas y eventos antes/después del guardado. Pyrefly usa su servidor LSP nativo para Python, con diagnósticos, hover y autocompletado verificados en Windows. No se ejecuta su interfaz exclusiva de VS Code. Consulta [R6](PREVIEW_R6.md).
+
+
+## Persistencia y servicios de R7
+
+El índice de paquetes se lee en UTF-8, se actualiza con un bloqueo entre procesos y cada instalación conserva un recibo de recuperación. Un índice dañado puede reconstruirse desde paquetes completos; una extensión desactivada permanece desactivada. Las autorizaciones de motores se recuerdan por proyecto. Solo se restauran en proyectos de confianza y se registra cualquier fallo de activación.
+
+`workspace.findFiles`, `workspace.fs` y los observadores de archivos tienen implementaciones reales. Las escrituras, borrados y renombrados generan eventos; los observadores se liberan al detener el motor.
+
+Language Support for Java de Red Hat usa un adaptador nativo de Eclipse JDT LS. Su configuración y caché se escriben en el perfil de Lumen, sin modificar el paquete instalado. Se verificaron diagnósticos sobre texto sin guardar, autocompletado de la biblioteca estándar, hover y definición en Windows. Pyrefly mantiene su adaptador nativo. La capa LSP también transporta formato y tokens semánticos cuando el servidor los ofrece.
+
+Esto amplía la compatibilidad, pero no proporciona paridad total con VS Code: webviews, APIs específicas de UI, contribuciones de tareas y otros servicios todavía pueden impedir la activación de un paquete. Los fallos muestran la API o herramienta que falta. [Alcance de R7](PREVIEW_R7.md).

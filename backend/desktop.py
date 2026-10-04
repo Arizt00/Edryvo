@@ -6,9 +6,45 @@ class DesktopAPI:
         self._window = None
         self._maximized = False
         self._application = None
+        self._url = None
+        self._children = {}
 
     def status(self):
-        return {'ready': self._window is not None, 'version': '0.5.2', 'revision': 6}
+        return {'ready': self._window is not None, 'version': '0.5.2', 'revision': 7}
+
+    def detach_panel(self, panel, path=''):
+        """Independent native window, sharing backend processes and document hub."""
+        import webview
+        from urllib.parse import urlencode
+        if panel not in ('project','assistant','console','editor','forge'):raise ValueError('Panel desconocido.')
+        if path:self._application.workspace.resolve(path)
+        key=panel+':'+path if panel=='editor' else panel
+        if key in self._children:
+            self._children[key].restore();self._children[key].show()
+            return {'opened':True,'existing':True}
+        api=DesktopAPI();api._application=self._application;api._url=self._url;api._panel=panel
+        query=urlencode({'panel':panel,'file':path})
+        child=webview.create_window('Lumen · '+{'project':'Proyecto','assistant':'Melody','console':'Terminal','editor':path or 'Editor','forge':'Forge'}[panel],self._url+'/?'+query,js_api=api,width=940 if panel in ('editor','forge') else 640,height=760,min_size=(380,320),easy_drag=False,background_color='#191d28')
+        api._window=child;self._children[key]=child
+        def closed():
+            self._children.pop(key,None)
+            try:self._window.evaluate_js('window.dispatchEvent(new CustomEvent("lumen:native-return",{detail:'+__import__('json').dumps({'panel':panel,'path':path})+'}))')
+            except Exception:pass
+        child.events.closed+=closed
+        return {'opened':True,'panel':panel}
+
+    def close_forge(self):
+        if getattr(self,'_panel',None)!='forge':raise ValueError('Esta ventana no es Forge.')
+        self._window.destroy()
+
+    def install_update(self):
+        import subprocess
+        from pathlib import Path
+        installer=self._application.features.updates.installer()
+        # The user launches the downloaded installer when ready. The current
+        # editor stays open, so unsaved buffers are never forcibly discarded.
+        process=subprocess.Popen([str(installer)],cwd=installer.parent,creationflags=subprocess.CREATE_NO_WINDOW if sys.platform=='win32' else 0)
+        return {'opened':True,'pid':process.pid}
 
     def new_window(self, path='', content=None):
         import subprocess

@@ -56,9 +56,11 @@ def main():
     if any(arg in sys.argv for arg in ('--python-child', '--debug-child', '--lantern-child', '--no-browser')):
         restore_child_streams()
     if len(sys.argv) > 2 and sys.argv[1] == "--python-child":
-        import runpy
+        import runpy,os
         sys.argv = sys.argv[2:]
         sys.path.insert(0, str(Path(sys.argv[0]).resolve().parent))
+        import_root=os.environ.get('LUMEN_SCRIPT_IMPORT_ROOT')
+        if import_root and Path(import_root).is_dir():sys.path.insert(0,str(Path(import_root).resolve()))
         runpy.run_path(sys.argv[0], run_name="__main__")
         return
     if len(sys.argv) > 1 and sys.argv[1] == "--lantern-child":
@@ -85,6 +87,11 @@ def main():
     parser.add_argument("--allow-shell", action="store_true", help="Enable unrestricted commands after workspace trust; not a sandbox")
     args = parser.parse_args()
     if getattr(sys, 'frozen', False) and not args.no_browser: args.desktop=True
+    if args.workspace is None:
+        from backend.session import last_workspace
+        from backend.preferences import Preferences
+        if Preferences().get('general.restoreWorkspace'):
+            args.workspace = last_workspace()
     if args.workspace is None:
         if args.desktop or getattr(sys, 'frozen', False):
             from backend.preferences import user_data_dir
@@ -115,6 +122,7 @@ def main():
     except (OSError, ValueError) as exc:
         parser.exit(1, f"No se pudo iniciar Lumen: {exc}\nPrueba --port 8766 si el puerto está ocupado.\n")
     url = f"http://127.0.0.1:{server.server_port}"
+    application.features.updates.start()
     import os
     from backend.preferences import atomic_json
     atomic_json(application.features.prefs.directory/'instance.json', {'url':url,'pid':os.getpid(),'version':'0.5.2'})
@@ -133,6 +141,7 @@ def main():
             from backend.desktop import DesktopAPI
             api = DesktopAPI()
             api._application=application
+            api._url=url
             webview.settings['ALLOW_DOWNLOADS'] = True
             # Windows owns dragging/maximizing. Webview's delegated drag handler
             # also catches children of a custom title bar, including its buttons.

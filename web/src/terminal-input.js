@@ -1,4 +1,6 @@
 /** A PTY is an ordered byte stream. Concurrent HTTP writes must never reorder keys. */
+export function isDeviceAttributesReply(data){return /^(?:\x1b\[[?>]?\d+(?:;\d+)*c)+$/.test(data);}
+
 export class OrderedTerminalInput {
   constructor(send){this.send=send;this.pending=[];this.sending=false;this.error=null;}
   write(data){

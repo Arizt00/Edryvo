@@ -35,7 +35,7 @@ def main():
     def buffer():return page.evaluate('monaco.editor.getModels().find(m=>m.uri.path.endsWith(window.lumen.activeFile)).getValue()')
     def replace(text):
      page.locator('.monaco-editor textarea').first.focus();page.keyboard.press('Control+a');page.keyboard.insert_text(text)
-    page.goto(f'http://127.0.0.1:{server.server_port}',wait_until='networkidle');page.wait_for_function('window.lumen?.ready')
+    page.goto(f'http://127.0.0.1:{server.server_port}',wait_until='domcontentloaded');page.wait_for_function('window.lumen?.ready')
     if page.locator('.home-enter').is_visible():page.locator('.home-enter').click()
     open_file('example.py')
     # Right-click near the editor boundary; the menu must escape panel clipping.
@@ -49,7 +49,7 @@ def main():
     assert app.features.prefs.get('appearance.extensionTheme')=='lumen.r6-qa:Ocean'
     values=page.evaluate("Object.fromEntries(['editor','surface','terminal-text','header'].map(k=>[k,getComputedStyle(document.documentElement).getPropertyValue('--'+k).trim()]))")
     assert values=={'editor':'#0d202f','surface':'#172c3d','terminal-text':'#9ae5bd','header':'#102536'},values
-    page.screenshot(path=str(out/'r6-theme.png'));page.reload(wait_until='networkidle');page.wait_for_function('window.lumen?.ready && document.documentElement.dataset.extensionTheme');passed('Installed theme inheritance colors the shell, editor and terminal and survives reload')
+    page.screenshot(path=str(out/'r6-theme.png'));page.reload(wait_until='domcontentloaded');page.wait_for_function('window.lumen?.ready && document.documentElement.dataset.extensionTheme');passed('Installed theme inheritance colors the shell, editor and terminal and survives reload')
     if page.locator('.home-enter').is_visible():page.locator('.home-enter').click()
     page.locator('[data-action=settings]:visible').first.click();page.locator('[data-setting-category=appearance]').click();page.locator('[data-platform-theme=day]').click();page.wait_for_function('!document.documentElement.dataset.extensionTheme');assert app.features.prefs.get('appearance.extensionTheme')=='';page.keyboard.press('Escape');passed('Selecting a built-in theme clears every extension override')
     page.locator('[data-action=extensions]:visible').first.click();page.locator('[data-extension-execute="lumen.r6-qa"]').click();page.get_by_role('button',name='Autorizar motor',exact=True).click();expect(page.locator('[data-extension-execute="lumen.r6-qa"]')).to_have_text('Detener motor')

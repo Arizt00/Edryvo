@@ -17,6 +17,7 @@ import time
 import urllib.parse
 import urllib.request
 import zipfile
+from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from .preferences import atomic_json
 
@@ -170,13 +171,58 @@ class ExtensionStore:
     def __init__(self,prefs):
         self.prefs=prefs; self.root=prefs.directory/'extensions';self.root.mkdir(exist_ok=True)
         self.lock=threading.RLock(); self.pending={}; self.jobs={}; self.index=self.root/'installed.json'
-        try: self.installed=json.loads(self.index.read_text())
+        try: self.installed=json.loads(self.index.read_text(encoding='utf-8-sig'))
         except (OSError,ValueError): self.installed={}
         if not isinstance(self.installed,dict): self.installed={}
+        # Migrate older valid installs so a future damaged index is recoverable.
+        for eid,item in list(self.installed.items()):
+            try:
+                folder=self.root/item['directory']
+                if folder.resolve().parent!=self.root.resolve() or folder.is_symlink():continue
+                manifest=localized_manifest(folder/'extension')
+                if eid==manifest['publisher']+'.'+manifest['name'] and not (folder/'.lumen-install.json').exists():atomic_json(folder/'.lumen-install.json',item)
+            except (OSError,ValueError,KeyError,TypeError):continue
+        # Recover complete packages after a damaged/missing index. Pending reviews
+        # have no receipt and are deliberately excluded from this scan.
+        recovered=False
+        for receipt in self.root.glob('*/.lumen-install.json'):
+            try:
+                item=json.loads(receipt.read_text(encoding='utf-8'))
+                if receipt.parent.is_symlink() or item.get('directory')!=receipt.parent.name:continue
+                manifest=localized_manifest(receipt.parent/'extension')
+                if item['id']!=manifest['publisher']+'.'+manifest['name']:continue
+                if item['id'] not in self.installed:self.installed[item['id']]=item;recovered=True
+            except (OSError,ValueError,KeyError,TypeError):continue
+        if recovered:atomic_json(self.index,self.installed)
+    @contextmanager
+    def index_transaction(self):
+        """Serialize index changes across independent Lumen desktop processes."""
+        with (self.root/'.index-lock').open('a+b') as stream:
+            stream.seek(0,2)
+            if stream.tell()==0:stream.write(b'0');stream.flush()
+            stream.seek(0)
+            if os.name=='nt':
+                import msvcrt
+                msvcrt.locking(stream.fileno(),msvcrt.LK_LOCK,1)
+            else:
+                import fcntl
+                fcntl.flock(stream.fileno(),fcntl.LOCK_EX)
+            try:
+                self.refresh_index();yield
+            finally:
+                stream.seek(0)
+                if os.name=='nt':msvcrt.locking(stream.fileno(),msvcrt.LK_UNLCK,1)
+                else:fcntl.flock(stream.fileno(),fcntl.LOCK_UN)
+    def refresh_index(self):
+        try:
+            data=json.loads(self.index.read_text(encoding='utf-8-sig'))
+            if isinstance(data,dict):self.installed=data
+        except (OSError,ValueError):pass
     def _network(self):
         if not self.prefs.get('extensions.network'): raise PermissionError('La red de extensiones está desactivada en Seguridad / Extensiones.')
     def list(self):
         with self.lock:
+            self.refresh_index()
             result=[]
             for x in self.installed.values():
                 item=dict(x);item['supported']=list(x.get('supported',[]))
@@ -327,7 +373,7 @@ class ExtensionStore:
             if item: shutil.rmtree(item[1],ignore_errors=True)
     def install(self,ticket,consent=False):
         if consent is not True: raise PermissionError('Confirma el editor, licencia y compatibilidad antes de instalar.')
-        with self.lock:
+        with self.lock,self.index_transaction():
             self._expire();item=self.pending.get(ticket)
             if not item: raise ValueError('La revisión ha caducado. Inspecciona otra vez el paquete.')
             _,folder,result=item;result={k:v for k,v in result.items() if k!='ticket'}
@@ -335,6 +381,7 @@ class ExtensionStore:
             if not target.exists(): os.replace(folder,target)
             else: shutil.rmtree(folder,ignore_errors=True)
             result['directory']=target.name
+            atomic_json(target/'.lumen-install.json',result)
             previous=self.installed.get(result['id'])
             next_index={**self.installed,result['id']:result}
             atomic_json(self.index,next_index);self.installed=next_index;del self.pending[ticket]
@@ -347,13 +394,14 @@ class ExtensionStore:
         if name and target.resolve().parent==self.root.resolve() and not target.is_symlink():
             shutil.rmtree(target,ignore_errors=True)
     def update_state(self,eid,enabled=None,remove=False):
-        with self.lock:
+        with self.lock,self.index_transaction():
             if eid not in self.installed: raise FileNotFoundError('Extensión no instalada.')
             item=dict(self.installed[eid]);next_index=dict(self.installed)
             if remove: del next_index[eid]
             else:
                 if type(enabled) is not bool: raise ValueError('Estado no válido.')
                 item['enabled']=enabled;next_index[eid]=item
+                atomic_json(self.root/item['directory']/'.lumen-install.json',item)
             atomic_json(self.index,next_index);self.installed=next_index
             if remove: self._remove_payload(item)
             self.prefs.audit('extension.remove' if remove else 'extension.toggle',extension=eid)

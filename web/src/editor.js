@@ -85,7 +85,9 @@ export class LumenEditor {
       ]}});
     }
     this.defineMonacoTheme();
-    this.view=monaco.editor.create(this.mount,{
+    this.panes=[];this.mount.classList.add('editor-panes');
+    const primary=this.createPane();
+    this.view=monaco.editor.create(primary.content,{
       value:'',language:'csharp',theme:'lumen-theme',fontFamily:'Consolas, "Cascadia Code", "Liberation Mono", monospace',
       fontSize:this.settings.fontSize,lineHeight:Math.round(this.settings.fontSize*1.31),
       automaticLayout:true,renderLineHighlight:'none',lineNumbersMinChars:3,glyphMargin:true,
@@ -100,13 +102,38 @@ export class LumenEditor {
       quickSuggestions:{other:true,comments:false,strings:false},suggest:{preview:true},inlineSuggest:{enabled:true},
       tabCompletion:'on',wordBasedSuggestions:'currentDocument',
     });
-    this.view.onDidChangeModelContent(()=>this.changed());
-    this.view.onDidChangeCursorPosition(event=>this.callbacks.cursor?.(event.position.lineNumber,event.position.column));
-    this.view.addCommand(monaco.KeyMod.CtrlCmd|monaco.KeyCode.KeyS,()=>this.callbacks.save?.());
+    primary.view=this.view;this.bindPane(primary);
     monaco.editor.onDidChangeMarkers(()=>this.callbacks.diagnostics?.(this.diagnostics()));
     this.breakpoints=new Map();this.breakpointDecorations=[];
-    this.view.onMouseDown(e=>{if(e.target.type===monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN&&e.target.position&&this.current){const lines=this.breakpoints.get(this.current)||new Set(),line=e.target.position.lineNumber;lines.has(line)?lines.delete(line):lines.add(line);this.breakpoints.set(this.current,lines);this.paintBreakpoints();}});
     this.registerLocalIntelligence();
+  }
+  createPane(){
+    const node=document.createElement('section');node.className='editor-pane';
+    node.innerHTML='<header class="editor-pane-heading"><span></span><button class="icon-button" title="Separar este editor en otra ventana" aria-label="Separar este editor en otra ventana">'+icon('layout')+'</button></header><div class="editor-pane-content"></div>';
+    this.mount.append(node);const pane={node,content:node.lastElementChild};this.panes.push(pane);
+    node.querySelector('button').onclick=()=>{pane.view.focus();window.dispatchEvent(new CustomEvent('lumen:detach-editor'));};return pane;
+  }
+  bindPane(pane){
+    pane.view.onDidFocusEditorText(()=>{
+      this.view=pane.view;this.current=this.pathFor(pane.view.getModel());this.paintPaneLabels();this.paintBreakpoints();this.updateCursor();this.callbacks.active?.(this.current);window.dispatchEvent(new Event('lumen:editor-active'));
+    });
+    pane.view.onDidChangeModel(()=>this.paintPaneLabels());
+    pane.view.onDidChangeCursorPosition(e=>{if(this.view===pane.view)this.callbacks.cursor?.(e.position.lineNumber,e.position.column);});
+    pane.view.addCommand(monaco.KeyMod.CtrlCmd|monaco.KeyCode.KeyS,()=>this.callbacks.save?.());
+    pane.view.onMouseDown(e=>{const path=this.pathFor(pane.view.getModel());if(e.target.type===monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN&&e.target.position&&path){const lines=this.breakpoints.get(path)||new Set(),line=e.target.position.lineNumber;lines.has(line)?lines.delete(line):lines.add(line);this.breakpoints.set(path,lines);this.paintBreakpoints();}});
+    this.callbacks.pane?.(pane.view);
+  }
+  pathFor(model){return [...this.models].find(([,r])=>r.model===model)?.[0]||null;}
+  paintPaneLabels(){for(const p of this.panes||[]){const name=this.pathFor(p.view?.getModel());p.node.querySelector('span').textContent=name||'Elige un archivo';p.node.classList.toggle('focused',p.view===this.view);}this.mount.classList.toggle('is-split',(this.panes?.length||0)>1);}
+  split(path){
+    if(this.kind!=='monaco')throw Error('La vista dividida requiere el editor Monaco incluido en la distribución.');
+    let pane=this.panes[1];
+    if(!pane){pane=this.createPane();pane.view=monaco.editor.create(pane.content,{...this.view.getRawOptions(),model:null,automaticLayout:true,overflowWidgetsDomNode:document.body});this.bindPane(pane);}
+    pane.view.setModel(this.models.get(path||this.current)?.model||null);this.view=pane.view;this.current=this.pathFor(pane.view.getModel());this.paintPaneLabels();pane.view.focus();this.callbacks.active?.(this.current);
+  }
+  closeSplit(){
+    if((this.panes?.length||0)<2)return;
+    const second=this.panes.pop(),first=this.panes[0];second.view.dispose();second.node.remove();this.view=first.view;this.current=this.pathFor(first.view.getModel());this.paintPaneLabels();this.focus();this.callbacks.active?.(this.current);
   }
   registerLocalIntelligence(){
     const m=monaco;
@@ -133,7 +160,7 @@ export class LumenEditor {
       return {items:line?[{insertText:line.trimStart().slice(prefix.trimStart().length),range:new m.Range(pos.lineNumber,pos.column,pos.lineNumber,pos.column)}]:[]};
     },freeInlineCompletions(){}}));
   }
-  paintBreakpoints(){if(this.kind!=='monaco')return;this.breakpointDecorations=this.view.deltaDecorations(this.breakpointDecorations||[],[...(this.breakpoints?.get(this.current)||[])].map(line=>({range:new monaco.Range(line,1,line,1),options:{isWholeLine:true,glyphMarginClassName:'lumen-breakpoint',glyphMarginHoverMessage:{value:'Punto de interrupción · pulsa para quitarlo'}}})));}
+  paintBreakpoints(){if(this.kind!=='monaco')return;for(const [path,r] of this.models)r.breakpointDecorations=r.model.deltaDecorations(r.breakpointDecorations||[],[...(this.breakpoints?.get(path)||[])].map(line=>({range:new monaco.Range(line,1,line,1),options:{isWholeLine:true,glyphMarginClassName:'lumen-breakpoint',glyphMarginHoverMessage:{value:'Punto de interrupción · pulsa para quitarlo'}}})));}
   setDiagnostics(path,items,owner='lumen-syntax'){
     const record=this.models.get(path);if(!record)return;record.diagnosticCache??={};const key=JSON.stringify(items);if(record.diagnosticCache[owner]===key)return;record.diagnosticCache[owner]=key;
     if(record.model&&window.monaco)monaco.editor.setModelMarkers(record.model,owner,items.map(x=>({...x,endLineNumber:x.endLineNumber||x.startLineNumber,endColumn:x.endColumn||x.startColumn+1})));
@@ -154,7 +181,12 @@ export class LumenEditor {
         {token:'type',foreground:c('syntax-type').slice(1)},{token:'type.identifier',foreground:c('syntax-type').slice(1)},
         {token:'number',foreground:c('syntax-number').slice(1)},{token:'string',foreground:c('syntax-string').slice(1)},
         {token:'comment',foreground:c('syntax-comment').slice(1),fontStyle:'italic'},
-        {token:'annotation',foreground:c('syntax-type').slice(1)}],
+        {token:'annotation',foreground:c('syntax-type').slice(1)},
+        {token:'predefined',foreground:c('syntax-type').slice(1)},
+        {token:'function',foreground:c('syntax-function').slice(1)},
+        {token:'tag',foreground:c('syntax-keyword').slice(1)},
+        {token:'attribute.name',foreground:c('syntax-type').slice(1)},
+        {token:'regexp',foreground:c('syntax-string').slice(1)}],
       colors:{'editor.background':c('editor'),'editor.foreground':c('text'),'editorLineNumber.foreground':c('muted'),
         'editorLineNumber.activeForeground':c('secondary'),'editorCursor.foreground':c('text'),
         'editor.selectionBackground':c('selection'),'editor.inactiveSelectionBackground':c('selection'),
@@ -207,7 +239,10 @@ export class LumenEditor {
   open(item) {
     if (!this.models.has(item.path)) {
       const record={...item,savedValue:item.content,value:item.content,selection:[0,0],scrollTop:0,scrollLeft:0};
-      if(this.kind==='monaco')record.model=monaco.editor.createModel(item.content,languageFor(item.path),monaco.Uri.parse('file:///'+item.path));
+      if(this.kind==='monaco'){
+        record.model=monaco.editor.createModel(item.content,languageFor(item.path),monaco.Uri.parse('file:///'+item.path));
+        record.model.onDidChangeContent(()=>{record.value=record.model.getValue();this.callbacks.change?.(record.path,record.value!==record.savedValue);window.dispatchEvent(new Event('lumen:document-changed'));});
+      }
       this.models.set(item.path,record);
     }
     this.activate(item.path);
@@ -274,10 +309,11 @@ export class LumenEditor {
   close(path) {
     const item=this.models.get(path);if(!item)return;
     if(this.current===path){this.current=null;if(this.kind==='monaco')this.view.setModel(null);else{this.input.value='';this.paint();}}
+    for(const p of this.panes||[])if(p.view.getModel()===item.model)p.view.setModel(null);
     if(item.model)item.model.dispose();
     this.models.delete(path);
   }
-  reset(){this.current=null;if(this.kind==='monaco')this.view.setModel(null);for(const item of this.models.values())item.model?.dispose();this.models.clear();if(this.kind==='base'){this.input.value='';this.paint();}}
+  reset(){this.current=null;for(const p of this.panes||[])p.view.setModel(null);for(const item of this.models.values())item.model?.dispose();this.models.clear();if(this.kind==='base'){this.input.value='';this.paint();}}
   focus(){if(this.kind==='monaco')this.view.focus();else this.input.focus({preventScroll:true});}
   changedTheme(){this.defineMonacoTheme();if(this.kind==='base')this.schedulePaint();}
   applySettings(settings) {
@@ -291,6 +327,7 @@ export class LumenEditor {
     document.documentElement.style.setProperty('--editor-tab-size',this.settings.tabSize);
     if(this.kind==='monaco'&&this.view){this.view.updateOptions({fontSize:size,fontFamily:this.settings.fontFamily,lineHeight,tabSize:this.settings.tabSize,insertSpaces:this.settings.insertSpaces!==false,minimap:{enabled:this.settings.minimap},wordWrap:this.settings.wordWrap?'on':'off',lineNumbers:this.settings.lineNumbers===false?'off':'on',fontLigatures:!!this.settings.fontLigatures,bracketPairColorization:{enabled:this.settings.bracketColors!==false},renderWhitespace:this.settings.renderWhitespace||'selection',cursorBlinking:this.settings.cursorBlinking||'blink',smoothScrolling:!!this.settings.smoothScrolling});for(const record of this.models.values())record.model?.updateOptions({tabSize:this.settings.tabSize,insertSpaces:this.settings.insertSpaces!==false});}
     else if(this.base){this.base.classList.toggle('no-minimap',!this.settings.minimap);this.base.classList.toggle('no-line-numbers',this.settings.lineNumbers===false);this.schedulePaint();}
+    for(const pane of this.panes||[])if(pane.view!==this.view)pane.view.updateOptions(this.view.getRawOptions());
   }
   schedulePaint(){cancelAnimationFrame(this.highlightFrame);this.highlightFrame=requestAnimationFrame(()=>this.paint());}
   paint() {

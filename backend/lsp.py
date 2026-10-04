@@ -36,7 +36,7 @@ class LanguageSession:
                 'capabilities':{'general':{'positionEncodings':['utf-16']},'textDocument':{'synchronization':{'didSave':True},
                     'completion':{'completionItem':{'snippetSupport':True}},'hover':{'contentFormat':['plaintext','markdown']},
                     'definition':{'linkSupport':True},'inlayHint':{'dynamicRegistration':False},'semanticTokens':{'requests':{'full':True},'tokenTypes':['namespace','type','class','enum','interface','struct','typeParameter','parameter','variable','property','enumMember','event','function','method','macro','keyword','modifier','comment','string','number','regexp','operator'],'tokenModifiers':['declaration','definition','readonly','static','deprecated','abstract','async','modification','documentation','defaultLibrary'],'formats':['relative']},'publishDiagnostics':{'versionSupport':True}},'workspace':{'applyEdit':False,'configuration':True}},
-                'initializationOptions':profile.get('initializationOptions')},timeout=12).get('capabilities',{})
+                'initializationOptions':profile.get('initializationOptions')},timeout=profile.get('initializationTimeout',12)).get('capabilities',{})
             if self.capabilities.get('positionEncoding','utf-16')!='utf-16':raise ValueError('Este cliente requiere posiciones LSP UTF-16.')
             self.notify('initialized',{})
         except Exception:self.close();raise

@@ -10,7 +10,7 @@ const PANEL_SELECTORS={project:'#project-panel',assistant:'#assistant-panel',con
 export class DockManager {
   constructor(workspace,motion,onChange=()=>{}) {
     this.root=workspace;this.motion=motion;this.onChange=onChange;this.compactOpen=false;
-    this.focusRestore=null;this.savedFocus={};this.drag=null;this.listeners=[];this.sizeFrame=0;
+    this.focusRestore=null;this.savedFocus={};this.drag=null;this.listeners=[];this.sizeFrame=0;this.nativeDetached=new Set();
     this.panels=Object.fromEntries(Object.entries(PANEL_SELECTORS).map(([id,selector])=>[id,workspace.querySelector(selector)]));
     this.editor=workspace.querySelector('#editor-panel');
     this.state=this.read();this.slots={};this.floats={};this.root.classList.add('docking-enabled');
@@ -37,7 +37,7 @@ export class DockManager {
   }
   listen(target,event,handler,options){target.addEventListener(event,handler,options);this.listeners.push(()=>target.removeEventListener(event,handler,options));}
   read(){try{return normalizeLayout(JSON.parse(localStorage.getItem(LAYOUT_KEY)||localStorage.getItem('lumen.layout.v2')||'null'));}catch(_){return defaultLayout();}}
-  save(){try{localStorage.setItem(LAYOUT_KEY,JSON.stringify(this.state));}catch(_){/* Session remains usable in storage-restricted webviews. */}}
+  save(){if(new URLSearchParams(location.search).has('panel'))return;try{localStorage.setItem(LAYOUT_KEY,JSON.stringify({...this.state,hidden:this.state.hidden.filter(id=>!this.nativeDetached.has(id))}));}catch(_){/* Session remains usable in storage-restricted webviews. */}}
   snapshot(){return JSON.parse(JSON.stringify(this.state));}
   visibleIds(side){return this.state.groups[side].filter(id=>!this.state.hidden.includes(id)&&!this.state.floating[id]);}
   isVisible(id){const side=sideOf(this.state,id);return !this.state.hidden.includes(id)&&(!!this.state.floating[id]||(!this.state.collapsed.includes(side)&&this.state.active[side]===id));}
@@ -134,6 +134,7 @@ export class DockManager {
   }
   renderFloats(){
     for(const [id,panel] of Object.entries(this.panels)){
+      if(panel.classList.contains('native-detached-content'))continue;
       if(!this.state.floating[id]){this.floats[id]?.remove();delete this.floats[id];continue;}
       let frame=this.floats[id];const created=!frame;
       if(!frame){
@@ -171,6 +172,7 @@ export class DockManager {
       const tabs=slot.querySelector('.dock-tabs');
       // No duplication of panes, textarea values, output or listeners.
       for(const id of this.state.groups[side]){
+        if(this.panels[id].classList.contains('native-detached-content'))continue;
         if(this.state.floating[id])continue;
         const panel=this.panels[id];if(panel.parentElement!==slot.querySelector('.dock-content'))slot.querySelector('.dock-content').appendChild(panel);
         panel.hidden=id!==active||this.state.hidden.includes(id);panel.inert=panel.hidden;

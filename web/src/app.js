@@ -10,9 +10,10 @@ import {DockManager} from './docking.js';
 import {PRESET_NAMES,sideOf} from './layout-state.js';
 import {installInteractions} from './interactions.js';
 import {LumenPlatform} from './workbench.js';
+import {DesktopWorkflows} from './desktop-workflows.js';
 
 const motion=new LumenMotion();
-let dock=null,polish=null,platformUI=null,studio=null,previewUI=null,tabsSignature='';
+let dock=null,polish=null,platformUI=null,studio=null,previewUI=null,desktopUI=null,tabsSignature='';
 
 const $=selector=>document.querySelector(selector);
 const $$=selector=>[...document.querySelectorAll(selector)];
@@ -29,6 +30,7 @@ settings.fontSize=Math.min(22,Math.max(11,Number(settings.fontSize)||12.5));
 function persist(){try{localStorage.setItem('lumen.settings',JSON.stringify(settings));}catch(_){}}
 async function api(path,body) {
   const options={credentials:'same-origin',headers:{'X-Lumen-Token':token}};
+  if(service?.workspace)options.headers['X-Lumen-Workspace']=encodeURIComponent(service.workspace);
   if(body!==undefined){options.method='POST';options.headers['Content-Type']='application/json';options.body=JSON.stringify(body);}
   const controller=new AbortController();options.signal=controller.signal;const deadline=setTimeout(()=>controller.abort(),35000);let response;try{response=await fetch('/api'+path,options);}catch(error){if(error.name==='AbortError')throw new Error('La operación está tardando demasiado. Puedes seguir trabajando; revisa su estado antes de repetirla.');throw error;}finally{clearTimeout(deadline);}
   const data=await response.json();
@@ -88,13 +90,14 @@ function revealFile(path){
   rootExpanded=true;
 }
 async function openFile(path,line=null){
+  if(desktopUI?.query.get('panel')==='project'){desktopUI.openInParent(path);return;}
   studio?.enter();
   if(platformUI?.page)platformUI.closePage();
   if(!editor.models.has(path)){const item=await api('/file?path='+encodeURIComponent(path));editor.open(item);}
   else editor.activate(path);
   revealFile(path);renderTabs();renderTree();updateDocumentStatus();
   if(line)editor.showLine(line);
-  studio?.remember(path);previewUI?.activeChanged();
+  studio?.remember(path);previewUI?.activeChanged();desktopUI?.activeFile(path);
 }
 function renderTabs(){
   const signature=JSON.stringify([...editor.models.keys()].map(path=>[path,path===editor.current,editor.isDirty(path)]));
@@ -179,6 +182,7 @@ function newFileDialog(){
 async function changeWorkspace(path){
   if([...editor.models.keys()].some(p=>editor.isDirty(p))){const ok=await confirmDialog('Cambios sin guardar','Cambiar de carpeta descartará los cambios no guardados. Guarda primero para conservarlos.','Descartar y abrir');if(!ok)return false;}
   const data=await api('/workspace',{path});service={...service,...data};tree=data.tree;cwd='';platformUI?.workspaceChanged();editor.reset();tabsSignature='';closeModal();activeView='explorer';
+  desktopUI?.workspaceChanged();
   await initializeDocuments();await setView('explorer');updatePrompt();termClear();await checkWorkspace();notify('Carpeta abierta.');return true;
 }
 async function openWorkspaceDialog(){
@@ -294,15 +298,14 @@ function updateTaskUI(running){
   button.classList.toggle('task-running',running);button.setAttribute('aria-label',running?'Detener tarea':'Ejecutar archivo activo');
   button.dataset.tooltip=running?'Detener tarea (Shift+F5)':'Ejecutar archivo activo (F5)';button.setAttribute('aria-busy',String(running));
 }
-async function watchJob(id){
-  const path=editor.current;
+async function watchJob(id,path=editor.current){
   updateTaskUI(true);
-  activeJob=id;$('#stop-task').classList.remove('hidden');$('#terminal-input').disabled=false;const oldPlaceholder=$('#terminal-input').placeholder;$('#terminal-input').placeholder='Entrada del programa · Enter para enviar';let offset=0;
+  activeJob=id;$('#stop-task').classList.remove('hidden');$('#terminal-input').disabled=false;const oldPlaceholder=$('#terminal-input').placeholder;$('#terminal-input').placeholder='Entrada del programa · Enter para enviar';let offset=0,jobOutput='';
   try{
     while(activeJob===id){
       const result=await api('/job?id='+encodeURIComponent(id)+'&offset='+offset);offset=result.offset;
-      termWrite(result.output);lastOutput+=result.output;
-      if(result.done){const parsed=await api('/platform/diagnostics/output',{path,output:lastOutput});editor.setDiagnostics(path,parsed.diagnostics,'lumen-build');notify(`Tarea finalizada. Código de salida: ${result.code??0}`,result.code?'error':'info',3300);break;}
+      termWrite(result.output);jobOutput+=result.output;lastOutput=jobOutput;
+      if(result.done){const parsed=await api('/platform/diagnostics/output',{path,output:jobOutput});editor.setDiagnostics(path,parsed.diagnostics,'lumen-build');notify(`Tarea finalizada. Código de salida: ${result.code??0}`,result.code?'error':'info',3300);break;}
       await new Promise(resolve=>setTimeout(resolve,180));
     }
   }finally{updateTaskUI(false);activeJob=null;$('#stop-task').classList.add('hidden');$('#terminal-input').disabled=false;$('#terminal-input').placeholder=oldPlaceholder;}
@@ -407,6 +410,7 @@ function renderPalette(){
 async function choosePalette(index){const item=paletteEntries[index];if(!item)return;closePalette();if(item.path){await openFile(item.path);if(item.line)editor.showLine(item.line);}else if(item.category)await platformUI.settings(item.category);else await perform(item.action);}
 
 async function perform(action,anchor=null){
+  if(desktopUI&&await desktopUI.handle(action))return;
   if(action==='lantern')return studio?.lantern.action('start');
   if(action==='lantern-monitor')return studio?.lantern.action(platformUI.prefs['appearance.lanternMonitor']?'hide':'show');
   if(action==='debug-view')return studio?.debug();
@@ -546,7 +550,7 @@ async function start(){
   try{
     const response=await fetch('/api/bootstrap',{credentials:'same-origin',signal:AbortSignal.timeout(25000)});service=await response.json();if(!response.ok)throw new Error(service.error);
     token=service.token;tree=service.tree;
-    editor=new LumenEditor($('#editor-mount'),{change:()=>{renderTabs();platformUI?.documentChanged();},cursor:(line,column)=>$('#cursor-status').textContent=`Ln ${line}, Col ${column}`,save:guard(saveFile),diagnostics:updateDiagnostics});
+    editor=new LumenEditor($('#editor-mount'),{change:()=>{renderTabs();platformUI?.documentChanged();},active:()=>{renderTabs();renderTree();updateDocumentStatus();platformUI?.documentChanged();previewUI?.activeChanged();},cursor:(line,column)=>$('#cursor-status').textContent=`Ln ${line}, Col ${column}`,save:guard(saveFile),diagnostics:updateDiagnostics});
     await editor.init(service,settings);applySettings();
     await initializeDocuments();renderTree();updatePrompt();
     scene={kind:service.babylon?'babylon':'css',setMotion(){},setTheme(){},dispose(){}};
@@ -566,6 +570,7 @@ async function start(){
     await studio.init();
     previewUI=installPreview({api,editor,studio,platform:platformUI,dock,modal,closeModal,confirmDialog,notify,openFile,saveFile,refreshTree,renderTabs,closeFile,revealFile,service:()=>service,showMenu,perform});
     if(service.startup?.path){await openFile(service.startup.path);if(typeof service.startup.content==='string')editor.insertText(service.startup.content,true);}
+    desktopUI=new DesktopWorkflows({api,editor,studio,platform:platformUI,dock,notify,openFile,ensureTrust,watchJob,showConsole:()=>showTerminal(),service:()=>service,commands:commandDefinitions});await desktopUI.init();
     installExplorerMenu({api,editor,notify,modal,closeModal,confirmDialog,saveFile,openFile,refreshTree,showMenu,lantern:studio.lantern,workspace:()=>service.workspace,newWindow:path=>previewUI.newWindow(path),search:path=>studio.search(path),refreshDocuments:()=>{renderTabs();updateDocumentStatus();previewUI.activeChanged();}});
     document.documentElement.removeAttribute('data-booting');
     $('#engine-label').textContent='Local workspace';
@@ -573,6 +578,7 @@ async function start(){
     window.lumen={get theme(){return document.documentElement.dataset.theme;},get editorKind(){return editor.kind;},get graphicsKind(){return [...(studio?.scenes.values()||[])].some(s=>s.kind==='babylon')?'babylon':'css';},get graphicsAPI(){return document.querySelector('canvas[data-engine]')?.dataset.engine||'CSS';},get activeFile(){return editor.current;},get ready(){return true;},get platformReady(){return !!platformUI?.state;},get platformPage(){return platformUI?.page;},get languageServers(){return platformUI?.lspSessions.size||0;},get layout(){return dock.snapshot();},get motionEnabled(){return motion.enabled;}};
   }catch(error){document.documentElement.removeAttribute('data-booting');$('#connection-overlay').classList.remove('hidden');$('#connection-overlay p').textContent='No se pudo iniciar la interfaz: '+error.message;console.error(error);}
 }
-window.addEventListener('pagehide',event=>{if(!event.persisted){studio?.dispose();platformUI?.dispose();scene?.dispose();dock?.dispose();motion.dispose();polish?.dispose();}});
+window.addEventListener('pagehide',event=>{if(!event.persisted){desktopUI?.dispose();studio?.dispose();platformUI?.dispose();scene?.dispose();dock?.dispose();motion.dispose();polish?.dispose();}});
+document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='\\'){event.preventDefault();guard(()=>perform('split-editor'))();}});
 $('#retry-connection').onclick=()=>location.reload();
 start();

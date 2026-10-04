@@ -62,12 +62,14 @@ class TerminalSession:
     def __init__(self,profile,cwd,project,cols=100,rows=26,environment=None):
         self.id=uuid.uuid4().hex;self.profile=profile;self.cwd=str(cwd);self.lock=threading.RLock()
         self.output='';self.start=0;self.closed=False;self.code=None;self.fd=None;self.process=None;self.win=None;self.created=time.time()
-        env=environment if environment is not None else child_environment();self.decoder=codecs.getincrementaldecoder('utf-8')('replace')
+        env=child_environment();env.update(environment or {});self.decoder=codecs.getincrementaldecoder('utf-8')('replace')
         argv=list(profile['argv'])
         if os.name=='nt':
             try: from winpty import PtyProcess
             except ImportError as e: raise ValueError('ConPTY requiere pywinpty. Instala los requisitos de escritorio; no se inicia una falsa terminal.') from e
-            self.win=PtyProcess.spawn(subprocess.list2cmdline(argv),cwd=str(cwd),env=env,dimensions=(rows,cols))
+            # pywinpty quotes the argument list itself. Passing a quoted string
+            # first would preserve literal quotes on paths/commands with spaces.
+            self.win=PtyProcess.spawn(argv,cwd=str(cwd),env=env,dimensions=(rows,cols))
             self.kind='ConPTY/pywinpty'
         else:
             import pty,fcntl,termios,struct
@@ -121,15 +123,23 @@ class TerminalSession:
                 'truncated':int(offset)<self.start,'closed':self.closed,'code':self.code,'kind':self.kind}
     def write(self,text):
         if not isinstance(text,str) or len(text)>65536:raise ValueError('Entrada de terminal demasiado grande.')
-        if self.closed:raise ValueError('La terminal está cerrada.')
-        if self.win:self.win.write(text)
-        else:
-            raw=text.encode('utf-8');offset=0
-            while offset<len(raw):offset+=os.write(self.fd,raw[offset:])
+        if self.closed:return False
+        try:
+            if self.win:self.win.write(text)
+            else:
+                raw=text.encode('utf-8');offset=0
+                while offset<len(raw):offset+=os.write(self.fd,raw[offset:])
+        except (EOFError,BrokenPipeError):
+            # xterm can reply to a terminal query just after a short script
+            # exits. This is a normal closed stream, not an internal error.
+            self.closed=True;return False
+        return True
     def resize(self,cols,rows):
         cols=max(20,min(int(cols),500));rows=max(5,min(int(rows),200))
         if self.closed:return
-        if self.win:self.win.setwinsize(rows,cols)
+        if self.win:
+            try:self.win.setwinsize(rows,cols)
+            except EOFError:self.closed=True
         else:
             import fcntl,termios,struct
             fcntl.ioctl(self.fd,termios.TIOCSWINSZ,struct.pack('HHHH',rows,cols,0,0))
@@ -173,7 +183,7 @@ class TerminalManager:
             if not s:raise FileNotFoundError('Sesión de terminal no disponible.')
             return s
     def list(self):
-        with self.lock:return [{'id':s.id,'label':s.profile['label'],'closed':s.closed,'kind':s.kind} for s in self.sessions.values()]
+        with self.lock:return [{'id':s.id,'label':s.profile['label'],'profile':s.profile,'closed':s.closed,'kind':s.kind} for s in self.sessions.values()]
     def shutdown(self):
         with self.lock:
             for s in self.sessions.values():s.close()

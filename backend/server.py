@@ -27,6 +27,8 @@ class Application:
         self.assistant = LocalAssistant()
         self.token = secrets.token_urlsafe(32)
         self.features = PlatformServices(self, data_dir)
+        from .session import remember_workspace
+        remember_workspace(self.workspace.root, self.features.prefs.directory)
 
     def state(self):
         return {"version": "0.5.2", "startup":getattr(self,'startup',{}), "workspace": str(self.workspace.root), "name": self.workspace.root.name,
@@ -82,6 +84,9 @@ class Handler(BaseHTTPRequestHandler):
             raise PermissionError("Sesión no válida. Recarga Lumen desde su dirección local.")
         if not bootstrap and not secrets.compare_digest(self.headers.get("X-Lumen-Token", ""), self.app.token):
             raise PermissionError("Token de sesión no válido.")
+        expected_workspace=self.headers.get('X-Lumen-Workspace')
+        if expected_workspace and unquote(expected_workspace)!=str(self.app.workspace.root):
+            raise ConflictError('La carpeta cambió en otra ventana. Conserva o copia tu búfer antes de volver a abrir el editor.')
 
     def reply(self, data, code=200, content_type="application/json; charset=utf-8", session=False):
         raw = json.dumps(data, ensure_ascii=False).encode("utf-8") if isinstance(data, (dict, list)) else data
@@ -185,6 +190,8 @@ class Handler(BaseHTTPRequestHandler):
                 next_workspace = Workspace(Path(body["path"]), self.app.native)
                 self.app.features.workspace_changed()
                 self.app.workspace = next_workspace
+                from .session import remember_workspace
+                remember_workspace(next_workspace.root, self.app.features.prefs.directory)
                 return self.reply({**self.app.state(), "tree": self.app.workspace.tree()})
             if path == "/api/trust":
                 ws.trusted = body.get("trusted") is True

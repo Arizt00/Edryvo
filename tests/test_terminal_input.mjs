@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {OrderedTerminalInput} from '../web/src/terminal-input.js';
+import {OrderedTerminalInput,isDeviceAttributesReply} from '../web/src/terminal-input.js';
+
+test('GDB device attributes can be suppressed without filtering commands, cursor replies or paste',()=>{
+  for(const data of ['\x1b[?1;2c','\x1b[>0;276;0c','\x1b[?1;2c\x1b[>0;276;0c'])assert.equal(isDeviceAttributesReply(data),true);
+  for(const data of ['next\r','print answer\r','\x1b[1;1R','\x03','\x1b[200~pasted\x1b[201~','\x1b[?1;2cnext\r','1;2c'])assert.equal(isDeviceAttributesReply(data),false);
+});
 
 test('rapid typing and terminal control replies retain their original order',async()=>{
   let active=0,max=0;const received=[];

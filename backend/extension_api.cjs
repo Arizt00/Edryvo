@@ -67,6 +67,27 @@ module.exports=function createAPI(host,options){
   };
   for(const [name,fields] of Object.entries({FileDecoration:'badge tooltip color',CallHierarchyItem:'kind name detail uri range selectionRange',TypeHierarchyItem:'kind name detail uri range selectionRange',DocumentLink:'range target',ParameterInformation:'label documentation',SignatureInformation:'label documentation',SignatureHelp:'signatures activeSignature activeParameter',SymbolInformation:'name kind containerName location',FoldingRange:'start end kind',SelectionRange:'range parent',InlineCompletionItem:'insertText range command',LinkedEditingRanges:'ranges wordPattern',Color:'red green blue alpha',ColorInformation:'range color',ColorPresentation:'label'}))vscode[name]=itemClass(fields);
   vscode.CancellationError=class extends Error{constructor(){super('Canceled');this.name='Canceled';}};
+  vscode.FileSystemError=class extends Error{static FileNotFound(v){return new this('File not found: '+v);}static FileExists(v){return new this('File exists: '+v);}static NoPermissions(v){return new this('No permissions: '+v);}static Unavailable(v){return new this('Unavailable: '+v);}};
+  vscode.LogLevel={Off:0,Trace:1,Debug:2,Info:3,Warning:4,Error:5};
+  vscode.workspace.onDidCreateFiles=event('createFiles').event;vscode.workspace.onDidDeleteFiles=event('deleteFiles').event;vscode.workspace.onDidRenameFiles=event('renameFiles').event;
+  vscode.workspace.fs.writeFile=async(u,data)=>{const existed=fs.existsSync(u.fsPath);await fs.promises.writeFile(u.fsPath,data);if(!existed)event('createFiles').fire({files:[u]});};
+  vscode.workspace.fs.createDirectory=async u=>fs.promises.mkdir(u.fsPath,{recursive:true});
+  vscode.workspace.fs.delete=async(u,opts={})=>{await fs.promises.rm(u.fsPath,{recursive:!!opts.recursive});event('deleteFiles').fire({files:[u]});};
+  vscode.workspace.fs.rename=async(a,b,opts={})=>{if(!opts.overwrite&&fs.existsSync(b.fsPath))throw vscode.FileSystemError.FileExists(b);await fs.promises.rename(a.fsPath,b.fsPath);event('renameFiles').fire({files:[{oldUri:a,newUri:b}]});};
+  vscode.workspace.fs.copy=async(a,b,opts={})=>fs.promises.cp(a.fsPath,b.fsPath,{recursive:true,force:!!opts.overwrite,errorOnExist:!opts.overwrite});
+  const globPattern=pattern=>{
+    const raw=String(pattern);let re='^';for(let i=0;i<raw.length;i++){const c=raw[i];if(c==='*'){if(raw[i+1]==='*'){i++;if(raw[i+1]==='/'){i++;re+='(?:.*/)?';}else re+='.*';}else re+='[^/]*';}else if(c==='?')re+='[^/]';else if(c==='{')re+='(?:';else if(c==='}')re+=')';else if(c===',')re+='|';else re+=c.replace(/[.()+^$|[\]\\]/g,'\\$&');}return new RegExp(re+'$');
+  };
+  vscode.workspace.findFiles=async(include,exclude,maxResults=10000,token)=>{
+    const base=typeof include==='string'?options.workspace:include.baseUri?.fsPath||include.base||options.workspace,match=globPattern(typeof include==='string'?include:include.pattern),skip=exclude?globPattern(typeof exclude==='string'?exclude:exclude.pattern):null,out=[];
+    async function visit(folder){for(const e of await fs.promises.readdir(folder,{withFileTypes:true})){if(out.length>=maxResults||token?.isCancellationRequested)return;if(e.isSymbolicLink())continue;const file=path.join(folder,e.name),relative=path.relative(base,file).split(path.sep).join('/');if(skip?.test(relative))continue;if(e.isDirectory()){if(!['.git','node_modules','.runtime-data'].includes(e.name))await visit(file);}else if(match.test(relative))out.push(Uri.file(file));}}
+    await visit(base);return out;
+  };
+  vscode.workspace.createFileSystemWatcher=(pattern,ignoreCreate=false,ignoreChange=false,ignoreDelete=false)=>{
+    const base=typeof pattern==='string'?options.workspace:pattern.baseUri?.fsPath||pattern.base||options.workspace,match=globPattern(typeof pattern==='string'?pattern:pattern.pattern),create=new EventEmitter(),change=new EventEmitter(),remove=new EventEmitter(),known=new Set();
+    const watcher=fs.watch(base,{recursive:true},(kind,name)=>{if(!name)return;const relative=String(name).split(path.sep).join('/');if(!match.test(relative))return;const file=path.join(base,String(name)),uri=Uri.file(file),exists=fs.existsSync(file);if(kind==='change'){if(!ignoreChange)change.fire(uri);}else if(exists){if(known.has(file)){if(!ignoreChange)change.fire(uri);}else{known.add(file);if(!ignoreCreate)create.fire(uri);}}else{known.delete(file);if(!ignoreDelete)remove.fire(uri);}});
+    return {ignoreCreateEvents:ignoreCreate,ignoreChangeEvents:ignoreChange,ignoreDeleteEvents:ignoreDelete,onDidCreate:create.event,onDidChange:change.event,onDidDelete:remove.event,dispose(){watcher.close();create.dispose();change.dispose();remove.dispose();}};
+  };
   vscode.commands.registerCommand=(id,fn,ctx)=>{const bound=(...args)=>fn.apply(ctx,args);bound.vscodeCommand=true;return registerCommand(id,bound,id);};
   // Missing namespaces/methods fail by name, without pretending to implement them.
   for(const name of ['workspace','window','languages','extensions','debug','tasks','env'])vscode[name]=new Proxy(vscode[name],{get(target,key){if(key in target||typeof key==='symbol'||key==='then')return target[key];throw Error(`La extensión necesita vscode.${name}.${key}, aún no disponible en Lumen preview.`);}});

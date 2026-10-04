@@ -4,7 +4,7 @@ import {languageFor} from './editor.js';
 import {LiveEditSession} from './live-edit.js';
 import {applyShellTheme} from './extension-theme.js';
 import {requestsLiveEdit} from './ai-intent.js';
-import {OrderedTerminalInput} from './terminal-input.js';
+import {OrderedTerminalInput,isDeviceAttributesReply} from './terminal-input.js';
 
 const PLATFORM_CATEGORIES=[
  ['general','globe','General','General'],['appearance','sun','Apariencia','Appearance'],['editor','code','Editor de texto','Text editor'],
@@ -65,7 +65,7 @@ export class LumenPlatform {
     const labels=[['[data-view="explorer"].rail-item','Explorador','Explorer'],['[data-view="search"].rail-item','Buscar','Search'],['[data-view="git"].rail-item','Control de código','Source Control'],['[data-view="run"].rail-item','Depuración','Run & Debug'],['[data-action="extensions"].rail-item','Extensiones','Extensions'],['[data-action="toggle-ai"].rail-item','Melody','Melody']];
     for(const [selector,es,en] of labels){const el=document.querySelector(selector);if(el){const span=el.lastElementChild;if(span)span.textContent=this.t(es,en);}}
     const text=(selector,es,en)=>{const el=document.querySelector(selector);if(el){const node=[...el.childNodes].find(n=>n.nodeType===Node.TEXT_NODE&&n.textContent.trim());if(el.matches('[data-terminal]')&&node)node.textContent=this.t(es,en);else el.textContent=this.t(es,en);}};
-    text('.brand-tagline','0.5.2','0.5.2');text('.search-placeholder','Buscar archivos, símbolos, comandos...','Search files, symbols, commands...');
+    text('.brand-tagline','0.5.2 · R7','0.5.2 · R7');text('.search-placeholder','Buscar archivos, símbolos, comandos...','Search files, symbols, commands...');
     text('.assistant-heading-title h2','Melody','Melody');text('.assistant-kicker','TU ESPACIO PARA PENSAR','YOUR SPACE TO THINK');
     text('.assistant-hero h3','Hola,','Hello,');text('.layout-button-label','Espacio','Layout');
     text('.ai-action-card[data-ai-action="generate"] strong','Generar','Generate');text('.ai-action-card[data-ai-action="refactor"] strong','Refactorizar','Refactor');
@@ -376,13 +376,19 @@ export class LumenPlatform {
   }
   async attachTerminal(result){
     const terminal={...result,offset:0,closed:false};this.terminals.set(result.id,terminal);
-    terminal.input=new OrderedTerminalInput(data=>this.api('/terminals/write',{id:result.id,data}));
+    terminal.input=new OrderedTerminalInput(async data=>{const response=await this.api('/terminals/write',{id:result.id,data});if(response.closed)terminal.closed=true;});
     terminal.mount=document.createElement('div');terminal.mount.className='pty-session';terminal.mount.dataset.sessionId=result.id;this.ptyMount.append(terminal.mount);
     try{await this.loadTerminalEngine();}catch(error){this.host.notify(this.t('Motor xterm no disponible; consola interactiva básica activa.','xterm unavailable; basic interactive console active.'));}
     if(this.TerminalCtor){
       terminal.xterm=new this.TerminalCtor({fontFamily:this.prefs['editor.fontFamily'],fontSize:this.prefs['terminal.fontSize'],cursorBlink:this.prefs['terminal.cursorBlink'],scrollback:this.prefs['terminal.scrollback'],allowProposedApi:false,convertEol:false});
       terminal.fit=new this.FitCtor();terminal.xterm.loadAddon(terminal.fit);terminal.xterm.open(terminal.mount);this.themeTerminal(terminal);
-      terminal.xterm.onData(data=>this.safe(()=>terminal.input.write(data)));
+      terminal.xterm.onData(data=>{
+        // Windows GDB/readline treats DA replies from ConPTY (including a
+        // second view replaying its history) as text in the command prompt.
+        // Keep cursor replies, control keys, paste and ordinary shell input.
+        if(terminal.profile.kind==='hacker'&&terminal.profile.label.startsWith('GDB · ')&&isDeviceAttributesReply(data))return;
+        if(!terminal.closed)this.safe(()=>terminal.input.write(data));
+      });
       terminal.xterm.attachCustomKeyEventHandler(event=>{if((event.ctrlKey||event.metaKey)&&event.altKey&&['f','t'].includes(event.key.toLowerCase()))return false;return true;});
     }else{
       terminal.mount.classList.add('pty-basic');terminal.mount.innerHTML=`<div class="pty-basic-note">${this.t('PTY real · Vista básica. Instala xterm para programas de pantalla completa.','Real PTY · Basic view. Install xterm for full-screen applications.')}</div><pre class="pty-basic-output" role="log"></pre><form class="pty-basic-input"><span>❯</span><input aria-label="${this.t('Entrada de terminal','Terminal input')}" spellcheck="false" autocomplete="off"><button type="button" class="text-button pty-interrupt">Ctrl C</button><button class="icon-button" aria-label="${this.t('Enviar','Send')}">${this.glyph('send')}</button></form>`;

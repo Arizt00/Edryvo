@@ -36,6 +36,9 @@ def atomic_json(path: Path, data):
 
 # category, default, label ES, label EN, type/choices/min/max, optional requirement
 SCHEMA = {
+ 'general.restoreWorkspace': ('general',True,'Reabrir la última carpeta','Reopen the last folder','bool'),
+ 'updates.automatic': ('general',True,'Descargar actualizaciones de GitHub automáticamente','Download GitHub updates automatically','bool'),
+ 'hacker.enabled': ('terminal',False,'Modo Forge','Forge mode','bool'),
  'general.locale': ('general','es','Idioma de la interfaz','Interface language',['es','en']),
  'general.showWelcome': ('general',True,'Mostrar inicio al abrir Lumen','Show welcome when Lumen starts','bool'),
  'general.restoreLayout': ('general',True,'Recordar la distribución de paneles','Remember panel layout','bool'),

@@ -17,7 +17,7 @@ export function applyShellTheme(theme,root=document.documentElement){
   for(const key of (root.dataset.extensionTokens||'').split(' ').filter(Boolean))root.style.removeProperty('--'+key);
   delete root.dataset.extensionTheme;delete root.dataset.extensionTokens;
   if(!theme)return;
-  const {palette,dark}=themePalette(theme);
+  const {palette,dark}=themePalette(theme);palette.glass=palette.surface.slice(0,7)+'f0';
   for(const [key,value] of Object.entries(palette))root.style.setProperty('--'+key,value);
   root.dataset.extensionTokens=Object.keys(palette).join(' ');root.dataset.extensionTheme=theme.id;root.dataset.theme=dark?'dark':'day';
 }

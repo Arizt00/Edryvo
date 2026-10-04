@@ -18,6 +18,9 @@ from .lantern import Lantern
 from .diagnostics import inspect_buffer, output_diagnostics
 from .downloads import Downloads
 from .extension_runtime import ExtensionRuntime
+from .hacker import Hacker
+from .updates import Updates
+from .buffers import Buffers
 
 
 class PlatformServices:
@@ -30,6 +33,8 @@ class PlatformServices:
         self.runtimes=Runtimes(self.prefs);self.preview=WebPreview();self.debugger=DebugManager(self.runtimes,app.runner)
         self.lantern=Lantern(self.runtimes,app.runner,self.preview)
         self.downloads=Downloads(self.prefs.directory);self.extension_runtime=ExtensionRuntime(self.extensions)
+        self.hacker=Hacker(self);self.updates=Updates(self.prefs,self.downloads)
+        self.buffers=Buffers()
     def state(self):
         web=self.app.project/'web/vendor'
         return {'version':'0.5.2','preferences':self.prefs.export(),'providers':self.ai.vault.state(),
@@ -45,6 +50,9 @@ class PlatformServices:
     def get(self,path,query):
         q=lambda key,default='':query.get(key,[default])[0]
         if path=='/state':return self.state()
+        if path=='/hacker':return self.hacker.tools()
+        if path=='/updates':return self.updates.snapshot()
+        if path=='/buffers':return self.buffers.snapshot()
         if path=='/settings':return self.prefs.describe()
         if path=='/studio':return self.studio.export()
         if path=='/debug':return self.debugger.snapshot()
@@ -76,6 +84,11 @@ class PlatformServices:
         raise FileNotFoundError('Ruta de plataforma desconocida.')
     def post(self,path,body):
         ws=self.app.workspace
+        if path=='/buffers':return self.buffers.update(ws,body)
+        if path=='/hacker/start':return self.hacker.start(ws,body.get('path',''),body.get('content'),body.get('mode'))
+        if path=='/hacker/attach':return self.hacker.attach(ws,body.get('job'))
+        if path=='/updates/check':return self.updates.check(body.get('download') is True)
+        if path=='/updates/download':return self.updates.download()
         if path=='/files/operation':
             from .file_actions import perform
             return perform(ws,body)
@@ -83,7 +96,8 @@ class PlatformServices:
         if path=='/downloads/pause':return self.downloads.pause(body.get('id'))
         if path=='/downloads/resume':return self.downloads.resume(body.get('id'))
         if path=='/extensions/runtime/start':return self.extension_runtime.start(ws,body.get('id'),body.get('consent'))
-        if path=='/extensions/runtime/stop':return self.extension_runtime.stop(body.get('id'))
+        if path=='/extensions/runtime/stop':return self.extension_runtime.stop(body.get('id'),forget=True)
+        if path=='/extensions/runtime/restore':return self.extension_runtime.restore(ws)
         if path=='/extensions/runtime/request':return self.extension_runtime.request(ws,body)
         if path=='/lantern/start':
             if self.debugger.snapshot()['status'] in ('running','paused'):self.debugger.stop()
@@ -129,7 +143,9 @@ class PlatformServices:
         if path=='/extensions/updates':return self.extensions.updates()
         if path=='/extensions/export':return self.extensions.export_package(body.get('id'))
         if path=='/terminals/create':return self.terminals.create(ws,body.get('profile'),body.get('consent'),body.get('cols',100),body.get('rows',26))
-        if path=='/terminals/write':self._terminal(body.get('id')).write(body.get('data',''));return {'ok':True}
+        if path=='/terminals/write':
+            terminal=self._terminal(body.get('id'));written=terminal.write(body.get('data',''))
+            return {'ok':written,'closed':terminal.closed}
         if path=='/terminals/resize':self._terminal(body.get('id')).resize(body.get('cols',100),body.get('rows',26));return {'ok':True}
         if path=='/terminals/close':self.terminals.get(body.get('id')).close();return {'closed':True}
         if path=='/development':return self.tools.save(body)
@@ -166,6 +182,7 @@ class PlatformServices:
             return {'queued':True,'sequence':self.command_seq,'command':command}
         raise FileNotFoundError('Operación de plataforma desconocida.')
     def workspace_changed(self):
+        self.buffers.clear()
         self.extension_runtime.shutdown()
         self.lantern.stop();self.debugger.stop();self.preview.stop()
         self.terminals.shutdown();self.lsp.shutdown()
@@ -173,4 +190,6 @@ class PlatformServices:
             if not job.done:job.cancel()
         self.ai.clear_history()
     def shutdown(self):
+        self.updates.shutdown()
         self.workspace_changed();self.ai.shutdown();self.extensions.shutdown();self.downloads.shutdown()
+        self.hacker.shutdown()
