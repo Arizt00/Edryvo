@@ -1,6 +1,6 @@
-EDRYVO 0.5.3
+ZÉNIT 0.5.3
 
-Windows x64: abre el instalador .exe, o extrae el ZIP portable completo y ejecuta lumen.exe.
+Windows x64: abre el instalador .exe, o extrae el ZIP portable completo y ejecuta zenit.exe.
 No separes el ejecutable de _internal. Consulta README.md y docs/LENGUAJES.md.
 El instalador y la presentación de primer inicio son pantallas independientes.
 Firma Authenticode: no incluida. SDK externos: según tus lenguajes y selección.

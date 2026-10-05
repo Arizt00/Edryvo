@@ -6,17 +6,20 @@ try { if(fs.statSync(destination).size<=1000000)state = JSON.parse(fs.readFileSy
 if(!state||Array.isArray(state)||typeof state!=='object')state={};
 globalThis.lanternState = state;
 let previous = '';
-globalThis.lanternCheckpoint = () => {
+globalThis.lanternCheckpoint = (force=false) => {
   try {
     const text = JSON.stringify(globalThis.lanternState);
     if (Buffer.byteLength(text) > 1000000 || text === previous) return;
     fs.writeFileSync(destination + '.tmp', text);
-    fs.renameSync(destination + '.tmp', destination);
+    for(let attempt=0;attempt<(force?8:1);attempt++){
+      try{fs.renameSync(destination+'.tmp',destination);break;}
+      catch(error){if(!force||!['EPERM','EACCES','EBUSY'].includes(error.code)||attempt===7)throw error;Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,8);}
+    }
     previous = text;
   } catch (error) { process.stderr.write('Lantern checkpoint: ' + error.message + '\n'); }
 };
 setInterval(()=>{globalThis.lanternCheckpoint();if(fs.existsSync(destination+'.reload'))process.exit(0);}, 50).unref();
-process.on('exit', globalThis.lanternCheckpoint);
+process.on('exit', ()=>globalThis.lanternCheckpoint(true));
 
 // Explicit values use the same revision-tagged Lens protocol as other adapters.
 const lensPath = process.env.LUMEN_LANTERN_LENS;
@@ -26,7 +29,13 @@ let lensLast = 0;
 const flushLens = (force=false) => {
   if (!lensPath || (!force && Date.now()-lensLast<80)) return;
   lensLast=Date.now();
-  try {fs.writeFileSync(lensPath+'.tmp',JSON.stringify({generation:process.env.LUMEN_LANTERN_GENERATION,values:[...lensValues.values()]}));fs.renameSync(lensPath+'.tmp',lensPath);} catch {}
+  try {
+    fs.writeFileSync(lensPath+'.tmp',JSON.stringify({generation:process.env.LUMEN_LANTERN_GENERATION,values:[...lensValues.values()]}));
+    for(let attempt=0;attempt<(force?8:1);attempt++){
+      try{fs.renameSync(lensPath+'.tmp',lensPath);break;}
+      catch(error){if(!force||!['EPERM','EACCES','EBUSY'].includes(error.code)||attempt===7)break;Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,8);}
+    }
+  } catch {}
 };
 globalThis.lanternLens = (value,line,label='resultado') => {
   if (!Number.isInteger(line) || line<1) return value;

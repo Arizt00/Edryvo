@@ -1,10 +1,10 @@
-# Edryvo · 0.5.3 Preview R1
+# Zénit · 0.5.3 Preview R2
 
-Edryvo es el nuevo nombre de Lumen Studio: un IDE de escritorio con editor Monaco, terminal integrada, depuración por lenguaje, Lantern Live y asistencia de IA. 0.5.3 R1 conecta terminales, tareas, webviews y adaptadores de depuración de extensiones a servicios reales del IDE, y amplía las ediciones entre archivos. Consulta [los cambios y límites de 0.5.3 R1](docs/PREVIEW_053_R1.md).
+Zénit es el nuevo nombre de Edryvo y Lumen Studio: un IDE de escritorio con editor Monaco, terminal integrada, depuración por lenguaje, Lantern Live y asistencia de IA. 0.5.3 R2 permite desacoplar y volver a acoplar la vista web, Lantern y los espacios de desarrollo conservando los cambios del búfer en vivo. El catálogo utiliza los iconos de las extensiones y la API incorpora guardados reales mediante `TextDocument.save()` y `workspace.saveAll()`. Consulta [los cambios y límites de 0.5.3 R2](docs/PREVIEW_053_R2.md).
 
-## Usar Edryvo
+## Usar Zénit
 
-Instalador `.exe` para Windows 10/11 x64 (Edge WebView2), `.deb` y portable para Linux x64 compatible con Ubuntu 24.04. La pipeline prepara `.dmg` separados para macOS Apple Silicon e Intel; su publicación queda pendiente de construcción y verificación en Mac. Los paquetes incluyen el runtime Python del IDE; los compiladores y SDK de tus proyectos se preparan aparte. Los ejecutables de esta preview no tienen firma Authenticode ni notarización de Apple. Consulta [los paquetes de 0.5.3 R1](docs/PREVIEW_053_R1.md) y [las instrucciones de cada plataforma](docs/PREVIEW_R8.md).
+Instalador `.exe` para Windows 10/11 x64 (Edge WebView2), `.deb` y portable para Linux x64 compatible con Ubuntu 24.04. La pipeline prepara `.dmg` separados para macOS Apple Silicon e Intel; su publicación queda pendiente de construcción y verificación en Mac. Los paquetes incluyen el runtime Python del IDE; los compiladores y SDK de tus proyectos se preparan aparte. Los ejecutables de esta preview no tienen firma Authenticode ni notarización de Apple. Consulta [los paquetes de 0.5.3 R2](docs/PREVIEW_053_R2.md) y [las instrucciones de cada plataforma](docs/PREVIEW_R8.md).
 
 El primer inicio permite elegir tema, idioma, distribución y perfil. Una instalación nueva comienza sin archivos recientes inventados. Los paneles principales usan superficies al 92 % en Día y al 94 % en Oscuro y Bosque, con colores de sintaxis integrados e iridiscencia animada configurable.
 
@@ -13,7 +13,7 @@ El primer inicio permite elegir tema, idioma, distribución y perfil. Una instal
 - Pestañas agrupadas por carpeta, selector de archivos, menús contextuales, renombrado, eliminación recuperable y apertura en otra ventana.
 - Proyecto, Asistente y Terminal pueden cerrarse, recuperarse, acoplarse, flotar dentro del área de trabajo o abrirse en ventanas nativas independientes en otro monitor.
 - Dos archivos de código simultáneos con Ctrl+\. El editor separado comparte el búfer sin guardar y detecta cambios simultáneos.
-- Arrastra archivos a los bordes para dividir el editor en filas o columnas; arrastra pestañas y encabezados de panel fuera de Edryvo para separarlos en otra ventana o monitor.
+- Arrastra archivos a los bordes para dividir el editor en filas o columnas; arrastra pestañas y encabezados de panel fuera de Zénit para separarlos en otra ventana o monitor.
 - Estilos persistentes con herramientas propias: desarrollo general, vista web sin guardar, exploración CSV/TSV y paleta/contraste para diseño.
 - Forge: espacio de ejecución y depuración con contexto del archivo, herramientas detectadas, Python desde el búfer actual y C con GCC y GDB integrado.
 - La última carpeta y las extensiones instaladas se conservan; los motores previamente autorizados se recuperan en proyectos de confianza.
@@ -29,7 +29,7 @@ Atajos: Ctrl+N, nuevo archivo; Ctrl+Shift+N, nueva ventana; Ctrl+S o Ctrl+O, gua
 
 ## Configuración local
 
-Las preferencias, sesiones y extensiones se almacenan bajo `%LOCALAPPDATA%/LumenStudio`. Los proyectos externos permanecen donde los hayas creado. Emma se configura con su carpeta o endpoint local. Los clientes oficiales de IA que admiten cuentas usan sus flujos de autenticación y los derechos del plan correspondiente; una suscripción web no concede acceso universal a una API.
+Las instalaciones nuevas almacenan preferencias, sesiones y extensiones bajo `%LOCALAPPDATA%/Zenit`. Si existe un perfil anterior de Lumen Studio, Zénit lo reutiliza para conservar los datos. Los proyectos externos permanecen donde los hayas creado. Emma se configura con su carpeta o endpoint local. Los clientes oficiales de IA que admiten cuentas usan sus flujos de autenticación y los derechos del plan correspondiente; una suscripción web no concede acceso universal a una API.
 
 El desinstalador gráfico permite conservar los datos, borrar los datos locales o incluir también los proyectos internos, con una revisión previa. Los proyectos externos quedan fuera de esas opciones.
 
@@ -57,6 +57,6 @@ Las pruebas visuales requieren Playwright y Microsoft Edge. Las pruebas dependie
 
 ## Documentación y licencia
 
-[0.5.3 R1](docs/PREVIEW_053_R1.md) · [Lantern, cambios y límites](docs/PREVIEW_R7.md) · [Lenguajes](docs/LENGUAJES.md) · [Extensiones](docs/EXTENSIONES.md) · [Seguridad](docs/SEGURIDAD.md)
+[0.5.3 R2](docs/PREVIEW_053_R2.md) · [0.5.3 R1](docs/PREVIEW_053_R1.md) · [Lantern, cambios y límites](docs/PREVIEW_R7.md) · [Lenguajes](docs/LENGUAJES.md) · [Extensiones](docs/EXTENSIONES.md) · [Seguridad](docs/SEGURIDAD.md)
 
 Repositorio público bajo [licencia propietaria](LICENSE), sin licencia de código abierto por el momento. Las dependencias mantienen sus propias licencias: [avisos de terceros](THIRD_PARTY_NOTICES.md).

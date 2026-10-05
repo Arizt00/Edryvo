@@ -17,22 +17,22 @@ import venv
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
-VERSION='0.5.2'
+VERSION='0.5.3'
 MARKER='.lumen-source-install.json'
 
 def locations(platform_name=None,home=None):
     platform_name=platform_name or sys.platform;home=Path(home or Path.home())
     if platform_name=='win32':
         base=Path(os.environ.get('LOCALAPPDATA',home/'AppData/Local'))
-        return base/'Programs/LumenStudio',base/'Programs/LumenStudio/bin'
-    if platform_name=='darwin':return home/'Library/Application Support/LumenStudio/application',home/'.local/bin'
-    return home/'.local/share/lumen-studio/application',home/'.local/bin'
+        return base/'Programs/Zenit',base/'Programs/Zenit/bin'
+    if platform_name=='darwin':return home/'Library/Application Support/Zenit/application',home/'.local/bin'
+    return home/'.local/share/zenit/application',home/'.local/bin'
 
 def write_executable(path,text):
     path.parent.mkdir(parents=True,exist_ok=True);path.write_text(text,encoding='utf-8');path.chmod(0o755)
 
 def main(argv=None):
-    p=argparse.ArgumentParser(description='Instalador local de Lumen 0.4. No requiere administrador.')
+    p=argparse.ArgumentParser(description='Instalador local de Zénit 0.5.3. No requiere administrador.')
     p.add_argument('--plan',action='store_true',help='Mostrar las rutas sin modificar el equipo')
     p.add_argument('--target',type=Path,help='Carpeta nueva alternativa de instalación')
     p.add_argument('--skip-dependencies',action='store_true',help='Solo instalación base, sin ventana nativa ni pip; también útil para QA sin red')
@@ -65,30 +65,30 @@ def main(argv=None):
         print(f'Instalación incompleta: {error}\nLa carpeta se conserva para diagnosticar o desinstalar. No se ha cambiado el Python global.',file=sys.stderr)
         return 1
     binbase.mkdir(parents=True,exist_ok=True)
-    launcher=binbase/('lumen.cmd' if os.name=='nt' else 'lumen')
+    launcher=binbase/('zenit.cmd' if os.name=='nt' else 'zenit')
     if os.name=='nt':
         # Installation paths are quoted. Reject cmd expansion characters rather
         # than embedding an unsafe path in a command launcher.
         if any(c in str(destination) for c in '%!\r\n'):raise ValueError('Usa una ruta sin %, ! ni saltos de línea.')
         launcher.write_text('@echo off\r\n"'+str(python)+'" "'+str(destination/'app.py')+'" %*\r\n',encoding='utf-8')
-        desktop=binbase/'Lumen Studio.cmd';desktop.write_text('@echo off\r\n"'+str(python)+'" "'+str(destination/'app.py')+'" --desktop %*\r\n',encoding='utf-8')
+        desktop=binbase/'Zénit.cmd';desktop.write_text('@echo off\r\n"'+str(python)+'" "'+str(destination/'app.py')+'" --desktop %*\r\n',encoding='utf-8')
         # Own Start menu directory; no registry or system PATH modifications.
-        start=Path(os.environ.get('APPDATA',Path.home()/'AppData/Roaming'))/'Microsoft/Windows/Start Menu/Programs/Lumen Studio'
+        start=Path(os.environ.get('APPDATA',Path.home()/'AppData/Roaming'))/'Microsoft/Windows/Start Menu/Programs/Zénit'
         if not a.target:
             start.mkdir(parents=True,exist_ok=True);shutil.copy2(desktop,start/desktop.name)
     else:
         write_executable(launcher,'#!/bin/sh\nexec '+shlex.quote(str(python))+' '+shlex.quote(str(destination/'app.py'))+' "$@"\n')
-        desktop=binbase/'lumen-studio'
+        desktop=binbase/'zenit-studio'
         write_executable(desktop,'#!/bin/sh\nexec '+shlex.quote(str(python))+' '+shlex.quote(str(destination/'app.py'))+' --desktop "$@"\n')
         if not a.target and sys.platform=='darwin':
-            bundle=Path.home()/'Applications/Lumen Studio.app';contents=bundle/'Contents';(contents/'MacOS').mkdir(parents=True,exist_ok=True)
-            write_executable(contents/'MacOS/lumen',desktop.read_text())
-            with (contents/'Info.plist').open('wb') as f:plistlib.dump({'CFBundleExecutable':'lumen','CFBundleIdentifier':'studio.lumen.ide','CFBundleName':'Lumen Studio','CFBundleVersion':VERSION,'CFBundleShortVersionString':VERSION,'CFBundlePackageType':'APPL'},f)
+            bundle=Path.home()/'Applications/Zenit.app';contents=bundle/'Contents';(contents/'MacOS').mkdir(parents=True,exist_ok=True)
+            write_executable(contents/'MacOS/zenit',desktop.read_text())
+            with (contents/'Info.plist').open('wb') as f:plistlib.dump({'CFBundleExecutable':'zenit','CFBundleIdentifier':'studio.zenit.ide','CFBundleName':'Zénit','CFBundleVersion':VERSION,'CFBundleShortVersionString':VERSION,'CFBundlePackageType':'APPL'},f)
         elif not a.target:
-            entry=Path.home()/'.local/share/applications/lumen-studio.desktop';entry.parent.mkdir(parents=True,exist_ok=True)
+            entry=Path.home()/'.local/share/applications/zenit.desktop';entry.parent.mkdir(parents=True,exist_ok=True)
             # Desktop entries have their own quoting rules, not shell quoting.
             escaped=str(desktop).replace('\\','\\\\').replace('"','\\"').replace('`','\\`').replace('$','\\$').replace('%','%%')
-            entry.write_text('[Desktop Entry]\nType=Application\nName=Lumen Studio\nComment=Entorno de desarrollo local\nExec="'+escaped+'"\nTerminal=false\nCategories=Development;IDE;\n',encoding='utf-8')
+            entry.write_text('[Desktop Entry]\nType=Application\nName=Zénit\nComment=Entorno de desarrollo local\nExec="'+escaped+'"\nTerminal=false\nCategories=Development;IDE;\n',encoding='utf-8')
     plan['launchers']=[str(launcher),str(desktop)]
     (destination/MARKER).write_text(json.dumps(plan,indent=2),encoding='utf-8')
     print(f'\nInstalado: {destination}\nAbrir: {desktop}\nComandos: {launcher} focus\nDesinstalar: {sys.executable} "{destination}/tools/uninstall_user.py"\n')

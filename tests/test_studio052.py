@@ -35,7 +35,7 @@ class StudioTests(unittest.TestCase):
         with self.assertRaises(ValueError):s.update({'avatar':'data:image/png;base64,PHNjcmlwdD4='})
         with self.assertRaises(ValueError):s.update({'recent':[{'path':'x.py'}]})
     def test_installer_copies_actual_payload_and_keeps_existing_version(self):
-        payload=self.base/'payload';payload.mkdir();(payload/'lumen.exe').write_bytes(b'MZ-test-fixture');(payload/'_internal').mkdir();(payload/'_internal/test.txt').write_text('payload',encoding='utf-8')
+        payload=self.base/'payload';payload.mkdir();(payload/'zenit.exe').write_bytes(b'MZ-test-fixture');(payload/'_internal').mkdir();(payload/'_internal/test.txt').write_text('payload',encoding='utf-8')
         target=self.base/'installed';old=target/f'app-{VERSION}';old.mkdir(parents=True);(old/'old.txt').write_text('preserved')
         inst=Installer(payload,target);inst._install({'packages':[],'locale':'es','shortcuts':False,'register':False})
         self.assertEqual(inst.status()['status'],'finished');self.assertEqual((target/f'app-{VERSION}/_internal/test.txt').read_text(),'payload')

@@ -9,7 +9,7 @@ from playwright.sync_api import sync_playwright,expect
 def main():
  parser=argparse.ArgumentParser();parser.add_argument('--output',required=True,type=Path);out=parser.parse_args().output;out.mkdir(parents=True,exist_ok=True);checks=[];errors=[]
  def passed(name):checks.append(name);print('PASS',name,flush=True)
- with tempfile.TemporaryDirectory(prefix='edryvo-ui-') as folder:
+ with tempfile.TemporaryDirectory(prefix='zenit-ui-') as folder:
   root=Path(folder);ws=root/'workspace';ws.mkdir()
   for name,text in {'main.py':'x=1\n','delete.py':'delete\n','other.py':'y=2\n','debug.py':'value=41\nprint(value+1)\n'}.items():(ws/name).write_text(text,encoding='utf-8')
   app=Application(ROOT,ws,data_dir=root/'profile');app.workspace.trusted=True;app.features.studio.update({'onboarded':True});app.features.prefs.update({'general.showWelcome':False,'appearance.motion':False,'updates.automatic':False})
@@ -27,7 +27,7 @@ def main():
     try:page.wait_for_function('window.lumen?.ready')
     except Exception:
      print('BOOT',errors,page.locator('#connection-overlay').inner_text(),flush=True);page.screenshot(path=str(out/'failure.png'));raise
-    expect(page.locator('.brand-name')).to_contain_text('EDRYVO');passed('Edryvo branding and first launch load without fabricated recent files')
+    expect(page.locator('.brand-name')).to_contain_text('ZÉNIT');passed('Zénit branding and first launch load without fabricated recent files')
     page.locator('[data-file="main.py"]').click();page.wait_for_function('window.lumen.activeFile==="main.py"')
     ident=call('qa.webview');frame=page.frame_locator('.extension-webview-surface iframe');expect(frame.locator('#send')).to_be_visible();frame.locator('#send').click();expect(frame.locator('#answer')).to_have_text('42');page.screenshot(path=str(out/'webview.png'));passed('Webview JavaScript sends a message to the real extension and receives its answer')
     page.locator('[data-file="other.py"]').click();expect(page.locator('.extension-webview-surface')).to_be_hidden();expect(page.locator('.extension-webview-tab')).to_be_visible();page.locator('.extension-webview-tab').click();expect(frame.locator('#send')).to_be_visible();passed('File activation hides a webview and its tab survives the editor tab rebuild')

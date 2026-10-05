@@ -57,16 +57,16 @@ jobs:
       - name: Install and verify Linux package
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get install -y ./dist/Edryvo-*-Linux-amd64.deb
-          xvfb-run -a python tools/verify_native_package.py --bundle /opt/lumen-studio
+          sudo apt-get install -y ./dist/Zenit-*-Linux-amd64.deb
+          xvfb-run -a python tools/verify_native_package.py --bundle /opt/zenit
       - name: Verify Windows and macOS package
         if: runner.os != 'Linux'
         run: python tools/verify_native_package.py
       - name: Upload verified installers
         uses: actions/upload-artifact@v4
         with:
-          name: Edryvo-${{ matrix.artifact }}
-          path: dist/Edryvo-*
+          name: Zenit-${{ matrix.artifact }}
+          path: dist/Zenit-*
           if-no-files-found: error
           retention-days: 14
       - name: Preserve diagnostics
@@ -91,7 +91,7 @@ jobs:
           python-version: '3.12'
       - uses: actions/download-artifact@v4
         with:
-          pattern: Edryvo-*
+          pattern: Zenit-*
           path: release-assets
           merge-multiple: true
       - name: Publish all four verified native builds

@@ -1,6 +1,6 @@
 """Explicit WebView2 bridge. Native objects MUST remain private to avoid JS introspection."""
 import sys
-from .version import VERSION, REVISION
+from .version import PRODUCT_NAME, VERSION, REVISION
 
 class DesktopAPI:
     def __init__(self):
@@ -9,28 +9,34 @@ class DesktopAPI:
         self._application = None
         self._url = None
         self._children = {}
+        self._owner = None
+        self._panel = None
 
     def status(self):
-        return {'ready': self._window is not None, 'version': VERSION, 'revision': REVISION}
+        return {'ready': self._window is not None, 'version': VERSION, 'revision': REVISION, 'panel': self._panel}
 
     def detach_panel(self, panel, path='', position=None):
         """Independent native window, sharing backend processes and document hub."""
         import webview
         from urllib.parse import urlencode
-        if panel not in ('project','assistant','console','editor','forge'):raise ValueError('Panel desconocido.')
+        titles={'project':'Proyecto','assistant':'Melody','console':'Terminal','editor':path or 'Editor','forge':'Forge','preview':'Vista web','lantern':'Lantern','profile-general':'Desarrollo general','profile-web':'Desarrollo web','profile-data':'Ciencia de datos','profile-design':'Diseño y UI'}
+        if panel not in titles:raise ValueError('Panel desconocido.')
+        if self._owner is not None:
+            self.close_panel()
+            return {'opened':False,'returned':True,'panel':self._panel}
         if path:self._application.workspace.resolve(path)
         key=panel+':'+path if panel=='editor' else panel
         if key in self._children:
-            self._children[key].restore();self._children[key].show()
-            return {'opened':True,'existing':True}
-        api=DesktopAPI();api._application=self._application;api._url=self._url;api._panel=panel
+            self._children[key].destroy()
+            return {'opened':False,'returned':True,'panel':panel}
+        api=DesktopAPI();api._application=self._application;api._url=self._url;api._panel=panel;api._owner=self
         query=urlencode({'panel':panel,'file':path})
         coordinates={}
         if isinstance(position,dict):
             for axis in ('x','y'):
                 value=position.get(axis)
                 if isinstance(value,(int,float)) and -100_000<=value<=100_000:coordinates[axis]=round(value)
-        child=webview.create_window('Lumen · '+{'project':'Proyecto','assistant':'Melody','console':'Terminal','editor':path or 'Editor','forge':'Forge'}[panel],self._url+'/?'+query,js_api=api,width=940 if panel in ('editor','forge') else 640,height=760,min_size=(380,320),easy_drag=False,background_color='#191d28',**coordinates)
+        child=webview.create_window(PRODUCT_NAME+' · '+titles[panel],self._url+'/?'+query,js_api=api,width=1060 if panel in ('editor','forge','preview','lantern') or panel.startswith('profile-') else 640,height=760,min_size=(380,320),easy_drag=False,background_color='#191d28',**coordinates)
         api._window=child;self._children[key]=child
         def closed():
             self._children.pop(key,None)
@@ -44,6 +50,12 @@ class DesktopAPI:
             __import__('threading').Thread(target=notify_parent,daemon=True).start()
         child.events.closed+=closed
         return {'opened':True,'panel':panel}
+
+    def close_panel(self):
+        """Return this shared child to its original application, without stopping jobs."""
+        if self._owner is None:raise ValueError('Esta ventana ya está acoplada.')
+        self._window.destroy()
+        return {'returned':True,'panel':self._panel}
 
     def close_forge(self):
         if getattr(self,'_panel',None)!='forge':raise ValueError('Esta ventana no es Forge.')

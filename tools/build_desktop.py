@@ -61,7 +61,7 @@ def prepare_mac_icon():
 
 
 def desktop_entry(executable,icon):
-    return '[Desktop Entry]\nType=Application\nName=Edryvo\nComment=Editor, Lantern Live y Forge\nExec="'+executable+'"\nIcon='+icon+'\nTerminal=false\nCategories=Development;IDE;\nStartupWMClass=Edryvo\n'
+    return '[Desktop Entry]\nType=Application\nName=Zénit\nComment=Editor, Lantern Live y Forge\nExec="'+executable+'"\nIcon='+icon+'\nTerminal=false\nCategories=Development;IDE;\nStartupWMClass=Zénit\n'
 
 
 def linux_packages(bundle,prefix):
@@ -70,24 +70,24 @@ def linux_packages(bundle,prefix):
     if not arch:raise RuntimeError('Arquitectura Linux no admitida.')
     deb=ROOT/f'dist/{prefix}-Linux-{arch}.deb'
     with tempfile.TemporaryDirectory(prefix='lumen-deb-') as temp:
-        stage=Path(temp);install=stage/'opt/lumen-studio'
+        stage=Path(temp);install=stage/'opt/zenit'
         shutil.copytree(bundle,install,symlinks=True)
         control=stage/'DEBIAN';control.mkdir()
         kib=sum(p.stat().st_size for p in install.rglob('*') if p.is_file())//1024
         libc=__import__('platform').libc_ver()[1] or '2.39'
-        (control/'control').write_text(f'Package: lumen-studio\nVersion: {VERSION}~preview.{REVISION}\nSection: devel\nPriority: optional\nArchitecture: {arch}\nMaintainer: Edryvo <lumen@users.noreply.github.com>\nInstalled-Size: {kib}\nDepends: libc6 (>= {libc}), libstdc++6, libgl1, libopengl0, libegl1, libxkbcommon0, libxkbcommon-x11-0, libxcb-cursor0, libxcb-xinerama0, libxcb-icccm4, libxcb-keysyms1, libxcb-image0, libxcb-render-util0, libnss3, libnspr4, libasound2 | libasound2t64, libxcomposite1, libxdamage1, libxrandr2, libxtst6, libxi6, libdbus-1-3, xdg-utils\nHomepage: https://github.com/Arizt00/Edryvo\nDescription: Edryvo IDE preview\n Editor Monaco, Lantern Live, Forge y ventanas nativas independientes.\n Incluye su runtime; los SDK de proyectos se preparan aparte.\n',encoding='utf-8')
+        (control/'control').write_text(f'Package: zenit\nVersion: {VERSION}~preview.{REVISION}\nConflicts: lumen-studio\nReplaces: lumen-studio\nSection: devel\nPriority: optional\nArchitecture: {arch}\nMaintainer: Zénit <zenit@users.noreply.github.com>\nInstalled-Size: {kib}\nDepends: libc6 (>= {libc}), libstdc++6, libgl1, libopengl0, libegl1, libxkbcommon0, libxkbcommon-x11-0, libxcb-cursor0, libxcb-xinerama0, libxcb-icccm4, libxcb-keysyms1, libxcb-image0, libxcb-render-util0, libnss3, libnspr4, libasound2 | libasound2t64, libxcomposite1, libxdamage1, libxrandr2, libxtst6, libxi6, libdbus-1-3, xdg-utils\nHomepage: https://github.com/Arizt00/Zenit\nDescription: Zénit IDE preview\n Editor Monaco, Lantern Live, Forge y ventanas nativas independientes.\n Incluye su runtime; los SDK de proyectos se preparan aparte.\n',encoding='utf-8')
         bin_dir=stage/'usr/bin';bin_dir.mkdir(parents=True)
-        (bin_dir/'lumen').write_text('#!/bin/sh\nexec /opt/lumen-studio/lumen "$@"\n',encoding='utf-8');(bin_dir/'lumen').chmod(0o755);(bin_dir/'edryvo').symlink_to('lumen')
+        (bin_dir/'zenit').write_text('#!/bin/sh\nexec /opt/zenit/zenit "$@"\n',encoding='utf-8');(bin_dir/'zenit').chmod(0o755);(bin_dir/'lumen').symlink_to('zenit')
         apps=stage/'usr/share/applications';apps.mkdir(parents=True)
-        (apps/'lumen-studio.desktop').write_text(desktop_entry('/opt/lumen-studio/lumen','lumen-studio'),encoding='utf-8')
+        (apps/'zenit.desktop').write_text(desktop_entry('/opt/zenit/zenit','zenit'),encoding='utf-8')
         icons=stage/'usr/share/icons/hicolor/scalable/apps';icons.mkdir(parents=True)
-        shutil.copy2(ROOT/'web/assets/lumen.svg',icons/'lumen-studio.svg')
-        notices=stage/'usr/share/doc/lumen-studio';notices.mkdir(parents=True)
+        shutil.copy2(ROOT/'web/assets/lumen.svg',icons/'zenit.svg')
+        notices=stage/'usr/share/doc/zenit';notices.mkdir(parents=True)
         shutil.copy2(ROOT/'LICENSE',notices/'copyright')
         subprocess.run(['dpkg-deb','--root-owner-group','--build',str(stage),str(deb)],check=True)
     portable=ROOT/f'dist/{prefix}-Linux-{arch}.tar.gz'
     with tarfile.open(portable,'w:gz') as archive:
-        archive.add(bundle,arcname='LumenStudio')
+        archive.add(bundle,arcname='Zenit')
         info=archive.gettarinfo(str(ROOT/'packaging/linux/install-bundle.sh'),arcname='install.sh');info.mode=0o755
         with (ROOT/'packaging/linux/install-bundle.sh').open('rb') as stream:archive.addfile(info,stream)
     return [deb,portable]
@@ -97,15 +97,15 @@ def mac_package(prefix):
     output=ROOT/f'dist/{prefix}-macOS-{architecture()}.dmg'
     with tempfile.TemporaryDirectory(prefix='lumen-dmg-') as temp:
         stage=Path(temp)
-        shutil.copytree(ROOT/'dist/Edryvo.app',stage/'Edryvo.app',symlinks=True)
+        shutil.copytree(ROOT/'dist/Zenit.app',stage/'Zenit.app',symlinks=True)
         (stage/'Applications').symlink_to('/Applications',target_is_directory=True)
-        (stage/'LEEME.txt').write_text('Edryvo '+VERSION+f' R{REVISION}\n\nArrastra Edryvo.app a Applications.\nIncluye Python; prepara los SDK de tus proyectos por separado.\nPreview sin firma de Developer ID ni notarización de Apple.\nSi macOS bloquea esta preview, revisa Privacidad y seguridad tras verificar la descarga.\nNo es necesario desactivar Gatekeeper.\n',encoding='utf-8')
-        subprocess.run(['hdiutil','create','-volname','Edryvo','-srcfolder',str(stage),'-ov','-format','UDZO',str(output)],check=True)
+        (stage/'LEEME.txt').write_text('Zénit '+VERSION+f' R{REVISION}\n\nArrastra Zenit.app a Applications.\nIncluye Python; prepara los SDK de tus proyectos por separado.\nPreview sin firma de Developer ID ni notarización de Apple.\nSi macOS bloquea esta preview, revisa Privacidad y seguridad tras verificar la descarga.\nNo es necesario desactivar Gatekeeper.\n',encoding='utf-8')
+        subprocess.run(['hdiutil','create','-volname','Zénit','-srcfolder',str(stage),'-ov','-format','UDZO',str(output)],check=True)
     return [output]
 
 
 def main():
-    parser=argparse.ArgumentParser(description='Construir Edryvo en el sistema de destino')
+    parser=argparse.ArgumentParser(description='Construir Zénit en el sistema de destino')
     parser.add_argument('--installer',action='store_true')
     parser.add_argument('--plan',action='store_true')
     parser.add_argument('--require-assets',action='store_true')
@@ -122,7 +122,7 @@ def main():
         collect_licenses()
         if sys.platform=='darwin':prepare_mac_icon()
         subprocess.run(command,cwd=ROOT,check=True)
-    outputs=[];prefix=f'Edryvo-{VERSION}-R{REVISION}'
+    outputs=[];prefix=f'Zenit-{VERSION}-R{REVISION}'
     if args.installer:
         if sys.platform=='win32':
             for name in ('uninstaller','installer'):
@@ -132,11 +132,11 @@ def main():
             outputs=[output]
             portable=ROOT/f'dist/{prefix}-Windows-Portable.zip'
             with zipfile.ZipFile(portable,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
-                for file in (ROOT/'dist/LumenStudio').rglob('*'):
-                    if file.is_file():archive.write(file,'LumenStudio/'+file.relative_to(ROOT/'dist/LumenStudio').as_posix())
+                for file in (ROOT/'dist/Zenit').rglob('*'):
+                    if file.is_file():archive.write(file,'Zenit/'+file.relative_to(ROOT/'dist/Zenit').as_posix())
             outputs.append(portable)
         elif sys.platform=='darwin':outputs=mac_package(prefix)
-        elif sys.platform.startswith('linux'):outputs=linux_packages(ROOT/'dist/LumenStudio',prefix)
+        elif sys.platform.startswith('linux'):outputs=linux_packages(ROOT/'dist/Zenit',prefix)
         else:parser.error('Sistema de distribución no admitido.')
     try:commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
     except (OSError,subprocess.SubprocessError):commit=None

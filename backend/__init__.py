@@ -1,1 +1,1 @@
-"""Local services for Edryvo."""
+"""Local services for Zénit."""

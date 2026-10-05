@@ -70,7 +70,7 @@ class Preview{
   async newWindow(path='',content){
     if(path&&content===undefined){const r=this.host.editor.models.get(path);content=r?.model?.getValue()??r?.value;}
     if(window.pywebview?.api?.new_window)return window.pywebview.api.new_window(path,content??null);
-    const url=new URL(location.href);url.searchParams.set('file',path);const opened=window.open(url,'_blank');if(!opened)throw Error('Permite abrir ventanas en el navegador o utiliza Lumen Desktop.');
+    const url=new URL(location.href);url.searchParams.set('file',path);const opened=window.open(url,'_blank');if(!opened)throw Error('Permite abrir ventanas en el navegador o utiliza Zénit Desktop.');
   }
   async saveAs(){
     const ed=this.host.editor;if(!ed.current)return;
@@ -121,11 +121,11 @@ class Preview{
     const call=(ext,kind,model,extra={})=>platform.api('/extensions/runtime/request',{id:ext.id,method:'provide',kind,document:doc(model),...extra}).then(x=>x.items);
     const mr=r=>r?new m.Range(r.start.line+1,r.start.character+1,r.end.line+1,r.end.character+1):undefined;
     if(!this.extensionCommandBridge)this.extensionCommandBridge=m?.editor.registerCommand('lumen.extension.command',(_,id,args)=>this.safe(()=>platform.pluginCommand(id,args)));
-    if(!this.extensionEditBridge)this.extensionEditBridge=m?.editor.registerCommand('edryvo.extension.workspaceEdit',async(_,edit,path,version,command,args)=>{
+    if(!this.extensionEditBridge)this.extensionEditBridge=m?.editor.registerCommand('zenit.extension.workspaceEdit',async(_,edit,path,version,command,args)=>{
       try{
         const record=ed.models.get(path);if(!record?.model||record.model.getVersionId()!==version)throw Error('El archivo cambió. Solicita de nuevo la acción.');
         const root=this.host.service().workspace.replaceAll('\\','/').replace(/\/$/,''),documents=[...ed.models.values()].map(r=>({uri:/^(?:[A-Za-z]:[\\/]|\/)/.test(r.path)?r.path:root+'/'+r.path,text:r.model?.getValue()??r.value}));
-        const result=await platform.api('/extensions/applyEdit',{edit,documents});await this.services.event({command:'edryvo.workspace.edit',edit:result});
+        const result=await platform.api('/extensions/applyEdit',{edit,documents});await this.services.event({command:'zenit.workspace.edit',edit:result});
         if(command)await platform.pluginCommand(command,args);return result.applied;
       }catch(error){this.host.notify(error.message,'error');throw error;}
     });

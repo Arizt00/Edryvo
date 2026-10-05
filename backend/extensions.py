@@ -64,7 +64,7 @@ def validate_remote(url):
 
 def download(url,limit=2_000_000):
     validate_remote(url)
-    req=urllib.request.Request(url,headers={'User-Agent':'LumenStudio/0.5.2','Accept':'application/json, application/octet-stream'})
+    req=urllib.request.Request(url,headers={'User-Agent':'Zenit/0.5.3','Accept':'application/json, application/octet-stream'})
     opener=urllib.request.build_opener(CheckedRedirect())
     # HTTPError is also an OSError. Preserve 404 so platform resolution can try
     # universal packages, rather than misreporting a healthy registry as offline.
@@ -90,7 +90,7 @@ def download(url,limit=2_000_000):
 def download_file(url, destination, progress=lambda **kw:None, cancelled=lambda:False):
     """Bounded memory, validated redirects, disk preflight and cancellable reads."""
     validate_remote(url)
-    req=urllib.request.Request(url,headers={'User-Agent':'LumenStudio/0.5.2','Accept':'application/octet-stream'})
+    req=urllib.request.Request(url,headers={'User-Agent':'Zenit/0.5.3','Accept':'application/octet-stream'})
     opener=urllib.request.build_opener(CheckedRedirect())
     with opener.open(req,timeout=25) as response, destination.open('wb') as output:
         validate_remote(response.geturl())
@@ -187,6 +187,30 @@ def icon_theme(root,declaration,owner):
             'definitions':definitions,'fileExtensions':data.get('fileExtensions',{}),'fileNames':data.get('fileNames',{}),'file':data.get('file'),'owner':owner}
 
 
+def image_data(raw):
+    """Catalog images never become executable markup or external resource loaders."""
+    if len(raw)>512_000:raise ValueError('Icono demasiado grande.')
+    if raw.startswith(b'\x89PNG\r\n\x1a\n'):mime='image/png'
+    elif raw.startswith(b'\xff\xd8\xff'):mime='image/jpeg'
+    elif raw[:4]==b'RIFF' and raw[8:12]==b'WEBP':mime='image/webp'
+    elif raw.startswith((b'GIF87a',b'GIF89a')):mime='image/gif'
+    else:
+        svg=raw.decode('utf-8-sig')
+        if not re.search(r'<svg\b',svg,re.I) or re.search(r'<(?:script|foreignObject|iframe|image|use)\b|\bon\w+\s*=|(?:href\s*=\s*[\"\'](?!#))|url\(\s*[\"\']?(?!#)|<!ENTITY|<!DOCTYPE',svg,re.I):raise ValueError('Icono no válido.')
+        mime='image/svg+xml'
+    return 'data:'+mime+';base64,'+base64.b64encode(raw).decode('ascii')
+
+
+def package_icon(root,manifest):
+    relative=manifest.get('icon')
+    if not relative:return None
+    try:
+        target=(root/str(safe_member(relative))).resolve()
+        if not target.is_relative_to(root.resolve()) or not target.is_file() or target.stat().st_size>512_000:return None
+        return image_data(target.read_bytes())
+    except (OSError,ValueError,UnicodeError):return None
+
+
 class ExtensionStore:
     def __init__(self,prefs):
         self.prefs=prefs; self.root=prefs.directory/'extensions';self.root.mkdir(exist_ok=True)
@@ -216,7 +240,7 @@ class ExtensionStore:
         if recovered:atomic_json(self.index,self.installed)
     @contextmanager
     def index_transaction(self):
-        """Serialize index changes across independent Lumen desktop processes."""
+        """Serialize index changes across independent Zénit desktop processes."""
         with (self.root/'.index-lock').open('a+b') as stream:
             stream.seek(0,2)
             if stream.tell()==0:stream.write(b'0');stream.flush()
@@ -249,6 +273,7 @@ class ExtensionStore:
                 try:
                     manifest=localized_manifest(self.root/x['directory']/'extension')
                     item.update({k:manifest.get(k,item.get(k,'')) for k in ('displayName','description')})
+                    item['icon']=package_icon(self.root/x['directory']/'extension',manifest)
                     if (manifest.get('main') or manifest.get('lumen',{}).get('main')) and 'runtime' not in item['supported']:item['supported'].append('runtime')
                 except (OSError,ValueError):pass
                 result.append(item)
@@ -264,8 +289,17 @@ class ExtensionStore:
             if not ID_PART.fullmatch(ns) or not ID_PART.fullmatch(name): continue
             out.append({'id':ns+'.'+name,'namespace':ns,'name':name,'displayName':str(e.get('displayName') or name)[:160],
                 'description':str(e.get('description',''))[:700],'version':str(e.get('version',''))[:80],
+                'iconUrl':e.get('files',{}).get('icon'),
                 'downloads':e.get('downloadCount',0),'installed':ns+'.'+name in self.installed})
         return {'extensions':out,'total':data.get('totalSize',len(out)),'offset':offset,'source':'Open VSX'}
+    def catalog_icon(self,url):
+        validate_remote(url);cache=self.root/'catalog-icons';cache.mkdir(exist_ok=True)
+        target=cache/(hashlib.sha256(url.encode()).hexdigest()+'.image')
+        if target.is_file() and target.stat().st_size<=512_000:return {'icon':image_data(target.read_bytes())}
+        self._network();raw=download(url,512_000);icon=image_data(raw)
+        if len(list(cache.glob('*.image')))>256:
+            for stale in sorted(cache.glob('*.image'),key=lambda p:p.stat().st_mtime)[:32]:stale.unlink(missing_ok=True)
+        target.write_bytes(raw);return {'icon':icon}
     def inspect_remote(self,extension_id,version='latest',progress=lambda **kw:None,cancelled=lambda:False):
         self._network();parts=str(extension_id).split('.')
         if len(parts)!=2 or any(not ID_PART.fullmatch(x) for x in parts): raise ValueError('Usa publisher.nombre.')
@@ -340,7 +374,7 @@ class ExtensionStore:
             custom=manifest.get('lumen',{})
             if isinstance(custom,dict) and custom.get('commands'): supported.append('lumen.commands')
             if manifest.get('main') or custom.get('main'):
-                supported.append('runtime');warnings.append('Motor Python Pyrefly integrado mediante LSP: autocompletado, diagnósticos, definiciones, referencias e inlay hints. La interfaz y los comandos propios de VS Code no se ejecutan.' if eid.lower()=='meta.pyrefly' else 'Código Node.js ejecutable: requiere autorización para iniciar. API Lumen preview y subconjunto de VS Code; APIs no implementadas producen un error explícito.')
+                supported.append('runtime');warnings.append('Motor Python Pyrefly integrado mediante LSP: autocompletado, diagnósticos, definiciones, referencias e inlay hints. La interfaz y los comandos propios de VS Code no se ejecutan.' if eid.lower()=='meta.pyrefly' else 'Código Node.js ejecutable: requiere autorización para iniciar. API Zénit preview y subconjunto de VS Code; APIs no implementadas producen un error explícito.')
             elif manifest.get('browser'):warnings.append('La entrada browser de VS Code no es compatible con el host Node.js de esta preview.')
             if c.get('grammars'): warnings.append('Las gramáticas TextMate se conservan, pero no se ejecutan. El resaltado depende de los lenguajes integrados en Monaco.')
             if manifest.get('extensionDependencies') or manifest.get('extensionPack'): warnings.append('Las dependencias y paquetes agrupados no se instalan automáticamente.')
@@ -440,9 +474,9 @@ class ExtensionStore:
                     if file.is_symlink(): raise ValueError('La extensión contiene un enlace.')
                     if not file.is_file(): continue
                     total += file.stat().st_size
-                    if total > 180*1024**2: raise ValueError('Para exportar este paquete grande, copia su carpeta desde el perfil de Lumen. La exportación web admite 180 MB.')
+                    if total > 180*1024**2: raise ValueError('Para exportar este paquete grande, copia su carpeta desde el perfil de Zénit. La exportación web admite 180 MB.')
                     archive.write(file, 'extension/' + file.relative_to(folder).as_posix())
-            if stream.tell() > 48*1024**2: raise ValueError('La exportación web admite VSIX de hasta 48 MB; el paquete instalado se conserva en el perfil de Lumen.')
+            if stream.tell() > 48*1024**2: raise ValueError('La exportación web admite VSIX de hasta 48 MB; el paquete instalado se conserva en el perfil de Zénit.')
             return {'filename': item['id'] + '-' + item['version'] + '.vsix', 'data': base64.b64encode(stream.getvalue()).decode('ascii')}
     def contributions(self):
         output={'languages':[],'snippets':[],'themes':[],'iconThemes':[],'commands':[],'errors':[]}

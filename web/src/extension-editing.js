@@ -21,7 +21,7 @@ export function editingProvider(ext,p,{m,ed,call,mr,relativeUri,host}){
   const convertAction=async(a,model,version)=>{
     let backend=!!a.edit?.operations?.some(o=>o.kind!=='text');
     if(!backend)for(const c of a.edit?.changes||[])try{relativeUri(c.uri);}catch{backend=true;}
-    if(backend)return {title:a.title,kind:typeof a.kind==='string'?a.kind:a.kind?.value,isPreferred:a.isPreferred,disabled:a.disabled?.reason,command:{id:'edryvo.extension.workspaceEdit',title:a.title,arguments:[a.edit,ed.pathFor(model),version,a.command?ext.id+':'+(typeof a.command==='string'?a.command:a.command.command):null,a.arguments||a.command?.arguments||[]]},_lumenAction:a._lumenAction,_model:model,_version:version};
+    if(backend)return {title:a.title,kind:typeof a.kind==='string'?a.kind:a.kind?.value,isPreferred:a.isPreferred,disabled:a.disabled?.reason,command:{id:'zenit.extension.workspaceEdit',title:a.title,arguments:[a.edit,ed.pathFor(model),version,a.command?ext.id+':'+(typeof a.command==='string'?a.command:a.command.command):null,a.arguments||a.command?.arguments||[]]},_lumenAction:a._lumenAction,_model:model,_version:version};
     return {title:a.title,kind:typeof a.kind==='string'?a.kind:a.kind?.value,isPreferred:a.isPreferred,disabled:a.disabled?.reason,
     edit:a.edit?await workspaceEdit(a.edit,model,version):undefined,
     command:a.command?{id:'lumen.extension.command',title:a.title,arguments:[ext.id+':'+(typeof a.command==='string'?a.command:a.command.command),a.arguments||a.command.arguments||[]]}:undefined,

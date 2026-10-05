@@ -48,7 +48,7 @@ class LumenServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "Lumen/0.5.3"
+    server_version = "Zénit/0.5.3"
     sys_version = ""
 
     @property
@@ -81,7 +81,7 @@ class Handler(BaseHTTPRequestHandler):
         cookies.load(self.headers.get("Cookie", ""))
         cookie = cookies.get("lumen_session")
         if not cookie or not secrets.compare_digest(cookie.value, self.app.token):
-            raise PermissionError("Sesión no válida. Recarga Lumen desde su dirección local.")
+            raise PermissionError("Sesión no válida. Recarga Zénit desde su dirección local.")
         if not bootstrap and not secrets.compare_digest(self.headers.get("X-Lumen-Token", ""), self.app.token):
             raise PermissionError("Token de sesión no válido.")
         expected_workspace=self.headers.get('X-Lumen-Workspace')

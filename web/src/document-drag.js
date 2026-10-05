@@ -13,7 +13,7 @@ export class DocumentDrag{
   constructor(host){
     this.host=host;this.listeners=[];
     this.overlay=document.createElement('div');this.overlay.className='document-drop-overlay';this.overlay.hidden=true;
-    this.overlay.innerHTML='<div class="document-drop-hint">Soltar en un borde divide el editor · fuera de Lumen abre otra ventana</div>'+['top','left','center','right','bottom'].map(side=>`<div data-document-side="${side}">${icon(side==='center'?'file':'split')}<span>${{top:'Dividir arriba',left:'Dividir a la izquierda',center:'Abrir aquí',right:'Dividir a la derecha',bottom:'Dividir abajo'}[side]}</span></div>`).join('');
+    this.overlay.innerHTML='<div class="document-drop-hint">Soltar en un borde divide el editor · fuera de Zénit abre otra ventana</div>'+['top','left','center','right','bottom'].map(side=>`<div data-document-side="${side}">${icon(side==='center'?'file':'split')}<span>${{top:'Dividir arriba',left:'Dividir a la izquierda',center:'Abrir aquí',right:'Dividir a la derecha',bottom:'Dividir abajo'}[side]}</span></div>`).join('');
     host.panel.append(this.overlay);
     this.listen(document,'dragstart',e=>{
       const tab=e.target.closest('[data-tab]'),file=e.target.closest('.tree-row[data-file]');const path=tab?.dataset.tab||file?.dataset.file;

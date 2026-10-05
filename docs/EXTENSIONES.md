@@ -1,6 +1,6 @@
 # Extensiones · 0.5.3 Preview R1
 
-Edryvo consulta Open VSX y permite importar VSIX. El paquete se inspecciona antes de instalarlo: rutas, enlaces, duplicados, tamaño expandido y manifiesto. Las actualizaciones siguen el mismo proceso. Consulta [los servicios nuevos y límites de 0.5.3 R1](PREVIEW_053_R1.md).
+Zénit consulta Open VSX y permite importar VSIX. El paquete se inspecciona antes de instalarlo: rutas, enlaces, duplicados, tamaño expandido y manifiesto. Las actualizaciones siguen el mismo proceso. Consulta [los servicios nuevos y límites de 0.5.3 R1](PREVIEW_053_R1.md).
 
 ## Aportaciones
 

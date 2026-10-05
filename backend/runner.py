@@ -234,7 +234,7 @@ class Runner:
         if name == "check":
             return {"output": ws.check()}
         if name == "version":
-            return {"output": f"Edryvo 0.5.2\nPython {platform.python_version()}\n{ws.native.name}\n"}
+            return {"output": f"Zénit 0.5.2\nPython {platform.python_version()}\n{ws.native.name}\n"}
         if name == "git" and len(args) == 1 and args[0] in ("status", "diff", "log", "branch"):
             return {"output": self.git(ws, args[0])}
         if self.allow_shell and ws.trusted:

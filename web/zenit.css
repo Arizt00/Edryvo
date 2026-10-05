@@ -1,0 +1,51 @@
+/* Zénit 0.5.3 R2. Surfaces use the active installed theme throughout. */
+:root{--zenit-radius:16px;--zenit-gap:12px}
+.panel{border-radius:var(--zenit-radius)}
+.brand-name{letter-spacing:1.2px}.brand .lumen-logo{width:32px;height:37px}
+.workspace-profile-bar{min-height:44px;gap:8px;background:var(--glass);padding:6px 12px}
+.workspace-profile-bar>label>.icon{color:var(--accent)}
+.workspace-profile-bar .profile-detach{flex:none;margin-left:0}
+.workspace-profile-tools{border-top:1px solid var(--border);background:var(--surface);flex-basis:300px;min-height:160px;border-radius:0 0 14px 14px}
+.workspace-profile-tools[hidden],.lantern-inline[hidden]{display:none!important}
+.profile-tool-heading{min-height:44px;gap:10px;padding:6px 12px;flex-wrap:wrap;background:var(--glass)}
+.profile-tool-heading>strong{min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-tool-heading>div{display:flex;align-items:center;gap:3px;flex-wrap:wrap}
+.profile-preview-scroll{padding:8px;background:var(--field);min-height:0;flex:1}
+.profile-preview-scroll>iframe{display:block;border:1px solid var(--border);border-radius:10px;height:100%;min-height:150px;margin:0 auto;background:var(--surface)}
+.profile-empty{padding:22px;gap:18px}.profile-empty>.icon{width:28px;height:28px;padding:12px;box-sizing:content-box;border:1px solid var(--border);border-radius:15px;background:var(--field)}
+.profile-table-scroll{background:var(--surface)}.profile-table-scroll th{background:var(--glass);position:sticky;top:0;text-align:left}.profile-table-scroll td,.profile-table-scroll th{padding:8px 12px}.profile-table-scroll tbody tr:nth-child(even){background:var(--field)}
+.profile-design-content{padding:16px;gap:22px}.profile-contrast{border:1px solid var(--border);border-radius:14px;padding:14px;background:var(--field)}.profile-color-chip{min-height:35px;padding:6px 9px;border-radius:9px}
+.lantern-inline{margin:8px 10px 10px;min-height:132px;max-height:34%;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.lantern-inline>header{padding:8px 12px;min-height:40px;gap:9px;flex-wrap:wrap;background:var(--glass)}
+.lantern-inline .lantern-preview{min-height:100px;flex:1}.lantern-inline .lantern-preview iframe{height:100%;min-height:110px}
+.lantern-inline .lantern-output{padding:10px 12px;border:0;border-radius:0;margin:0;max-height:95px;background:var(--field)}
+.lantern-inline-input{padding:7px 10px;border-top:1px solid var(--border)}
+#editor-panel:has(.workspace-profile-tools:not([hidden]) iframe) .lantern-inline:has(.lantern-preview:not([hidden])) .lantern-preview{display:none}
+#editor-panel:has(.workspace-profile-tools:not([hidden]) iframe) .lantern-inline{flex:0 0 auto;min-height:0;max-height:160px}
+.native-window-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:54px;flex:none;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--glass)}
+.native-window-heading>span{display:flex;align-items:center;gap:9px;min-width:0;color:var(--text)}.native-window-heading .icon{width:19px;height:19px;color:var(--accent)}.native-window-heading strong{font-size:14px}.native-window-heading small{color:var(--muted);font-size:10px}.native-return{font-size:11px;min-height:30px;flex:none}
+.native-auxiliary-surface{display:flex;flex:1;min-height:0;min-width:0;flex-direction:column;background:var(--surface);overflow:hidden}
+.native-auxiliary-surface .workspace-profile-tools,.native-auxiliary-surface .lantern-inline{flex:1;min-height:0;max-height:none;margin:0;border:0;border-radius:0}
+.native-auxiliary-surface .profile-preview-scroll,.native-auxiliary-surface .lantern-preview{flex:1;min-height:0;max-height:none}
+.native-auxiliary-surface .lantern-preview iframe{height:100%;min-height:180px}
+.native-auxiliary-surface .lantern-output{flex:1;max-height:none}.native-auxiliary-surface .lantern-preview:not([hidden])+.lantern-output{flex:none;max-height:90px}
+:root[data-detached-panel^=profile-]:not([data-detached-panel=editor]) #workspace{display:flex!important;flex:1;gap:0;min-height:0;padding:0!important}
+:root[data-detached-panel^=profile-] #editor-panel{display:flex!important;position:relative!important;flex:1;width:100%!important;height:100%!important;margin:0!important;border-radius:0}
+:root[data-detached-panel^=profile-] .dock-slot,:root[data-detached-panel^=profile-] .floating-panel,:root[data-detached-panel^=profile-] .resize-handle{display:none!important}
+:root[data-detached-panel^=profile-] .workspace-profile-tools{max-height:55%;flex-basis:340px}
+.extension-hero{padding:28px 30px!important;min-height:0!important;border:1px solid var(--border);border-radius:18px!important}
+.extension-hero h3{font-size:clamp(24px,2.1vw,34px)!important;margin:16px 0 12px!important;line-height:1.2}
+.extension-hero p{max-width:620px;line-height:1.6}.extension-hero-actions{gap:10px;flex-wrap:wrap}.extension-toolbar{padding:22px 0!important;gap:14px}.extension-toolbar .platform-search{flex:1;max-width:600px;min-width:180px}
+.extension-grid{display:flex!important;flex-direction:column;gap:10px!important}.extension-card{position:relative;padding:18px 20px!important;border-radius:14px!important;min-height:120px!important;background:var(--surface);display:grid!important;grid-template-columns:minmax(180px,1fr) auto;gap:9px 18px}
+.extension-card-top{grid-column:1;gap:14px!important;align-items:center!important;min-width:0}.extension-card-top>div:last-child{min-width:0}.extension-card h4{font-size:14px!important;line-height:1.4;overflow-wrap:anywhere;margin:0 0 4px!important}.extension-card-top span{font-size:11px;color:var(--muted)}
+.extension-logo{width:46px!important;height:46px!important;border-radius:10px!important;flex-shrink:0;background:var(--field)!important;border:1px solid var(--border);overflow:hidden;display:grid;place-items:center;box-shadow:none!important}
+.extension-package-icon{display:block;width:100%;height:100%;object-fit:contain;padding:3px}.extension-logo .extension-icon-fallback{font-size:17px;font-weight:700;color:var(--accent);letter-spacing:.5px}
+.extension-card>p{grid-column:1;margin:0 0 0 60px!important;font-size:12px;line-height:1.55;color:var(--secondary)}.extension-card-tags{grid-column:2;grid-row:1;align-self:center;justify-content:flex-end}.extension-card-actions{grid-column:2;grid-row:2;align-self:end;display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.extension-card-actions button{min-height:30px}.extension-card-tags>span{padding:4px 8px;border-radius:6px;font-size:10px}
+.extension-footer{background:var(--glass);padding:11px 20px;line-height:1.5}.extension-catalog-summary{padding:0 2px 12px;color:var(--muted);font-size:11px}
+.search-page{padding:18px 24px 24px}.search-intro{text-align:left;padding:4px 0 20px}.search-intro h2{font-size:28px;margin:0 0 8px}.studio-search-field{max-width:none;border-radius:12px;height:46px}.search-filters{justify-content:flex-start;padding:14px 0 18px}.search-filters button{border-radius:8px}.search-hit{border-radius:10px;padding:13px 16px;transition:border-color 150ms,background 150ms}.search-hit:hover{border-color:var(--border-strong);background:var(--hover)}
+.native-auxiliary-surface,.native-window-heading,.profile-empty,.extension-card{animation:zenit-appear 180ms var(--ease-out) both}
+@keyframes zenit-appear{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:1200px){.extension-card{grid-template-columns:minmax(0,1fr)}.extension-card-tags,.extension-card-actions{grid-column:1;grid-row:auto;justify-content:flex-start;margin-left:60px}.extension-toolbar{flex-wrap:wrap}.native-window-heading small{display:none}.extension-hero{padding:20px!important}}
+@media(max-width:600px){.native-window-heading{padding:8px;gap:6px}.native-window-heading strong{font-size:12px}.profile-tool-heading{padding:6px;gap:6px}.profile-tool-heading .text-button{font-size:10px;padding:6px}.extension-card{padding:14px!important}}
+@media(prefers-reduced-motion:reduce){.native-auxiliary-surface,.native-window-heading,.profile-empty,.extension-card{animation:none}}
+:root[data-motion=off] .native-auxiliary-surface,:root[data-motion=off] .native-window-heading,:root[data-motion=off] .profile-empty,:root[data-motion=off] .extension-card{animation:none}

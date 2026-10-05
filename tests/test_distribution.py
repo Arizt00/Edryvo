@@ -21,7 +21,7 @@ class DistributionTests(unittest.TestCase):
 
     def test_update_service_selects_newest_release_for_this_platform(self):
         future=f'v{VERSION}-preview.{REVISION+1}'
-        names=[f'Edryvo-{VERSION}-R{REVISION+1}-Windows-Setup.exe',f'Edryvo-{VERSION}-R{REVISION+1}-Linux-amd64.deb',f'Edryvo-{VERSION}-R{REVISION+1}-macOS-arm64.dmg']
+        names=[f'Zenit-{VERSION}-R{REVISION+1}-Windows-Setup.exe',f'Zenit-{VERSION}-R{REVISION+1}-Linux-amd64.deb',f'Zenit-{VERSION}-R{REVISION+1}-macOS-arm64.dmg']
         assets=[{'name':name,'size':100,'digest':'sha256:'+'a'*64,'browser_download_url':f'https://github.com/{REPOSITORY}/releases/download/'+future+'/'+name} for name in names]
         release={'tag_name':future,'html_url':f'https://github.com/{REPOSITORY}/releases/tag/'+future,'assets':assets}
         for system,cpu,suffix in [('win32','AMD64','.exe'),('linux','x86_64','.deb'),('darwin','arm64','.dmg')]:

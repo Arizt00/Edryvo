@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Start Edryvo locally. Python 3.10+; no Python dependencies for browser mode."""
+"""Start Zénit locally. Python 3.10+; no Python dependencies for browser mode."""
 from __future__ import annotations
 import argparse
 import platform
@@ -77,7 +77,7 @@ def main():
     if len(sys.argv)>1 and sys.argv[1] in ("focus", "concentracion", "settings", "extensions", "lantern"):
         from lumen import main as cli_main
         return cli_main(sys.argv[1:])
-    parser = argparse.ArgumentParser(description="Edryvo · local developer preview")
+    parser = argparse.ArgumentParser(description="Zénit · local developer preview")
     parser.add_argument("--workspace", type=Path, default=None)
     parser.add_argument('--open-file', default='')
     parser.add_argument('--draft', type=Path, default=None)
@@ -120,13 +120,13 @@ def main():
             except (OSError, ValueError): pass
         server = LumenServer(args.port, application)
     except (OSError, ValueError) as exc:
-        parser.exit(1, f"No se pudo iniciar Edryvo: {exc}\nPrueba --port 8766 si el puerto está ocupado.\n")
+        parser.exit(1, f"No se pudo iniciar Zénit: {exc}\nPrueba --port 8766 si el puerto está ocupado.\n")
     url = f"http://127.0.0.1:{server.server_port}"
     application.features.updates.start()
     import os
     from backend.preferences import atomic_json
     atomic_json(application.features.prefs.directory/'instance.json', {'url':url,'pid':os.getpid(),'version':'0.5.3'})
-    print(f"\n  EDRYVO  0.5.3\n  {url}\n  Proyecto: {application.workspace.root}\n  Núcleo: {application.native.name}\n", flush=True)
+    print(f"\n  ZÉNIT  0.5.3\n  {url}\n  Proyecto: {application.workspace.root}\n  Núcleo: {application.native.name}\n", flush=True)
     if args.allow_shell:
         print("  ATENCIÓN: consola sin restricciones habilitada; el código se ejecuta con tus permisos.\n", flush=True)
     state = application.state()
@@ -148,7 +148,7 @@ def main():
             webview.settings['DRAG_REGION_SELECTOR'] = '[data-native-drag-disabled]'
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
-            api._window = webview.create_window("Edryvo", url, js_api=api, width=1648, height=928,
+            api._window = webview.create_window("Zénit", url, js_api=api, width=1648, height=928,
                 min_size=(1050, 680), frameless=False, easy_drag=False, maximized=True, background_color="#F4F6FC")
             api._window.events.maximized += lambda: setattr(api, "_maximized", True)
             api._window.events.restored += lambda: setattr(api, "_maximized", False)
@@ -165,7 +165,7 @@ def main():
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nCerrando Edryvo.")
+        print("\nCerrando Zénit.")
     finally:
         application.features.shutdown()
         application.runner.shutdown()

@@ -11,14 +11,20 @@ from pathlib import Path
 
 
 def user_data_dir() -> Path:
-    override = os.environ.get('LUMEN_DATA_DIR')
+    override = os.environ.get('ZENIT_DATA_DIR') or os.environ.get('LUMEN_DATA_DIR')
     if override:
         return Path(override).expanduser().resolve()
     if os.name == 'nt':
-        return Path(os.environ.get('LOCALAPPDATA', str(Path.home() / 'AppData/Local'))) / 'LumenStudio'
+        base=Path(os.environ.get('LOCALAPPDATA', str(Path.home() / 'AppData/Local')))
+        legacy=base/'LumenStudio';current=base/'Zenit'
+        return legacy if legacy.is_dir() and not current.is_dir() else current
     if platform.system() == 'Darwin':
-        return Path.home() / 'Library/Application Support/LumenStudio'
-    return Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'lumen-studio'
+        base=Path.home() / 'Library/Application Support'
+        legacy=base/'LumenStudio';current=base/'Zenit'
+    else:
+        base=Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config')))
+        legacy=base/'lumen-studio';current=base/'zenit'
+    return legacy if legacy.is_dir() and not current.is_dir() else current
 
 
 def atomic_json(path: Path, data):
@@ -40,7 +46,7 @@ SCHEMA = {
  'updates.automatic': ('general',True,'Descargar actualizaciones de GitHub automáticamente','Download GitHub updates automatically','bool'),
  'hacker.enabled': ('terminal',False,'Modo Forge','Forge mode','bool'),
  'general.locale': ('general','es','Idioma de la interfaz','Interface language',['es','en']),
- 'general.showWelcome': ('general',True,'Mostrar inicio al abrir Lumen','Show welcome when Lumen starts','bool'),
+ 'general.showWelcome': ('general',True,'Mostrar inicio al abrir Zénit','Show welcome when Zénit starts','bool'),
  'general.restoreLayout': ('general',True,'Recordar la distribución de paneles','Remember panel layout','bool'),
  'appearance.extensionTheme': ('appearance','','Tema de extensión activo','Active extension theme','string'),
  'appearance.theme': ('appearance','day','Tema','Color theme',['day','dark','forest']),

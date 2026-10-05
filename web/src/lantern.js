@@ -14,6 +14,7 @@ export class LanternView{
     this.host.platform.lantern=this;this.render();this.poll();
   }
   async action(action){
+    if(action==='detach'){await this.studio.desktop.detach('lantern',this.state.path||this.host.editor.current||'');return;}
     if(action==='hide'||action==='show'){await this.host.platform.savePreference('appearance.lanternMonitor',action==='show');this.render();return;}
     if(action==='open'){this.openInline();return;}
     if(action==='close-inline'){$('#lantern-inline')?.remove();return;}
@@ -42,6 +43,7 @@ export class LanternView{
     this.render();this.renderLens();
   }
   async follow(){
+    if(new URLSearchParams(location.search).has('panel'))return;
     this.clearLens();clearTimeout(this.followTimer);this.followTimer=setTimeout(()=>this.studio.safe(async()=>{
       const path=this.host.editor.current;if(this.enabled===false||(!this.state.active&&!this.enabled))return;
       if(!path){await this.control(()=>this.host.api('/platform/lantern/stop',{}));this.render();return;}
@@ -59,10 +61,11 @@ export class LanternView{
     this.studio.enter();if(this.host.platform.page)this.host.platform.closePage();
     if(!$('#lantern-inline')){
       const panel=document.createElement('section');panel.id='lantern-inline';panel.className='lantern-workbench lantern-inline';
-      panel.innerHTML=`<header><strong>${icon('sparkles')} Lantern</strong><span class="lantern-led"></span><span data-lantern-status></span><small data-lantern-path></small><button class="text-button" data-lantern="memory">Memoria e historial</button><button class="icon-button" data-lantern="restart" title="Aplicar de nuevo">${icon('refresh')}</button><button class="icon-button" data-lantern="stop" title="Detener">${icon('stop')}</button><button class="icon-button" data-lantern="close-inline" title="Ocultar monitor">${icon('close')}</button></header><div class="lantern-preview" hidden></div><pre class="lantern-output" aria-label="Salida de Lantern en el editor"></pre><form class="lantern-inline-input"><input aria-label="Entrada de Lantern" placeholder="Entrada del programa · Enter" autocomplete="off"><button class="icon-button">${icon('send')}</button><button type="button" class="text-button" data-lantern="analyze">Analizar con IA</button></form>`;
+      panel.innerHTML=`<header><strong>${icon('sparkles')} Lantern</strong><span class="lantern-led"></span><span data-lantern-status></span><small data-lantern-path></small><button class="text-button" data-lantern="memory">Memoria e historial</button><button class="icon-button" data-lantern="restart" title="Aplicar de nuevo">${icon('refresh')}</button><button class="icon-button" data-lantern="stop" title="Detener">${icon('stop')}</button><button class="icon-button" data-lantern="detach" title="${new URLSearchParams(location.search).has('panel')?'Volver a Zénit':'Desacoplar Lantern en ventana'}" aria-label="Desacoplar o acoplar Lantern">${icon('arrow-up-right')}</button><button class="icon-button" data-lantern="close-inline" title="Ocultar monitor">${icon('close')}</button></header><div class="lantern-preview" hidden></div><pre class="lantern-output" aria-label="Salida de Lantern en el editor"></pre><form class="lantern-inline-input"><input aria-label="Entrada de Lantern" placeholder="Entrada del programa · Enter" autocomplete="off"><button class="icon-button">${icon('send')}</button><button type="button" class="text-button" data-lantern="analyze">Analizar con IA</button></form>`;
       $('#editor-panel').append(panel);panel.querySelector('form').onsubmit=e=>{e.preventDefault();this.studio.safe(async()=>{const input=panel.querySelector('input');if(!this.state.job)throw Error('No hay proceso esperando entrada.');await this.host.api('/task-input',{id:this.state.job,text:input.value+'\n'});input.value='';});};
     }
     this.render();
+    if(this.studio.desktop?.auxiliary.has('lantern'))$('#lantern-inline')?.setAttribute('hidden','');
   }
   mountDebug(){
     const card=document.createElement('section');card.className='lantern-workbench';card.id='lantern-workbench';
@@ -87,6 +90,7 @@ export class LanternView{
   }
   capture(){const ed=this.host.editor;return {path:ed.current,content:ed.getValue(),version:ed.models.get(ed.current)?.model?.getVersionId()??(this.bufferVersion=(this.bufferVersion||0)+1)};}
   changed(){
+    if(new URLSearchParams(location.search).has('panel'))return;
     if(!this.state.active)return;this.clearLens();clearTimeout(this.bufferTimer);
     const buffer=this.capture();if(!buffer.path)return;
     this.state={...this.state,status:'debouncing',lens:[],diagnostics:[]};this.render();

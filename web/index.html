@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>Edryvo</title>
+  <title>Zénit</title>
   <link rel="icon" href="/assets/lumen.svg" type="image/svg+xml">
   <script src="/src/theme-init.js"></script>
   <link rel="stylesheet" href="/style.css">
@@ -12,13 +12,13 @@
   <link rel="stylesheet" href="/atelier.css">
   <link rel="stylesheet" href="/platform.css">
   <link rel="stylesheet" href="/lenon.css">
-<link rel="stylesheet" href="/controls.css"><link rel="stylesheet" href="/continuity.css"><link rel="stylesheet" href="/preview.css"><link rel="stylesheet" href="/finish.css"><link rel="stylesheet" href="/desktop-workflows.css"><link rel="stylesheet" href="/workspace-profiles.css"><link rel="stylesheet" href="/workbench-polish.css"></head>
+<link rel="stylesheet" href="/controls.css"><link rel="stylesheet" href="/continuity.css"><link rel="stylesheet" href="/preview.css"><link rel="stylesheet" href="/finish.css"><link rel="stylesheet" href="/desktop-workflows.css"><link rel="stylesheet" href="/workspace-profiles.css"><link rel="stylesheet" href="/workbench-polish.css"><link rel="stylesheet" href="/zenit.css"></head>
 <body>
 <div class="app" id="app">
   <header class="topbar">
-    <button class="brand" data-action="about" title="Acerca de Edryvo">
-      <svg class="lumen-logo" viewBox="0 0 38 44" aria-hidden="true"><defs><linearGradient id="logo-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="logo-light"/><stop offset="1" class="logo-dark"/></linearGradient></defs><path d="M8 4h25v9H18v6h13v8H18v7h15v9H8Z" fill="url(#logo-gradient)"/><path d="M8 4h10v39H8Z" fill="white" opacity=".12"/></svg>
-      <span class="brand-name">EDRYVO</span><span class="brand-divider"></span><span class="brand-tagline">Crafted for creators</span>
+    <button class="brand" data-action="about" title="Acerca de Zénit">
+      <svg class="lumen-logo" viewBox="0 0 38 44" aria-hidden="true"><defs><linearGradient id="logo-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="logo-light"/><stop offset="1" class="logo-dark"/></linearGradient></defs><path d="M6 5h28v8L17 33h17v10H6v-8l17-20H6Z" fill="url(#logo-gradient)"/><path d="M6 5h28v4H6Z" fill="white" opacity=".12"/></svg>
+      <span class="brand-name">ZÉNIT</span><span class="brand-divider"></span><span class="brand-tagline">Crafted for creators</span>
     </button>
     <button class="global-search" data-action="palette" title="Buscar archivos y comandos (Ctrl+K)">
       <span data-icon="search"></span><span class="search-placeholder">Search files, symbols, commands...</span><kbd>Ctrl K</kbd>
@@ -119,10 +119,10 @@
 <div class="sr-only" id="layout-announcement" role="status" aria-live="polite"></div>
 <div id="popover" class="popover hidden" role="menu"></div>
 <div class="modal-backdrop hidden" id="modal-backdrop"><section class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"></section></div>
-<div class="palette-backdrop hidden" id="palette-backdrop"><section class="command-palette" role="dialog" aria-modal="true" aria-label="Buscar archivos y comandos"><header class="palette-heading"><span class="tile-icon">⌘</span><div><h2>Archivos y comandos</h2><p>Busca archivos, símbolos, ejecuta comandos y más.</p></div><button class="icon-button" id="close-palette" aria-label="Cerrar paleta">×</button></header><div class="palette-input-wrap"><span data-icon="search"></span><input id="palette-input" placeholder="Buscar archivos, símbolos, comandos..." autocomplete="off"><kbd>esc</kbd></div><nav class="palette-modes"><button id="palette-files" class="active">Archivos</button><button id="palette-commands">⌘ Comandos</button><span id="palette-count"></span></nav><div class="palette-results" id="palette-results" role="listbox"></div><footer><span><kbd>↑</kbd><kbd>↓</kbd> para navegar <kbd>↵</kbd> para abrir</span><span>EDRYVO 0.5.3</span></footer></section></div>
+<div class="palette-backdrop hidden" id="palette-backdrop"><section class="command-palette" role="dialog" aria-modal="true" aria-label="Buscar archivos y comandos"><header class="palette-heading"><span class="tile-icon">⌘</span><div><h2>Archivos y comandos</h2><p>Busca archivos, símbolos, ejecuta comandos y más.</p></div><button class="icon-button" id="close-palette" aria-label="Cerrar paleta">×</button></header><div class="palette-input-wrap"><span data-icon="search"></span><input id="palette-input" placeholder="Buscar archivos, símbolos, comandos..." autocomplete="off"><kbd>esc</kbd></div><nav class="palette-modes"><button id="palette-files" class="active">Archivos</button><button id="palette-commands">⌘ Comandos</button><span id="palette-count"></span></nav><div class="palette-results" id="palette-results" role="listbox"></div><footer><span><kbd>↑</kbd><kbd>↓</kbd> para navegar <kbd>↵</kbd> para abrir</span><span>ZÉNIT 0.5.3</span></footer></section></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <div id="lumen-tooltip" class="lumen-tooltip" role="tooltip" hidden></div>
-<div class="connection-overlay hidden" id="connection-overlay"><h1>Edryvo needs its local Python service.</h1><p>Start <code>python app.py</code> and open the address shown in your terminal.</p><button class="primary-button" id="retry-connection">Retry connection</button></div>
+<div class="connection-overlay hidden" id="connection-overlay"><h1>Zénit needs its local Python service.</h1><p>Start <code>python app.py</code> and open the address shown in your terminal.</p><button class="primary-button" id="retry-connection">Retry connection</button></div>
 <script type="module" src="/src/app.js"></script>
 </body>
 </html>

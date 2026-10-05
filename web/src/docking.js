@@ -49,9 +49,9 @@ export class DockManager {
   }
   preset(name){
     this.transition(()=>{const rail=this.state.railCompact;this.state=layoutPreset(name);this.state.railCompact=rail;this.compactOpen=false;this.focusRestore=null;});
-    this.announce('Distribución '+(PRESET_NAMES[name]||'Lumen')+' aplicada.');
+    this.announce('Distribución '+(PRESET_NAMES[name]||'Zénit')+' aplicada.');
   }
-  reset(){this.transition(()=>{this.state=defaultLayout();this.compactOpen=false;this.focusRestore=null;});this.announce('Distribución Lumen restaurada, con navegación completa.');}
+  reset(){this.transition(()=>{this.state=defaultLayout();this.compactOpen=false;this.focusRestore=null;});this.announce('Distribución Zénit restaurada, con navegación completa.');}
   focus(){
     if(this.state.preset==='focus'){const previous=this.focusRestore||defaultLayout();this.transition(()=>{this.state=previous;this.focusRestore=null;});}
     else {this.focusRestore=this.snapshot();this.transition(()=>{const rail=this.state.railCompact;this.state=layoutPreset('focus');this.state.railCompact=rail;this.compactOpen=false;});}

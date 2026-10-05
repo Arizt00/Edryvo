@@ -8,7 +8,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 
 def main():
-    with tempfile.TemporaryDirectory(prefix='edryvo-icon-') as directory:
+    with tempfile.TemporaryDirectory(prefix='zenit-icon-') as directory:
         png = Path(directory) / 'icon.png'
         svg = (ROOT / 'web/assets/lumen.svg').read_text(encoding='utf-8')
         with sync_playwright() as runtime:
@@ -19,7 +19,7 @@ def main():
             browser.close()
         with Image.open(png) as image:
             image.save(ROOT / 'web/assets/lumen.ico', format='ICO', sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
-    print('Icono de Edryvo generado desde el SVG.')
+    print('Icono de Zénit generado desde el SVG.')
 
 if __name__ == '__main__':
     main()

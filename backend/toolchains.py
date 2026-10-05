@@ -134,4 +134,4 @@ class Toolchains:
         # an interactive terminal so package/licence/admin prompts remain visible.
         cmd=subprocess.list2cmdline(argv) if os.name=='nt' else shlex.join(argv)
         return {'argv':argv,'command':cmd,'package':package,'manager':manager,'requiresReview':True,
-                'note':'La instalación depende del catálogo del gestor y puede pedir permisos. Revisa el comando; Lumen no eleva permisos en segundo plano.'}
+                'note':'La instalación depende del catálogo del gestor y puede pedir permisos. Revisa el comando; Zénit no eleva permisos en segundo plano.'}

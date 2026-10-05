@@ -32,7 +32,13 @@ def main(argv):
             if text != previous:
                 temp = destination.with_suffix('.tmp')
                 temp.write_text(text, encoding='utf-8')
-                os.replace(temp, destination)
+                for attempt in range(8 if force else 1):
+                    try:
+                        os.replace(temp, destination)
+                        break
+                    except PermissionError:
+                        if not force or attempt==7:raise
+                        time.sleep(.008)
                 previous = text
         except (TypeError, ValueError, OSError): pass
 

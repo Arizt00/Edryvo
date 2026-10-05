@@ -48,7 +48,7 @@ module.exports=function install(v,host,options,event,makeDocument,documents){
     const ready=call('webview.create',{id,viewType,title,column:p.viewColumn,options:opts});
     const update=data=>ready.then(()=>call('webview.update',{id,...data})).catch(e=>host.notify(e.message));
     const webview={cspSource:'blob: data:',onDidReceiveMessage:receive.event,
-      asWebviewUri(uri){return v.Uri.parse('edryvo-resource://'+id+'/'+encodeURIComponent(uri.fsPath));},
+      asWebviewUri(uri){return v.Uri.parse('zenit-resource://'+id+'/'+encodeURIComponent(uri.fsPath));},
       async postMessage(message){await ready;return call('webview.post',{id,message});}
     };
     Object.defineProperty(webview,'html',{get:()=>html,set:value=>{html=String(value);update({html});}});

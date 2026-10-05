@@ -9,7 +9,7 @@ button,input,textarea,select{font-family:inherit}button{touch-action:manipulatio
 button:not(:disabled){transition:background 180ms,box-shadow 180ms,translate 180ms cubic-bezier(.2,.8,.2,1),scale 180ms cubic-bezier(.2,.8,.2,1),border-color 180ms}
 button:active:not(:disabled){scale:.974;translate:0 1px;box-shadow:inset 0 2px 6px #4c3c9c16;transition-duration:65ms}
 :where(button,input,select,textarea):focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-:root[data-booting] #app{visibility:hidden}:root[data-booting] body:after{content:'LUMEN STUDIO';position:fixed;inset:0;display:grid;place-items:center;color:var(--accent);font-size:26px;letter-spacing:5px;background:var(--bg)}
+:root[data-booting] #app{visibility:hidden}:root[data-booting] body:after{content:'ZÉNIT';position:fixed;inset:0;display:grid;place-items:center;color:var(--accent);font-size:26px;letter-spacing:5px;background:var(--bg)}
 .app{min-width:760px;grid-template-rows:78px minmax(0,1fr) 32px;position:relative;background:radial-gradient(ellipse at 77% 80%,#d6eaff42,transparent 60%),radial-gradient(ellipse at 30% -20%,#d8cbff52,transparent 56%),var(--bg);padding:0 14px 0 10px}
 .app:before{display:none}.topbar{height:78px;padding:0 20px;display:grid;grid-template-columns:minmax(265px,1fr) minmax(260px,540px) auto;gap:20px;background:transparent;border:0;position:relative;z-index:8}
 .brand{gap:0;min-width:0}.brand .lumen-logo{width:28px;height:36px;margin-right:15px}.brand-name{font-size:23px;font-weight:750;letter-spacing:1.6px;white-space:nowrap}.brand-name span{font-weight:350;letter-spacing:.7px;color:var(--secondary)}.brand-tagline{display:block!important;font-size:11px;opacity:.85;margin-left:14px}.brand-divider{display:none!important}

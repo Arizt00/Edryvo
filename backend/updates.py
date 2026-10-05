@@ -1,4 +1,4 @@
-"""GitHub release checks and verified background downloads for Edryvo desktop."""
+"""GitHub release checks and verified background downloads for Zénit desktop."""
 import copy
 import json
 import re
@@ -24,12 +24,12 @@ def package_matches(name, system=None, machine=None):
     machine=(machine or platform.machine()).lower()
     architecture={'amd64':'x86_64','x64':'x86_64','aarch64':'arm64'}.get(machine,machine)
     if system=='win32':
-        return architecture=='x86_64' and bool(re.fullmatch(r'(?:Edryvo|LumenStudio)[-_].*(?:Setup|Installer|Instalador).*\.exe',name,re.I))
+        return architecture=='x86_64' and bool(re.fullmatch(r'(?:Zenit|Edryvo|LumenStudio)[-_].*(?:Setup|Installer|Instalador).*\.exe',name,re.I))
     if system=='darwin':
-        return bool(re.fullmatch(r'(?:Edryvo|LumenStudio)[-_].*-macOS-'+re.escape(architecture)+r'\.dmg',name,re.I))
+        return bool(re.fullmatch(r'(?:Zenit|Edryvo|LumenStudio)[-_].*-macOS-'+re.escape(architecture)+r'\.dmg',name,re.I))
     if system.startswith('linux'):
         arch={'x86_64':'amd64','arm64':'arm64'}.get(architecture,architecture)
-        return bool(re.fullmatch(r'(?:Edryvo|LumenStudio)[-_].*-Linux-'+re.escape(arch)+r'\.deb',name,re.I))
+        return bool(re.fullmatch(r'(?:Zenit|Edryvo|LumenStudio)[-_].*-Linux-'+re.escape(arch)+r'\.deb',name,re.I))
     return False
 
 
@@ -42,7 +42,7 @@ def update_asset(releases, current=CURRENT, system=None, machine=None):
                 digest=asset.get('digest','')
                 url=asset.get('browser_download_url','')
                 if not isinstance(digest,str) or not re.fullmatch(r'sha256:[a-f0-9]{64}',digest):continue
-                if not isinstance(url,str) or not any(url.startswith('https://github.com/'+repo+'/releases/download/') for repo in (REPOSITORY,'Arizt00/LumenStudio')):continue
+                if not isinstance(url,str) or not any(url.startswith('https://github.com/'+repo+'/releases/download/') for repo in (REPOSITORY,'Arizt00/Edryvo','Arizt00/LumenStudio')):continue
                 if type(asset.get('size')) is not int or not 0<asset['size']<4_000_000_000:continue
                 return {'version':release['tag_name'],'name':asset['name'],'url':url,'sha256':digest[7:],'size':asset['size'],'release':release['html_url']}
     return None
@@ -70,7 +70,7 @@ class Updates:
             self.busy=True;self.data.update(status='checking',error='')
         def work():
             try:
-                req=urllib.request.Request(API,headers={'User-Agent':'Edryvo/'+CURRENT,'Accept':'application/vnd.github+json'})
+                req=urllib.request.Request(API,headers={'User-Agent':'Zénit/'+CURRENT,'Accept':'application/vnd.github+json'})
                 with urllib.request.urlopen(req,timeout=20) as response:raw=response.read(2_000_001)
                 if len(raw)>2_000_000:raise ValueError('Respuesta de actualización demasiado grande.')
                 releases=json.loads(raw);asset=update_asset(releases)

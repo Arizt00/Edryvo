@@ -5,19 +5,22 @@ export class ExtensionServicesUI {
   layout(){const panel=document.getElementById('editor-panel').getBoundingClientRect(),mount=document.getElementById('editor-mount').getBoundingClientRect();for(const state of this.panels.values())if(state.node)state.node.style.top=Math.max(54,mount.top-panel.top)+'px';}
   async event(event){
     const h=this.host,p=h.platform,ed=h.editor;
-    if(event.command==='edryvo.pick')return this.pick(event);
-    if(event.command==='edryvo.terminal.show'){
+    if(event.command==='zenit.pick')return this.pick(event);
+    if(event.command==='zenit.document.saved'){
+      const buffer=event.buffer,record=ed.models.get(buffer.path);if(record&&(record.model?.getValue()??record.value)===buffer.text){record.savedValue=buffer.text;record.revision=buffer.revision;ed.callbacks.change?.(buffer.path,false);h.renderTabs();}return;
+    }
+    if(event.command==='zenit.terminal.show'){
       if(!p.terminals.has(event.terminal)){const data=await p.api('/terminals');const t=data.sessions.find(x=>x.id===event.terminal);if(t)await p.attachTerminal(t);}else p.selectTerminal(event.terminal);
       return;
     }
-    if(event.command==='edryvo.terminal.hide'){if(p.activeTerminal===event.terminal)p.useConsole();return;}
-    if(event.command==='edryvo.debug.show'){await h.studio.debug();return;}
-    if(event.command==='edryvo.command'){
+    if(event.command==='zenit.terminal.hide'){if(p.activeTerminal===event.terminal)p.useConsole();return;}
+    if(event.command==='zenit.debug.show'){await h.studio.debug();return;}
+    if(event.command==='zenit.command'){
       if(event.id==='workbench.action.reloadWindow')location.reload();
       if(event.id==='workbench.action.terminal.focus')h.dock.show('console');
       return;
     }
-    if(event.command!=='edryvo.workspace.edit')return;
+    if(event.command!=='zenit.workspace.edit')return;
     const change=event.edit;
     for(const resource of change.resources||[]){
       if(resource.kind==='rename')for(const path of [...ed.models.keys()])if(path===resource.oldPath||path.startsWith(resource.oldPath+'/')){
@@ -71,14 +74,14 @@ export class ExtensionServicesUI {
     const node=document.createElement('section');node.className='extension-webview-surface';node.hidden=!active;node.classList.toggle('active',!!active);node.dataset.panel=p.id;
     const header=document.createElement('header');header.innerHTML=`<strong>${esc(p.title)}</strong><span>${esc(p.extension)}</span><button class="icon-button" aria-label="Cerrar panel de extensión">${icon('close')}</button>`;header.querySelector('button').onclick=()=>h.platform.api('/extensions/runtime/request',{id:p.extension,method:'webviewDispose',panel:p.id}).catch(error=>h.notify(error.message,'error'));node.append(header);
     const frame=document.createElement('iframe');frame.title=p.title;frame.setAttribute('sandbox',p.options?.enableScripts?'allow-scripts allow-forms allow-downloads':'allow-forms');node.append(frame);state.node=node;state.frame=frame;state.loaded=false;
-    let html=p.html;const resources=[...new Set(html.match(/edryvo-resource:\/\/[^/]+\/[^"'<>\s)]+/g)||[])];
+    let html=p.html;const resources=[...new Set(html.match(/zenit-resource:\/\/[^/]+\/[^"'<>\s)]+/g)||[])];
     for(const resource of resources){try{const uri=new URL(resource),value=decodeURIComponent(uri.pathname.slice(1));const data=await h.platform.api('/extensions/resource?panel='+encodeURIComponent(p.id)+'&path='+encodeURIComponent(value)),raw=Uint8Array.from(atob(data.data),x=>x.charCodeAt(0)),blob=URL.createObjectURL(new Blob([raw],{type:data.mime}));state.urls.push(blob);html=html.replaceAll(resource,blob);}catch(error){h.notify('Recurso del panel: '+error.message,'error');}}
     const nonce=html.match(/nonce=["']([^"']+)["']/)?.[1]||'';
-    const script=`<script${nonce?' nonce="'+esc(nonce)+'"':''}>const __stateKey=${JSON.stringify(p.id)};let __state=${JSON.stringify(state.savedState??p.state??null).replaceAll('<','\\u003c')},__acquired=false;window.acquireVsCodeApi=()=>{if(__acquired)throw Error('acquireVsCodeApi ya se ha llamado.');__acquired=true;return Object.freeze({postMessage:message=>parent.postMessage({edryvoWebview:__stateKey,message},'*'),getState:()=>__state,setState:value=>{__state=value;parent.postMessage({edryvoWebview:__stateKey,state:value,stateUpdate:true},'*');return value;}});};<\/script>`;
+    const script=`<script${nonce?' nonce="'+esc(nonce)+'"':''}>const __stateKey=${JSON.stringify(p.id)};let __state=${JSON.stringify(state.savedState??p.state??null).replaceAll('<','\\u003c')},__acquired=false;window.acquireVsCodeApi=()=>{if(__acquired)throw Error('acquireVsCodeApi ya se ha llamado.');__acquired=true;return Object.freeze({postMessage:message=>parent.postMessage({zenitWebview:__stateKey,message},'*'),getState:()=>__state,setState:value=>{__state=value;parent.postMessage({zenitWebview:__stateKey,state:value,stateUpdate:true},'*');return value;}});};<\/script>`;
     frame.onload=()=>{state.loaded=true;};const rendered=await h.platform.api('/extensions/webview/document',{panel:p.id,html:script+html});frame.src=rendered.url;
     document.getElementById('editor-panel').append(node);this.layout();
   }
   show(state){for(const value of this.panels.values()){if(value.node){value.node.hidden=true;value.node.classList.remove('active');}value.tab?.classList.remove('active');}this.host.platform.closePage();state.node.hidden=false;state.node.classList.add('active');state.tab.classList.add('active');document.documentElement.dataset.editorCovered='true';}
-  async receive(event){const id=event.data?.edryvoWebview,state=this.panels.get(id);if(!state||event.source!==state.frame?.contentWindow)return;if(event.data.stateUpdate){state.savedState=event.data.state;return;}try{await this.host.platform.api('/extensions/runtime/request',{id:state.panel.extension,method:'webviewMessage',panel:id,message:event.data.message});}catch(error){this.host.notify(error.message,'error');}}
+  async receive(event){const id=event.data?.zenitWebview,state=this.panels.get(id);if(!state||event.source!==state.frame?.contentWindow)return;if(event.data.stateUpdate){state.savedState=event.data.state;return;}try{await this.host.platform.api('/extensions/runtime/request',{id:state.panel.extension,method:'webviewMessage',panel:id,message:event.data.message});}catch(error){this.host.notify(error.message,'error');}}
   dispose(){this.disposed=true;clearTimeout(this.timer);this.resize.disconnect();window.removeEventListener('message',this.message);for(const state of this.panels.values())this.remove(state);}
 }

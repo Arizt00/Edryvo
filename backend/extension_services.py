@@ -107,7 +107,7 @@ class ExtensionDebugger(ProtocolDebugger):
                 self.connection=socket.socket(socket.AF_UNIX);self.connection.connect(descriptor['path']);stream=self.connection.makefile('rb')
         elif not self.inline:raise ValueError('Descriptor DAP inválido.')
         if not self.inline:threading.Thread(target=self.read,args=(stream,),daemon=True).start()
-        caps=self.request('initialize',{'clientID':'edryvo','clientName':'Edryvo','adapterID':configuration['type'],'pathFormat':'path','linesStartAt1':True,'columnsStartAt1':True,'supportsVariableType':True,'supportsRunInTerminalRequest':True})
+        caps=self.request('initialize',{'clientID':'zenit','clientName':'Zénit','adapterID':configuration['type'],'pathFormat':'path','linesStartAt1':True,'columnsStartAt1':True,'supportsVariableType':True,'supportsRunInTerminalRequest':True})
         ticket=self.request(configuration.get('request','launch'),configuration,wait=False)
         if not self.initialized.wait(15):raise ValueError('El adaptador no anunció initialized.')
         self.set_breakpoints(breakpoints)
@@ -173,7 +173,7 @@ class ExtensionServices:
         operations=edit.get('operations') or [{'kind':'text',**item} for item in edit.get('changes',[])]
         if not isinstance(operations,list) or len(operations)>1000:raise ValueError('WorkspaceEdit inválido.')
         buffers=self.platform.buffers;undo=[];text={};original={};resources=[];resets=set()
-        with self.lock,buffers.lock,tempfile.TemporaryDirectory(prefix='edryvo-edit-') as scratch:
+        with self.lock,buffers.lock,tempfile.TemporaryDirectory(prefix='zenit-edit-') as scratch:
             scratch=Path(scratch)
             def safe(uri):
                 p=file_path(uri)
@@ -255,21 +255,38 @@ class ExtensionServices:
                     elif action=='rename':p.rename(target)
                     else:shutil.move(str(target),str(p))
                 raise
-        result={'applied':True,'resources':resources,'buffers':changed};self.emit('edryvo.workspace.edit',edit=result);return result
+        result={'applied':True,'resources':resources,'buffers':changed};self.emit('zenit.workspace.edit',edit=result);return result
     def call(self,host,method,p):
         ws=host.workspace
         if not ws.trusted:raise PermissionError('Proyecto no autorizado.')
         if method=='workspace.applyEdit':return self.workspace_edit(ws,p['edit'],p.get('documents'))
+        if method=='workspace.saveDocument':
+            target=file_path(p['uri']);key=self.key(ws,target);text=p.get('text')
+            if not isinstance(text,str) or len(text)>2_000_000:return {'saved':False}
+            buffers=self.platform.buffers
+            with self.lock,buffers.lock:
+                old=buffers.items.get(key)
+                if old and not old.get('saved') and old['text']!=text:return {'saved':False,'conflict':True}
+                owner=ws if target.is_relative_to(ws.root) else self.file_workspace(target)
+                from .workspace import ConflictError
+                try:saved=owner.save(target.relative_to(owner.root).as_posix(),text,p.get('revision'),newline=p.get('newline','LF'),bom=p.get('bom',False))
+                except (OSError,ValueError,ConflictError):return {'saved':False}
+                record={'path':key,'text':saved['content'],'saved':True,'revision':saved['revision'],'sequence':(old or {}).get('sequence',0)+1}
+                buffers.items[key]=record
+            self.emit('zenit.document.saved',buffer=record)
+            for other in list(self.platform.extension_runtime.hosts.values()):
+                if other is not host:other.event('document.saved',{'uri':str(target),'text':record['text'],'revision':record['revision']})
+            return {'saved':True,'buffer':record}
         if method=='window.pick':
             ident=uuid.uuid4().hex;reply=threading.Event();prompt={'reply':reply,'result':None}
             with self.lock:self.prompts[ident]=prompt
-            self.emit('edryvo.pick',id=ident,items=p['items'],options=p.get('options') or {})
+            self.emit('zenit.pick',id=ident,items=p['items'],options=p.get('options') or {})
             try:reply.wait(40);return prompt['result']
             finally:
                 with self.lock:self.prompts.pop(ident,None)
         if method=='context.set':self.contexts[p['key']]=p.get('value');return None
         if method=='command.execute':
-            if p['id'] in ('workbench.action.reloadWindow','workbench.action.terminal.focus'):self.emit('edryvo.command',id=p['id'],arguments=p.get('args',[]));return None
+            if p['id'] in ('workbench.action.reloadWindow','workbench.action.terminal.focus'):self.emit('zenit.command',id=p['id'],arguments=p.get('args',[]));return None
             raise ValueError('Comando del IDE no implementado: '+p['id'])
         if method=='terminal.create':
             opts=p['options']
@@ -298,8 +315,8 @@ class ExtensionServices:
             if action=='append':session._append(p['text']);return True
             if action=='finish':session.code=p.get('code');session.closed=True;return True
             if action=='name':session.profile['label']=p['name'];return True
-            if action=='show':self.emit('edryvo.terminal.show',terminal=session.id,preserveFocus=p.get('preserveFocus',False));return True
-            if action=='hide':self.emit('edryvo.terminal.hide',terminal=session.id);return True
+            if action=='show':self.emit('zenit.terminal.show',terminal=session.id,preserveFocus=p.get('preserveFocus',False));return True
+            if action=='hide':self.emit('zenit.terminal.hide',terminal=session.id);return True
             if action=='close':session.close();return True
         if method=='task.execute':
             task=p['task'];execution=task['execution'];opts=execution.get('options') or {};env=opts.get('env') or {};cwd=opts.get('cwd') or str(ws.root)
@@ -335,7 +352,7 @@ class ExtensionServices:
         if method=='debug.start':
             key=host,p['id'];debugger=ExtensionDebugger(host,p['id']);self.debuggers[key]=debugger
             if self.platform.debugger.snapshot()['status'] in ('running','paused'):raise ValueError('Detén primero la sesión de depuración actual.')
-            self.platform.debugger.current=debugger;self.emit('edryvo.debug.show')
+            self.platform.debugger.current=debugger;self.emit('zenit.debug.show')
             try:return debugger.launch(ws,p['configuration'],p['descriptor'],p.get('breakpoints',[]))
             except Exception:debugger.stop();self.debuggers.pop(key,None);raise
         if method=='debug.request':return self.debuggers[host,p['id']].request(p['command'],p.get('args'))

@@ -1,4 +1,4 @@
-"""Edryvo's standalone, per-user Windows installer with the Lenon web interface."""
+"""Zénit's standalone, per-user Windows installer with the Lenon web interface."""
 from __future__ import annotations
 import argparse
 import copy
@@ -34,7 +34,9 @@ def ps_quote(text):
 class Installer:
     def __init__(self, payload=None, target=None):
         self.payload = Path(payload or ROOT / 'payload')
-        self.target = Path(target or Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'Programs/LumenStudio')
+        self.target = Path(target or Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'Programs/Zenit')
+        legacy=Path(os.environ.get('LOCALAPPDATA',Path.home()))/'Programs/LumenStudio'
+        if target is None and not self.target.exists() and (legacy/'installation.json').is_file():self.target=legacy
         self.catalog = PackageCatalog(PACKAGES)
         self.window = None
         self.lock = threading.RLock()
@@ -43,7 +45,7 @@ class Installer:
 
     def info(self):
         size = sum(p.stat().st_size for p in self.payload.rglob('*') if p.is_file()) if self.payload.is_dir() else 0
-        return {'version': VERSION, 'target': str(self.target), 'bytes': size, 'available': (self.payload / 'lumen.exe').is_file(),
+        return {'version': VERSION, 'target': str(self.target), 'bytes': size, 'available': (self.payload / 'zenit.exe').is_file(),
                 'winget': bool(shutil.which('winget')), 'packages': [{'id': k, 'name': v[0], 'package': v[1]} for k, v in PACKAGES.items()]}
 
     def status(self):
@@ -63,7 +65,7 @@ class Installer:
     def choose_directory(self):
         import webview
         paths = self.window.create_file_dialog(webview.FileDialog.FOLDER)
-        if paths: self.target = Path(paths[0]) / 'LumenStudio'
+        if paths: self.target = Path(paths[0]) / 'Zenit'
         return str(self.target)
 
     def start(self, options):
@@ -72,7 +74,7 @@ class Installer:
         if not isinstance(packages, list) or any(p not in PACKAGES for p in packages) or len(packages) != len(set(packages)):
             raise ValueError('Paquetes no válidos.')
         if options.get('locale', 'es') not in ('es', 'en'): raise ValueError('Idioma no válido.')
-        if not (self.payload / 'lumen.exe').is_file(): raise ValueError('No se encuentra el programa que debe instalarse.')
+        if not (self.payload / 'zenit.exe').is_file(): raise ValueError('No se encuentra el programa que debe instalarse.')
         with self.lock:
             if self.state['status'] == 'installing': raise ValueError('La instalación ya está en curso.')
             self.skip.clear(); self.started = time.monotonic()
@@ -153,7 +155,7 @@ class Installer:
         for attempt in range(12):
             try:source.rename(destination);return
             except PermissionError:
-                if attempt==11:raise PermissionError('Windows mantiene abierta la carpeta de instalación. Cierra Edryvo y vuelve a intentarlo: '+str(destination))
+                if attempt==11:raise PermissionError('Windows mantiene abierta la carpeta de instalación. Cierra Zénit y vuelve a intentarlo: '+str(destination))
                 time.sleep(.2)
 
     def _install(self, options):
@@ -168,7 +170,7 @@ class Installer:
             files = [p for p in self.payload.rglob('*') if p.is_file()]
             total = sum(p.stat().st_size for p in files)
             if shutil.disk_usage(target).free < total * 2 + 50_000_000:
-                raise ValueError('No hay espacio suficiente para instalar Edryvo.')
+                raise ValueError('No hay espacio suficiente para instalar Zénit.')
             copied = 0
             for file in files:
                 if file.is_symlink() or not file.resolve().is_relative_to(self.payload.resolve()):
@@ -176,7 +178,7 @@ class Installer:
                 relative = file.relative_to(self.payload)
                 out = staging / relative; out.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(file, out); copied += file.stat().st_size
-                self._progress(round(copied / max(1, total) * 82), 'Preparando los archivos de Edryvo…')
+                self._progress(round(copied / max(1, total) * 82), 'Preparando los archivos de Zénit…')
             backup = None
             if destination.exists():
                 backup = target / ('app-' + VERSION + '-previous-' + str(time.time_ns()))
@@ -197,7 +199,7 @@ class Installer:
             if options.get('shortcuts', True): self._shortcuts(destination, options.get('desktop', False))
             if options.get('register', True): self._register(destination)
             self._install_tools(options.get('packages', []))
-            self._progress(100, 'Edryvo está instalado.')
+            self._progress(100, 'Zénit está instalado.')
             with self.lock: self.state['status'] = 'finished'; self.state['phase'] = 'finished'
         except Exception as exc:
             with self.lock: self.state['status'] = 'error'; self.state['message'] = str(exc)
@@ -208,33 +210,33 @@ class Installer:
 
     def _shortcuts(self, destination, desktop):
         if os.name != 'nt': return
-        locations = [Path(os.environ['APPDATA']) / 'Microsoft/Windows/Start Menu/Programs/Edryvo.lnk']
+        locations = [Path(os.environ['APPDATA']) / 'Microsoft/Windows/Start Menu/Programs/Zénit.lnk']
         if desktop:
             # Ask Windows for the actual desktop, including OneDrive redirection.
             locations.append('DESKTOP')
         commands = ['$w = New-Object -ComObject WScript.Shell']
         for location in locations:
-            name = "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Edryvo.lnk')" if location == 'DESKTOP' else ps_quote(location)
-            commands += [f'$s = $w.CreateShortcut({name})', '$s.TargetPath = ' + ps_quote(destination / 'lumen.exe'), '$s.WorkingDirectory = ' + ps_quote(destination), '$s.Save()']
+            name = "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Zénit.lnk')" if location == 'DESKTOP' else ps_quote(location)
+            commands += [f'$s = $w.CreateShortcut({name})', '$s.TargetPath = ' + ps_quote(destination / 'zenit.exe'), '$s.WorkingDirectory = ' + ps_quote(destination), '$s.Save()']
         subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', '\n'.join(commands)], check=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
 
     def _register(self, destination):
         if os.name != 'nt': return
         import winreg
-        uninstaller = self.target / 'Uninstall-Edryvo.exe'
-        bundled = ROOT / 'Uninstall-Edryvo.exe'
+        uninstaller = self.target / 'Uninstall-Zenit.exe'
+        bundled = ROOT / 'Uninstall-Zenit.exe'
         if not bundled.is_file():
-            bundled = Path(__file__).resolve().parent / 'dist/Uninstall-Edryvo.exe'
+            bundled = Path(__file__).resolve().parent / 'dist/Uninstall-Zenit.exe'
         if not bundled.is_file():raise ValueError('Falta el desinstalador gráfico en el paquete.')
         shutil.copy2(bundled,uninstaller)
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r'Software\Microsoft\Windows\CurrentVersion\Uninstall\LumenStudio') as key:
-            values = {'DisplayName': 'Edryvo', 'DisplayVersion': VERSION, 'Publisher': 'Edryvo', 'InstallLocation': str(destination), 'DisplayIcon': str(destination / 'lumen.exe'),
+            values = {'DisplayName': 'Zénit', 'DisplayVersion': VERSION, 'Publisher': 'Zénit', 'InstallLocation': str(destination), 'DisplayIcon': str(destination / 'zenit.exe'),
                 'UninstallString': f'"{uninstaller}"'}
             for name, value in values.items(): winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
 
     def launch(self):
-        if self.status()['status'] != 'finished': raise ValueError('Completa la instalación antes de abrir Edryvo.')
-        path = self.target / ('app-' + VERSION) / 'lumen.exe'
+        if self.status()['status'] != 'finished': raise ValueError('Completa la instalación antes de abrir Zénit.')
+        path = self.target / ('app-' + VERSION) / 'zenit.exe'
         subprocess.Popen([str(path)], cwd=path.parent)
         self.window.destroy()
         return True
@@ -276,7 +278,7 @@ def main():
     api = Installer()
     server = ThreadingHTTPServer(('127.0.0.1', 0), partial(StaticHandler, directory=str(ROOT / 'web')))
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    api.window = webview.create_window(f'Instalar Edryvo {VERSION} · R{REVISION}', f'http://127.0.0.1:{server.server_port}/', js_api=InstallerAPI(api),
+    api.window = webview.create_window(f'Instalar Zénit {VERSION} · R{REVISION}', f'http://127.0.0.1:{server.server_port}/', js_api=InstallerAPI(api),
         width=1100, height=850, min_size=(850, 660), background_color='#F6F7FD')
     api.window.events.closing += lambda: False if api.status()['status'] == 'installing' else None
     try: webview.start()

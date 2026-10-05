@@ -72,6 +72,7 @@ class PlatformServices:
         if path=='/languages':return self.runtimes.status()
         if path=='/extensions':return {'extensions':self.extensions.list()}
         if path=='/extensions/search':return self.extensions.search(q('q'),int(q('offset','0')))
+        if path=='/extensions/icon':return self.extensions.catalog_icon(q('url'))
         if path=='/extensions/contributions':return self.extensions.contributions()
         if path=='/terminals/profiles':return self.terminals.profiles()
         if path=='/terminals':return {'sessions':self.terminals.list()}

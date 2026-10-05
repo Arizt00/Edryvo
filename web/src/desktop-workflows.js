@@ -2,9 +2,10 @@ import {icon,escapeHTML as esc} from './icons.js';
 const $=s=>document.querySelector(s);
 
 export class DesktopWorkflows{
-  constructor(host){this.host=host;this.shared=new Map();this.pending=new Set();this.applying=false;this.disposed=false;this.query=new URLSearchParams(location.search);this.channel=new BroadcastChannel('lumen-native-panels');}
+  constructor(host){this.host=host;this.shared=new Map();this.remoteBuffers=new Map();this.auxiliary=new Set();this.browserChildren=new Map();this.pending=new Set();this.applying=false;this.disposed=false;this.query=new URLSearchParams(location.search);this.channel=new BroadcastChannel('lumen-native-panels');}
   async init(){
     const h=this.host;
+    h.studio.desktop=this;
     const bar=document.createElement('div');bar.className='editor-workflows';
     bar.innerHTML=`<button class="icon-button" data-action="split-editor" title="Dividir editor · Ctrl+\\" aria-label="Dividir editor">${icon('split')}</button><button class="icon-button" data-action="detach-editor" title="Editor en otra ventana" aria-label="Editor en otra ventana">${icon('arrow-up-right')}</button>`;
     $('.editor-tabbar').append(bar);
@@ -14,17 +15,17 @@ export class DesktopWorkflows{
     this.hackerBar.innerHTML=`<div class="forge-main"><div class="forge-identity"><span class="forge-mark">${icon('build')}</span><div><strong>Forge</strong><small>Ejecuta. Inspecciona. Itera.</small></div></div><div class="forge-context">${icon('file')}<span class="forge-file"></span><span class="forge-buffer"></span></div><div class="forge-actions"><button class="forge-action forge-python" data-action="hacker-python">${icon('play')}<span><strong>Ejecutar Python</strong><small>Búfer actual · terminal integrada</small></span></button><button class="forge-action forge-gdb" data-action="hacker-gdb">${icon('bug')}<span><strong>Compilar y depurar C</strong><small>GCC → GDB · pausa en main</small></span></button></div></div><div class="forge-footer"><div class="forge-tools" aria-label="Herramientas detectadas"></div><span class="forge-status" role="status"></span><button class="icon-button forge-refresh" data-action="forge-refresh" title="Volver a detectar herramientas" aria-label="Volver a detectar herramientas">${icon('refresh')}</button><button class="forge-placement" data-action="forge-window">${icon('arrow-up-right')}<span>Otra ventana</span></button></div><div class="forge-guide"></div>`;
     $('#terminal-panel').prepend(this.hackerBar);this.paintHacker();await this.refreshForgeTools();
     const appearance=h.platform.onAppearance;h.platform.onAppearance=()=>{appearance?.();this.paintHacker();};
-    const old=h.editor.callbacks.change;h.editor.callbacks.change=(path,...args)=>{old?.(path,...args);this.paintHacker();if(!this.applying&&this.shared.has(path))this.queue(path);};
+    const old=h.editor.callbacks.change;h.editor.callbacks.change=(path,...args)=>{old?.(path,...args);this.paintHacker();if(!this.applying){if(this.shared.has(path))this.queue(path);else if(this.auxiliary.size)this.safe(()=>this.share(path));}};
     const renderTerminal=h.platform.renderActiveTerminal;h.platform.renderActiveTerminal=(...args)=>{renderTerminal?.apply(h.platform,args);this.paintHacker();};
     this.channel.onmessage=e=>this.safe(async()=>{if(e.data.type==='workspace-changed'&&this.query.has('panel')){this.freezeWorkspace();return;}if(e.data.workspace!==h.service().workspace)return;if(e.data.type==='open'&&!this.query.has('panel'))await h.openFile(e.data.path);if(e.data.type==='active'&&e.data.path&&this.query.get('panel')==='assistant')await h.openFile(e.data.path);if(e.data.type==='active'&&this.query.get('panel')==='forge')await this.followForgeFile(e.data.path);if(e.data.type==='forge-terminal'&&!this.query.has('panel'))await this.openForgeTerminal();});
     if(!this.query.has('panel')){const active=h.editor.callbacks.active;h.editor.callbacks.active=(path,...args)=>{active?.(path,...args);this.activeFile(path);};}
     for(const [panel,node] of Object.entries(h.dock.panels)){
       const b=document.createElement('button');b.className='icon-button';b.title='Abrir '+{project:'Proyecto',assistant:'asistente',console:'terminal'}[panel]+' en el escritorio';b.setAttribute('aria-label',b.title);b.innerHTML=icon('arrow-up-right');b.onclick=()=>this.safe(()=>this.detach(panel));node.querySelector(panel==='console'?'.terminal-tools':'.heading-actions').append(b);
     }
-    this.returned=e=>{if(e.detail.panel==='forge'){this.forgeWindowOpen=false;return;}if(e.detail.panel!=='editor'){h.dock.nativeDetached.delete(e.detail.panel);h.dock.show(e.detail.panel);}};window.addEventListener('lumen:native-return',this.returned);
+    this.returned=e=>this.restorePanel(e.detail.panel);window.addEventListener('lumen:native-return',this.returned);
     this.detachEditor=e=>this.safe(()=>this.detach(e.detail?.panel||'editor',e.detail?.path||h.editor.current,e.detail?.position));window.addEventListener('lumen:detach-editor',this.detachEditor);
     h.dock.onDetach=(panel,position)=>this.safe(()=>this.detach(panel,'',position));
-    h.commands.push(['split-editor','layout','Editor: ver dos archivos a la vez','Ctrl \\'],['close-split-editor','close','Editor: cerrar división',''],['detach-editor','plus','Editor: sacar al escritorio',''],['forge-window','build','Forge: abrir en otra ventana',''],['forge-terminal','terminal','Forge: abrir en la terminal integrada',''],['hacker','build','Forge: activar / desactivar controles',''],['hacker-python','play','Forge: ejecutar Python desde el búfer',''],['hacker-gdb','bug','Forge: compilar C y abrir GDB integrado',''],['updates','download','Lumen: comprobar actualizaciones de GitHub','']);
+    h.commands.push(['split-editor','layout','Editor: ver dos archivos a la vez','Ctrl \\'],['close-split-editor','close','Editor: cerrar división',''],['detach-editor','plus','Editor: sacar al escritorio',''],['forge-window','build','Forge: abrir en otra ventana',''],['forge-terminal','terminal','Forge: abrir en la terminal integrada',''],['hacker','build','Forge: activar / desactivar controles',''],['hacker-python','play','Forge: ejecutar Python desde el búfer',''],['hacker-gdb','bug','Forge: compilar C y abrir GDB integrado',''],['updates','download','Zénit: comprobar actualizaciones de GitHub','']);
     if(this.query.has('panel'))await this.detached();
     this.pollBuffers();this.pollUpdates();
   }
@@ -118,19 +119,55 @@ export class DesktopWorkflows{
   }
   async detach(panel,path='',position){
     const h=this.host,api=window.pywebview?.api;
+    if(this.query.has('panel')){await this.returnToApp();return;}
+    if(panel==='profile')panel='profile-'+h.studio.profile.workspaceStyle;
     if(panel==='editor'&&!path)throw Error('Abre un archivo para separarlo.');
-    if(panel==='editor'||panel==='assistant'){
+    const auxiliary=panel==='preview'||panel==='lantern'||panel.startsWith('profile-');
+    if(panel==='editor'||panel==='assistant'||auxiliary){
       const target=path||h.editor.current;if(target)await this.share(target);path=target||'';
     }
-    if(api?.detach_panel)await api.detach_panel(panel,path,position||null);
+    if(auxiliary){await Promise.all([...h.editor.models.keys()].map(p=>this.share(p)));await this.publish();}
+    let opened=true;
+    if(api?.detach_panel){const result=await api.detach_panel(panel,path,position||null);opened=result.opened!==false;}
     else{
+      const key=panel==='editor'?panel+':'+path:panel,existing=this.browserChildren.get(key);
+      if(existing&&!existing.closed){existing.close();this.browserChildren.delete(key);this.restorePanel(panel);return;}
       const url=new URL(location.href);url.search=new URLSearchParams({panel,file:path});
-      const child=window.open(url.href,'_blank','width=900,height=760');if(!child)throw Error('Permite las ventanas emergentes para separar el panel.');
-      const timer=setInterval(()=>{if(child.closed){clearInterval(timer);if(panel!=='editor')h.dock.show(panel);}},800);
+      const child=window.open(url.href,'_blank','width=1060,height=760');if(!child)throw Error('Permite las ventanas emergentes para separar el panel.');this.browserChildren.set(key,child);
+      const timer=setInterval(()=>{if(child.closed){clearInterval(timer);this.browserChildren.delete(key);this.restorePanel(panel);}},400);
     }
-    if(panel!=='editor'){h.dock.nativeDetached.add(panel);h.dock.hide(panel);}
+    if(!opened){this.restorePanel(panel);return;}
+    if(auxiliary){this.auxiliary.add(panel);if(panel==='lantern')$('#lantern-inline')?.setAttribute('hidden','');else h.studio.workspaces?.setDetached(true,panel);}
+    else if(panel!=='editor'){h.dock.nativeDetached.add(panel);h.dock.hide(panel);}
   }
-  activeFile(path){this.paintHacker();if(this.query.has('panel'))return;this.safe(async()=>{if(path&&(this.forgeWindowOpen||this.host.dock.nativeDetached.has('assistant')))await this.share(path);this.channel.postMessage({type:'active',path,workspace:this.host.service().workspace});});}
+  restorePanel(panel){
+    const h=this.host;if(panel==='forge'){this.forgeWindowOpen=false;return;}
+    if(this.auxiliary.delete(panel)){if(panel==='lantern'){h.studio.lantern.openInline();$('#lantern-inline')?.removeAttribute('hidden');}else h.studio.workspaces?.setDetached(false);return;}
+    if(panel!=='editor'&&h.dock.panels[panel]){h.dock.nativeDetached.delete(panel);h.dock.show(panel);}
+  }
+  async returnToApp(){
+    if(this.returning)return;this.returning=true;
+    try{await this.publish();await this.bufferWrites;if(this.pending.size)throw Error('La sincronización todavía no ha terminado. Espera un momento.');
+      const api=window.pywebview?.api;if(api?.close_panel)await api.close_panel();else window.close();
+    }catch(error){this.returning=false;throw error;}
+  }
+  mountAuxiliary(){
+    const panel=this.query.get('panel'),h=this.host;if(!panel)return;
+    const header=document.createElement('header');header.className='native-window-heading';
+    const titles={preview:'Vista web en vivo',lantern:'Lantern Live','profile-general':'Desarrollo general','profile-web':'Desarrollo web','profile-data':'Ciencia de datos','profile-design':'Diseño y UI'};
+    header.innerHTML=`<span>${icon(panel==='lantern'?'sparkles':'layout')}<strong>${esc(titles[panel]||'Zénit · '+panel)}</strong><small>Búfer compartido · cambios en vivo</small></span><button class="secondary-button native-return">${icon('dock-left')}Volver a Zénit</button>`;
+    header.querySelector('button').onclick=()=>this.safe(()=>this.returnToApp());
+    if(panel==='preview'||panel==='lantern'){
+      const surface=document.createElement('section');surface.className='native-auxiliary-surface panel';surface.append(header);$('#app').append(surface);
+      if(panel==='lantern'){h.studio.lantern.openInline();surface.append($('#lantern-inline'));}
+      else{h.studio.workspaces.apply('web');h.studio.workspaces.previewEnabled=true;h.studio.workspaces.tools.hidden=false;surface.append(h.studio.workspaces.tools);h.studio.workspaces.changed();}
+    }else if(panel.startsWith('profile-')){
+      $('#editor-panel').prepend(header);h.studio.workspaces.apply(panel.slice(8));
+      if(panel==='profile-web'){h.studio.workspaces.previewEnabled=true;h.studio.workspaces.changed();}
+    }else{const node=panel==='editor'?$('#editor-panel'):h.dock.panels[panel==='forge'?'console':panel];node?.prepend(header);}
+    for(const button of document.querySelectorAll('[data-action="detach-editor"]')){button.title='Volver a Zénit';button.setAttribute('aria-label',button.title);button.innerHTML=icon('dock-left');}
+  }
+  activeFile(path){this.paintHacker();if(this.query.has('panel'))return;this.safe(async()=>{if(path&&(this.forgeWindowOpen||this.auxiliary.size||this.host.dock.nativeDetached.has('assistant')))await this.share(path);this.channel.postMessage({type:'active',path,workspace:this.host.service().workspace});});}
   openInParent(path){this.channel.postMessage({type:'open',path,workspace:this.host.service().workspace});}
   workspaceChanged(){this.shared.clear();this.pending.clear();this.channel.postMessage({type:'workspace-changed',workspace:this.host.service().workspace});}
   freezeWorkspace(){
@@ -166,7 +203,10 @@ export class DesktopWorkflows{
     if(this.disposed)return;
     try{
       const data=await this.host.platform.api('/buffers');
+      let auxiliaryChanged=false;
       for(const remote of data.buffers){
+        if(this.remoteBuffers.get(remote.path)?.sequence!==remote.sequence)auxiliaryChanged=true;
+        this.remoteBuffers.set(remote.path,remote);
         const r=this.host.editor.models.get(remote.path);if(!r)continue;
         const old=this.shared.get(remote.path),text=r.model?.getValue()??r.value;
         if(this.pending.has(remote.path)||this.publishing)continue;
@@ -176,20 +216,21 @@ export class DesktopWorkflows{
         this.shared.set(remote.path,remote);
         this.applying=true;try{if(text!==remote.text){if(r.model){r.model.pushStackElement();r.model.pushEditOperations([],[{range:r.model.getFullModelRange(),text:remote.text}],()=>null);r.model.pushStackElement();}else{r.value=remote.text;if(this.host.editor.current===remote.path)this.host.editor.setValue(remote.text);}}if(remote.saved){r.savedValue=remote.text;if(remote.revision)r.revision=remote.revision;r.value=remote.text;this.host.editor.callbacks.change?.(remote.path,false);}}finally{this.applying=false;}
       }
+      if(auxiliaryChanged&&this.query.has('panel'))this.host.studio.workspaces?.changed();
     }catch(error){if(!this.disposed)console.warn('Window sync:',error.message);}
     this.bufferTimer=setTimeout(()=>this.pollBuffers(),this.query.has('panel')?250:400);
   }
   async detached(){
     const panel=this.query.get('panel'),h=this.host;
-    if(!['project','assistant','console','editor','forge'].includes(panel))return;
+    if(!['project','assistant','console','editor','forge','preview','lantern','profile-general','profile-web','profile-data','profile-design'].includes(panel))return;
     h.studio.enter();document.documentElement.dataset.detachedPanel=panel;
     if(this.query.get('file')){
       await h.openFile(this.query.get('file'));
       const data=await h.platform.api('/buffers'),remote=data.buffers.find(x=>x.path===h.editor.current);
       if(remote){this.shared.set(remote.path,remote);this.applying=true;h.editor.insertText(remote.text,true);this.applying=false;}
     }
-    if(panel!=='editor'){const node=h.dock.panels[panel==='forge'?'console':panel];node.classList.add('native-detached-content');node.hidden=false;node.inert=false;node.removeAttribute('aria-hidden');$('#app').append(node);}
-    if(panel==='forge'){const button=this.hackerBar.querySelector('.forge-placement');button.dataset.action='forge-terminal';button.innerHTML=icon('dock-bottom')+'<span>Integrar en Lumen</span>';this.paintHacker();}
+    if(h.dock.panels[panel==='forge'?'console':panel]){const node=h.dock.panels[panel==='forge'?'console':panel];node.classList.add('native-detached-content');node.hidden=false;node.inert=false;node.removeAttribute('aria-hidden');$('#app').append(node);}
+    if(panel==='forge'){const button=this.hackerBar.querySelector('.forge-placement');button.dataset.action='forge-terminal';button.innerHTML=icon('dock-bottom')+'<span>Integrar en Zénit</span>';this.paintHacker();}
     if(panel==='console'||panel==='forge'){
       if(h.service().trusted){const data=await h.platform.api('/terminals');for(const terminal of data.sessions)if((panel!=='forge'||terminal.profile.kind==='hacker')&&!h.platform.terminals.has(terminal.id))await h.platform.attachTerminal(terminal);}
     }
@@ -197,16 +238,16 @@ export class DesktopWorkflows{
   async pollUpdates(){
     if(this.disposed)return;
     try{this.updateState=await this.host.platform.api('/updates');
-      if(this.updateState.status==='ready'&&!this.readyNotified&&!this.query.has('panel')){this.readyNotified=true;this.host.notify('Actualización '+this.updateState.available.version+' descargada. Abre «Lumen: comprobar actualizaciones» para instalarla.', 'info',9000);}
+      if(this.updateState.status==='ready'&&!this.readyNotified&&!this.query.has('panel')){this.readyNotified=true;this.host.notify('Actualización '+this.updateState.available.version+' descargada. Abre «Zénit: comprobar actualizaciones» para instalarla.', 'info',9000);}
       if($('#update-status'))this.renderUpdate();
     }catch(_){/* Network failures remain visible in the update page. */}
     this.updateTimer=setTimeout(()=>this.pollUpdates(),2500);
   }
   async updatesPage(check=false){
-    const h=this.host;h.platform.openPage('updates',`<section class="updates-page"><span class="eyebrow">EDRYVO · ACTUALIZACIONES</span><h1>Tu espacio, al día.</h1><p>Las versiones publicadas en GitHub se descargan en segundo plano y se verifican con SHA-256.</p><div id="update-status" role="status"></div><div class="update-actions"><button class="secondary-button" id="update-check">Comprobar ahora</button><button class="secondary-button" id="update-download">Descargar actualización</button><button class="primary-button" id="update-install">Instalar actualización…</button></div><label class="setting-row"><span>Descarga automática<small>Comprueba al iniciar y cada seis horas.</small></span><input id="automatic-updates" type="checkbox" ${h.platform.prefs['updates.automatic']?'checked':''}></label><small>El instalador se abre cuando tú eliges. Guarda tus archivos antes de actualizar.</small></section>`);
+    const h=this.host;h.platform.openPage('updates',`<section class="updates-page"><span class="eyebrow">ZÉNIT · ACTUALIZACIONES</span><h1>Tu espacio, al día.</h1><p>Las versiones publicadas en GitHub se descargan en segundo plano y se verifican con SHA-256.</p><div id="update-status" role="status"></div><div class="update-actions"><button class="secondary-button" id="update-check">Comprobar ahora</button><button class="secondary-button" id="update-download">Descargar actualización</button><button class="primary-button" id="update-install">Instalar actualización…</button></div><label class="setting-row"><span>Descarga automática<small>Comprueba al iniciar y cada seis horas.</small></span><input id="automatic-updates" type="checkbox" ${h.platform.prefs['updates.automatic']?'checked':''}></label><small>El instalador se abre cuando tú eliges. Guarda tus archivos antes de actualizar.</small></section>`);
     $('#update-check').onclick=()=>this.safe(async()=>{this.updateState=await h.platform.api('/updates/check',{download:h.platform.prefs['updates.automatic']});this.renderUpdate();});
     $('#update-download').onclick=()=>this.safe(async()=>{this.updateState=await h.platform.api('/updates/download',{});this.renderUpdate();});
-    $('#update-install').onclick=()=>this.safe(async()=>{if(!window.pywebview?.api?.install_update)throw Error('La instalación de actualizaciones está disponible en Lumen de escritorio.');await window.pywebview.api.install_update();});
+    $('#update-install').onclick=()=>this.safe(async()=>{if(!window.pywebview?.api?.install_update)throw Error('La instalación de actualizaciones está disponible en Zénit de escritorio.');await window.pywebview.api.install_update();});
     $('#automatic-updates').onchange=e=>this.safe(()=>h.platform.savePreference('updates.automatic',e.target.checked));
     this.updateState=check?await h.platform.api('/updates/check',{download:h.platform.prefs['updates.automatic']}):await h.platform.api('/updates');this.renderUpdate();
   }

@@ -31,7 +31,7 @@ class LanguageSession:
         self.reader=threading.Thread(target=self._read,daemon=True);self.reader.start()
         threading.Thread(target=self._stderr,daemon=True).start()
         try:
-            self.capabilities=self.request('initialize',{'processId':os.getpid(),'clientInfo':{'name':'Lumen','version':'0.4.0'},'rootUri':self.root.as_uri(),
+            self.capabilities=self.request('initialize',{'processId':os.getpid(),'clientInfo':{'name':'Zénit','version':'0.4.0'},'rootUri':self.root.as_uri(),
                 'workspaceFolders':[{'uri':self.root.as_uri(),'name':self.root.name}],
                 'capabilities':{'general':{'positionEncodings':['utf-16']},'textDocument':{'synchronization':{'didSave':True},
                     'completion':{'completionItem':{'snippetSupport':True}},'hover':{'contentFormat':['plaintext','markdown']},
@@ -78,7 +78,7 @@ class LanguageSession:
                                 for key in str(item.get('section','')).split('.'):
                                     if key:value=value.get(key,{}) if isinstance(value,dict) else {}
                                 result.append(value)
-                        elif method=='workspace/applyEdit':result={'applied':False,'failureReason':'Lumen requires explicit user review.'}
+                        elif method=='workspace/applyEdit':result={'applied':False,'failureReason':'Zénit requires explicit user review.'}
                         else:result=None
                         self._write({'jsonrpc':'2.0','id':message['id'],'result':result})
                     else:self._emit(message['method'],message.get('params',{}))
@@ -161,7 +161,7 @@ class LanguageServers:
             if sid not in self.sessions:raise FileNotFoundError('Sesión LSP desconocida.')
             return self.sessions[sid]
     def request(self,sid,method,params):
-        if method not in METHODS:raise PermissionError('Método LSP no expuesto por Lumen.')
+        if method not in METHODS:raise PermissionError('Método LSP no expuesto por Zénit.')
         s=self.get(sid);return {'result':s.request(method,s.validate_params(params))}
     def notify(self,sid,method,params):
         if method not in NOTIFICATIONS:raise PermissionError('Notificación LSP no admitida.')
