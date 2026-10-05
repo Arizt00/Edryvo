@@ -28,7 +28,32 @@ def until(fn,timeout=60):
     raise AssertionError('Packaged native operation timed out')
 
 
+def focus_native(window):
+    if sys.platform.startswith('linux'):
+        # Xvfb has no window manager to focus newly opened windows. Give the
+        # actual X window focus; do not bypass document.hasFocus() in the app.
+        import ctypes
+        from webview.platforms.qt import BrowserView
+        x11=ctypes.CDLL('libX11.so.6');x11.XOpenDisplay.argtypes=[ctypes.c_char_p];x11.XOpenDisplay.restype=ctypes.c_void_p
+        x11.XSetInputFocus.argtypes=[ctypes.c_void_p,ctypes.c_ulong,ctypes.c_int,ctypes.c_ulong]
+        x11.XFlush.argtypes=[ctypes.c_void_p];x11.XCloseDisplay.argtypes=[ctypes.c_void_p]
+        display=x11.XOpenDisplay(None)
+        if not display:raise AssertionError('Xvfb display unavailable')
+        try:x11.XSetInputFocus(display,int(BrowserView.instances[window.uid].winId()),2,0);x11.XFlush(display)
+        finally:x11.XCloseDisplay(display)
+    window.evaluate_js('monaco.editor.getEditors().find(e=>e.getModel()).focus()')
+    until(lambda:window.evaluate_js('document.hasFocus()'))
+
+
 def main():
+    javascript_errors=[]
+    if sys.platform.startswith('linux'):
+        from webview.platforms.qt import BrowserView
+        original_console=BrowserView.WebPage.javaScriptConsoleMessage
+        def console(page,level,message,line,source):
+            if 'Error' in str(level):javascript_errors.append({'source':source,'line':line,'message':message})
+            original_console(page,level,message,line,source)
+        BrowserView.WebPage.javaScriptConsoleMessage=console
     parser=argparse.ArgumentParser();parser.add_argument('--report',type=Path,required=True);args=parser.parse_args()
     root=Path(getattr(sys,'_MEIPASS',Path(__file__).resolve().parents[1]));checks=[];errors=[]
     with tempfile.TemporaryDirectory(prefix='lumen-native-package-') as temp:
@@ -112,6 +137,7 @@ def main():
                 parent.evaluate_js("document.querySelector('.profile-detach').click()")
                 data=until(lambda:api._children.get('profile-data'))
                 until(lambda:data.evaluate_js('!!window.lumen?.ready'))
+                focus_native(data)
                 assert data.evaluate_js("document.querySelector('.profile-table-filter').getBoundingClientRect().width>50")
                 data.evaluate_js("monaco.editor.getModels().find(m=>m.uri.path.endsWith('data.csv')).setValue('name,value\\none,8\\n')")
                 until(lambda:parent.evaluate_js("monaco.editor.getModels().find(m=>m.uri.path.endsWith('data.csv')).getValue().includes('one,8')"))
@@ -150,6 +176,7 @@ def main():
                     assert {'qa.native-child','qa.native-plan'}<=set(type(store)(store.prefs).installed)
                 finally:store.inspect_remote=original
                 checks.append('Packaged dependency plan installs reviewed packages and persists its complete index')
+                assert not javascript_errors,javascript_errors
                 print(json.dumps({'checks':checks,'errors':errors}),flush=True)
             except Exception:errors.append(traceback.format_exc());print(errors[-1],flush=True)
             finally:
@@ -160,7 +187,7 @@ def main():
         finally:
             server.shutdown();server.server_close();app.features.shutdown();app.runner.shutdown()
             args.report.parent.mkdir(parents=True,exist_ok=True)
-            args.report.write_text(json.dumps({'platform':sys.platform,'revision':REVISION,'checks':checks,'errors':errors},indent=2),encoding='utf-8')
+            args.report.write_text(json.dumps({'platform':sys.platform,'revision':REVISION,'checks':checks,'errors':errors,'javascriptErrors':javascript_errors},indent=2),encoding='utf-8')
         if errors or len(checks)!=12:raise AssertionError('Packaged desktop verification failed')
 
 if __name__=='__main__':main()

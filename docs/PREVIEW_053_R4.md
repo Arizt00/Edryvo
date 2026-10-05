@@ -8,6 +8,8 @@ Instalar el plan confirma el índice completo una sola vez. Si falla la escritur
 
 La integración del editor entrega al host Node las vistas reales de Monaco: archivo, búfer, rango visible, selección, opciones y columna. `onDidChangeTextEditorVisibleRanges`, `onDidChangeTextEditorOptions` y `onDidChangeTextEditorViewColumn` se conectan a esos datos. Los eventos de selección y de editores visibles distinguen las vistas divididas y no se repiten si el estado no cambia. La activación de un host recibe el último estado conocido. El envío se realiza desde la ventana enfocada y tiene un intervalo de actualización; no guarda el archivo.
 
+En Linux/Qt el editor espera a que termine la inyección del puente nativo antes de cargar Monaco. Esto elimina la carrera entre sus bibliotecas UMD y el cargador AMD del editor, observada al abrir ventanas separadas.
+
 Las pruebas verifican cancelación, ciclos, límites, concurrencia, recuperación de escritura, persistencia, eventos en el host Node y desplazamiento/selección en Edge con el servidor real. Se revisa el catálogo en Día, Oscuro y Bosque a tres tamaños de escritorio. Los paquetes congelados verifican también el plan de dependencias y el rango visible del editor, además de Forge, ventanas separadas, Lantern y QuickInput.
 
 **La paridad completa con VS Code sigue pendiente.** La prueba con Markdown Preview Enhanced 0.8.39 supera la ausencia del evento de rango visible, pero aún solicita `window.registerCustomEditorProvider`; no queda certificada como funcional. Continúan pendientes los exports compartidos entre hosts, TextMate, entradas `browser`, restauración completa de webviews, setters y operaciones avanzadas de TextEditor y otras APIs específicas. Consulta el [estado de extensiones](EXTENSIONES.md).

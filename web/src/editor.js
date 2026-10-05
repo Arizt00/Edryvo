@@ -1,4 +1,5 @@
 import {installMonacoOverlays} from './monaco-overlays.js';
+import {waitForQtBridge} from './native-ready.js';
 import {themePalette} from './extension-theme.js';
 import {escapeHTML, icon} from './icons.js';
 // Monaco rejects outstanding worker requests when a model/provider is disposed.
@@ -59,6 +60,7 @@ export class LumenEditor {
     this.initBase();
   }
   async initMonaco() {
+    await waitForQtBridge();
     await new Promise((resolve,reject)=>{
       const script=document.createElement('script');script.src='/vendor/monaco/vs/loader.js';
       script.onload=resolve;script.onerror=reject;document.head.appendChild(script);
