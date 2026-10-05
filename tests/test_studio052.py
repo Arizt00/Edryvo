@@ -1,5 +1,6 @@
 """0.5.2: persisted profiles, real Python stepping and staged installer behavior."""
 from pathlib import Path
+from backend.version import VERSION
 import json
 import tempfile
 import time
@@ -35,11 +36,11 @@ class StudioTests(unittest.TestCase):
         with self.assertRaises(ValueError):s.update({'recent':[{'path':'x.py'}]})
     def test_installer_copies_actual_payload_and_keeps_existing_version(self):
         payload=self.base/'payload';payload.mkdir();(payload/'lumen.exe').write_bytes(b'MZ-test-fixture');(payload/'_internal').mkdir();(payload/'_internal/test.txt').write_text('payload',encoding='utf-8')
-        target=self.base/'installed';old=target/'app-0.5.2';old.mkdir(parents=True);(old/'old.txt').write_text('preserved')
+        target=self.base/'installed';old=target/f'app-{VERSION}';old.mkdir(parents=True);(old/'old.txt').write_text('preserved')
         inst=Installer(payload,target);inst._install({'packages':[],'locale':'es','shortcuts':False,'register':False})
-        self.assertEqual(inst.status()['status'],'finished');self.assertEqual((target/'app-0.5.2/_internal/test.txt').read_text(),'payload')
-        self.assertEqual(len(list(target.glob('app-0.5.2-previous-*/old.txt'))),1)
-        self.assertEqual(json.loads((target/'installation.json').read_text())['version'],'0.5.2')
+        self.assertEqual(inst.status()['status'],'finished');self.assertEqual((target/f'app-{VERSION}/_internal/test.txt').read_text(),'payload')
+        self.assertEqual(len(list(target.glob(f'app-{VERSION}-previous-*/old.txt'))),1)
+        self.assertEqual(json.loads((target/'installation.json').read_text())['version'],VERSION)
     def test_installer_rejects_unknown_packages_before_start(self):
         inst=Installer(self.base/'payload',self.base/'target')
         with self.assertRaises(ValueError):inst.start({'packages':['arbitrary-command']})

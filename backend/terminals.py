@@ -111,8 +111,16 @@ class TerminalSession:
         finally:
             with self.lock:
                 if self.process and self.process.poll() is not None:self.code=self.process.returncode
+                if self.win:
+                    try:self.code=self.win.pty.get_exitstatus()
+                    except (OSError,RuntimeError):pass
                 self.closed=True
-            if self.fd is not None:
+            if self.win:
+                # pywinpty's isalive() marks closed before close() can release sockets.
+                try:self.win.fileobj.close();self.win._server.close()
+                except OSError:pass
+                self.fd=None
+            elif self.fd is not None:
                 try:os.close(self.fd)
                 except OSError:pass
                 self.fd=None

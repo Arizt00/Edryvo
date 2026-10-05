@@ -31,7 +31,7 @@ class Application:
         remember_workspace(self.workspace.root, self.features.prefs.directory)
 
     def state(self):
-        return {"version": "0.5.2", "startup":getattr(self,'startup',{}), "workspace": str(self.workspace.root), "name": self.workspace.root.name,
+        return {"version": "0.5.3", "startup":getattr(self,'startup',{}), "workspace": str(self.workspace.root), "name": self.workspace.root.name,
                 "python": platform.python_version(), "platform": platform.system(), "native": self.native.name,
                 "trusted": self.workspace.trusted, "shell": self.runner.allow_shell,
                 "monaco": (self.project / "web/vendor/monaco/vs/loader.js").is_file(),
@@ -48,7 +48,7 @@ class LumenServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "Lumen/0.5.2"
+    server_version = "Lumen/0.5.3"
     sys_version = ""
 
     @property
@@ -88,17 +88,18 @@ class Handler(BaseHTTPRequestHandler):
         if expected_workspace and unquote(expected_workspace)!=str(self.app.workspace.root):
             raise ConflictError('La carpeta cambió en otra ventana. Conserva o copia tu búfer antes de volver a abrir el editor.')
 
-    def reply(self, data, code=200, content_type="application/json; charset=utf-8", session=False):
+    def reply(self, data, code=200, content_type="application/json; charset=utf-8", session=False, webview=False):
         raw = json.dumps(data, ensure_ascii=False).encode("utf-8") if isinstance(data, (dict, list)) else data
         self.send_response(code)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(raw)))
         self.send_header("Cache-Control", "no-store" if content_type.startswith("application/json") or session else "no-cache")
         self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("X-Frame-Options", "SAMEORIGIN" if webview else "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Cross-Origin-Resource-Policy", "same-origin")
-        self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-src http://127.0.0.1:*; object-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+        policy="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' blob: https:; style-src 'unsafe-inline' blob: https:; img-src blob: data: https:; font-src blob: data: https:; connect-src https:; media-src blob: data: https:; frame-ancestors 'self'; base-uri 'none'; object-src 'none'" if webview else "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-src http://127.0.0.1:*; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+        self.send_header("Content-Security-Policy",policy)
         if session:
             self.send_header("Set-Cookie", f"lumen_session={self.app.token}; HttpOnly; SameSite=Strict; Path=/")
         try:
@@ -126,6 +127,9 @@ class Handler(BaseHTTPRequestHandler):
             parsed = urlparse(self.path)
             path = parsed.path
             query = parse_qs(parsed.query)
+            if path.startswith('/extension-webview/'):
+                self.auth(bootstrap=True);self.app.features._trusted();item=self.app.features.extension_services.webview_content(path.rsplit('/',1)[-1])
+                return self.reply(item['html'].encode('utf-8'),content_type='text/html; charset=utf-8',webview=True)
             if path.startswith("/api/"):
                 self.auth(bootstrap=path == "/api/bootstrap")
                 ws = self.app.workspace

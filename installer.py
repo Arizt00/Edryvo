@@ -1,4 +1,4 @@
-"""Lumen's standalone, per-user Windows installer with the Lenon web interface."""
+"""Edryvo's standalone, per-user Windows installer with the Lenon web interface."""
 from __future__ import annotations
 import argparse
 import copy
@@ -153,7 +153,7 @@ class Installer:
         for attempt in range(12):
             try:source.rename(destination);return
             except PermissionError:
-                if attempt==11:raise PermissionError('Windows mantiene abierta la carpeta de instalación. Cierra Lumen y vuelve a intentarlo: '+str(destination))
+                if attempt==11:raise PermissionError('Windows mantiene abierta la carpeta de instalación. Cierra Edryvo y vuelve a intentarlo: '+str(destination))
                 time.sleep(.2)
 
     def _install(self, options):
@@ -168,7 +168,7 @@ class Installer:
             files = [p for p in self.payload.rglob('*') if p.is_file()]
             total = sum(p.stat().st_size for p in files)
             if shutil.disk_usage(target).free < total * 2 + 50_000_000:
-                raise ValueError('No hay espacio suficiente para instalar Lumen.')
+                raise ValueError('No hay espacio suficiente para instalar Edryvo.')
             copied = 0
             for file in files:
                 if file.is_symlink() or not file.resolve().is_relative_to(self.payload.resolve()):
@@ -176,7 +176,7 @@ class Installer:
                 relative = file.relative_to(self.payload)
                 out = staging / relative; out.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(file, out); copied += file.stat().st_size
-                self._progress(round(copied / max(1, total) * 82), 'Preparando los archivos de Lumen…')
+                self._progress(round(copied / max(1, total) * 82), 'Preparando los archivos de Edryvo…')
             backup = None
             if destination.exists():
                 backup = target / ('app-' + VERSION + '-previous-' + str(time.time_ns()))
@@ -197,7 +197,7 @@ class Installer:
             if options.get('shortcuts', True): self._shortcuts(destination, options.get('desktop', False))
             if options.get('register', True): self._register(destination)
             self._install_tools(options.get('packages', []))
-            self._progress(100, 'Lumen Studio está instalado.')
+            self._progress(100, 'Edryvo está instalado.')
             with self.lock: self.state['status'] = 'finished'; self.state['phase'] = 'finished'
         except Exception as exc:
             with self.lock: self.state['status'] = 'error'; self.state['message'] = str(exc)
@@ -208,32 +208,32 @@ class Installer:
 
     def _shortcuts(self, destination, desktop):
         if os.name != 'nt': return
-        locations = [Path(os.environ['APPDATA']) / 'Microsoft/Windows/Start Menu/Programs/Lumen Studio.lnk']
+        locations = [Path(os.environ['APPDATA']) / 'Microsoft/Windows/Start Menu/Programs/Edryvo.lnk']
         if desktop:
             # Ask Windows for the actual desktop, including OneDrive redirection.
             locations.append('DESKTOP')
         commands = ['$w = New-Object -ComObject WScript.Shell']
         for location in locations:
-            name = "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Lumen Studio.lnk')" if location == 'DESKTOP' else ps_quote(location)
+            name = "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Edryvo.lnk')" if location == 'DESKTOP' else ps_quote(location)
             commands += [f'$s = $w.CreateShortcut({name})', '$s.TargetPath = ' + ps_quote(destination / 'lumen.exe'), '$s.WorkingDirectory = ' + ps_quote(destination), '$s.Save()']
         subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', '\n'.join(commands)], check=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
 
     def _register(self, destination):
         if os.name != 'nt': return
         import winreg
-        uninstaller = self.target / 'Uninstall-Lumen.exe'
-        bundled = ROOT / 'Uninstall-Lumen.exe'
+        uninstaller = self.target / 'Uninstall-Edryvo.exe'
+        bundled = ROOT / 'Uninstall-Edryvo.exe'
         if not bundled.is_file():
-            bundled = Path(__file__).resolve().parent / 'dist/Uninstall-Lumen.exe'
+            bundled = Path(__file__).resolve().parent / 'dist/Uninstall-Edryvo.exe'
         if not bundled.is_file():raise ValueError('Falta el desinstalador gráfico en el paquete.')
         shutil.copy2(bundled,uninstaller)
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r'Software\Microsoft\Windows\CurrentVersion\Uninstall\LumenStudio') as key:
-            values = {'DisplayName': 'Lumen Studio', 'DisplayVersion': VERSION, 'Publisher': 'Lumen Studio', 'InstallLocation': str(destination), 'DisplayIcon': str(destination / 'lumen.exe'),
+            values = {'DisplayName': 'Edryvo', 'DisplayVersion': VERSION, 'Publisher': 'Edryvo', 'InstallLocation': str(destination), 'DisplayIcon': str(destination / 'lumen.exe'),
                 'UninstallString': f'"{uninstaller}"'}
             for name, value in values.items(): winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
 
     def launch(self):
-        if self.status()['status'] != 'finished': raise ValueError('Completa la instalación antes de abrir Lumen.')
+        if self.status()['status'] != 'finished': raise ValueError('Completa la instalación antes de abrir Edryvo.')
         path = self.target / ('app-' + VERSION) / 'lumen.exe'
         subprocess.Popen([str(path)], cwd=path.parent)
         self.window.destroy()
@@ -276,7 +276,7 @@ def main():
     api = Installer()
     server = ThreadingHTTPServer(('127.0.0.1', 0), partial(StaticHandler, directory=str(ROOT / 'web')))
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    api.window = webview.create_window(f'Instalar Lumen Studio {VERSION} · R{REVISION}', f'http://127.0.0.1:{server.server_port}/', js_api=InstallerAPI(api),
+    api.window = webview.create_window(f'Instalar Edryvo {VERSION} · R{REVISION}', f'http://127.0.0.1:{server.server_port}/', js_api=InstallerAPI(api),
         width=1100, height=850, min_size=(850, 660), background_color='#F6F7FD')
     api.window.events.closing += lambda: False if api.status()['status'] == 'installing' else None
     try: webview.start()

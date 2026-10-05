@@ -43,7 +43,7 @@ class Uninstaller:
             self.targets.append(target)
 
     def info(self):
-        return {'name': 'Lumen Studio', 'version': self.manifest.get('version', '0.5.2'),
+        return {'name': 'Edryvo', 'version': self.manifest.get('version', '0.5.2'),
                 'installation': str(self.root), 'dataDirectory': str(self.data_dir),
                 'versions': [p.name for p in self.targets],
                 'dataExists': self.data_dir.exists(),
@@ -99,11 +99,11 @@ class Uninstaller:
     def _remove(self, options):
         try:
             if self._running():
-                raise ValueError('Lumen sigue abierto. Guarda tu trabajo, cierra todas sus ventanas y pulsa Reintentar.')
+                raise ValueError('Edryvo sigue abierto. Guarda tu trabajo, cierra todas sus ventanas y pulsa Reintentar.')
             for index, target in enumerate(self.targets):
                 self._tree(target, self.root)
                 with self.lock:
-                    self.state.update(progress=15 + int(45 * (index + 1) / len(self.targets)), message='Retirando Lumen Studio…')
+                    self.state.update(progress=15 + int(45 * (index + 1) / len(self.targets)), message='Retirando Edryvo…')
             if options.get('deleteData') and self.data_dir.exists():
                 if options.get('deleteProjects'):
                     self._tree(self.data_dir, self.data_dir.parent)
@@ -137,7 +137,7 @@ class Uninstaller:
             # User-added files in the install root are not application files.
             if self.root.exists() and not any(self.root.iterdir()): self.root.rmdir()
             with self.lock:
-                self.state.update(status='finished', progress=100, message='Lumen Studio se ha desinstalado.')
+                self.state.update(status='finished', progress=100, message='Edryvo se ha desinstalado.')
         except Exception as exc:
             with self.lock:
                 self.state.update(status='error', message=str(exc))
@@ -147,7 +147,7 @@ class Uninstaller:
         from win32com.client import Dispatch
         shell = Dispatch('WScript.Shell')
         for folder in (Path(os.environ['APPDATA']) / 'Microsoft/Windows/Start Menu/Programs', Path(shell.SpecialFolders('Desktop'))):
-            for name in ('Lumen Studio.lnk', 'Desinstalar Lumen Studio.lnk'):
+            for name in ('Edryvo.lnk', 'Desinstalar Edryvo.lnk', 'Lumen Studio.lnk', 'Desinstalar Lumen Studio.lnk'):
                 link = folder / name
                 if link.is_file() and not link.is_symlink():
                     target = shell.CreateShortcut(str(link)).TargetPath

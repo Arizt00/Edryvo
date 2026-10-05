@@ -1,4 +1,4 @@
-LUMEN STUDIO 0.5.2
+EDRYVO 0.5.3
 
 Windows x64: abre el instalador .exe, o extrae el ZIP portable completo y ejecuta lumen.exe.
 No separes el ejecutable de _internal. Consulta README.md y docs/LENGUAJES.md.

@@ -311,7 +311,7 @@ class HTTPTests(unittest.TestCase):
     def test_static_serving_mime_and_security_headers(self):
         status, headers, data = self.request("/")
         self.assertEqual(status, 200)
-        self.assertIn(b"LUMEN", data)
+        self.assertIn(b"EDRYVO", data)
         self.assertIn("SameSite=Strict", headers["Set-Cookie"])
         self.assertEqual(headers["X-Frame-Options"], "DENY")
         self.assertIn("text/javascript", self.request("/src/app.js")[1]["Content-Type"])

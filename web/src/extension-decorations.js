@@ -9,11 +9,17 @@ export function explorerDecorations(host,extensions){
       const values=[...states.values()].map(state=>state.items.get(file(row))).filter(Boolean);
       const badges=values.filter(d=>d.badge).map(d=>[...String(d.badge)].slice(0,2).join('')).join(' '),tooltip=values.map(d=>d.tooltip).filter(Boolean).join(' · ');
       let badge=row.querySelector('.extension-file-decoration');
-      if(!badges){badge?.remove();row.title=file(row);continue;}
+      if(!badges){badge?.remove();row.title=file(row)+(tooltip?' · '+tooltip:'');if(!values.some(d=>d.color))row.style.removeProperty('color');}
+      const theme=host.platform.extensionThemes?.find(t=>t.id===document.documentElement.dataset.extensionTheme),colorId=values.findLast(d=>d.color)?.color,colorValue=theme?.data?.colors?.[colorId];
+      const fallback={'gitDecoration.modifiedResourceForeground':'#a67619','gitDecoration.deletedResourceForeground':'#d04a58','gitDecoration.untrackedResourceForeground':'#31885d','gitDecoration.addedResourceForeground':'#31885d','gitDecoration.ignoredResourceForeground':'#8290a3','gitDecoration.conflictingResourceForeground':'#d04a58'};
+      const resolved=/^#[\da-f]{3,8}$/i.test(colorValue||'')?colorValue:fallback[colorId];
+      if(resolved)row.style.color=resolved;else row.style.removeProperty('color');
+      if(!badges)continue;
       if(!badge){badge=document.createElement('span');badge.className='extension-file-decoration';row.append(badge);}
       if(badge.textContent!==badges)badge.textContent=badges;
       const color=values.findLast(d=>d.color)?.color||'';
       badge.dataset.tone=/error|deleted|conflict/i.test(color)?'error':/warning|modified/i.test(color)?'warning':/added|untracked|success/i.test(color)?'success':'accent';
+      badge.style.color=resolved||'';
       badge.title=tooltip;row.title=file(row)+(tooltip?' · '+tooltip:'');
     }
   }

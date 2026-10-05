@@ -1,4 +1,4 @@
-"""Lumen's graphical uninstaller. Relocates itself before removing its own bundle."""
+"""Edryvo's graphical uninstaller. Relocates itself before removing its own bundle."""
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import argparse
@@ -17,7 +17,7 @@ ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
 def retire_temporary_launcher():
     if os.name!='nt' or not getattr(sys,'frozen',False):return
     executable=no_links(sys.executable);folder=executable.parent
-    if folder.parent!=no_links(tempfile.gettempdir()) or not folder.name.startswith('LumenUninstall-') or executable.name!='Uninstall-Lumen.exe':return
+    if folder.parent!=no_links(tempfile.gettempdir()) or not folder.name.startswith('LumenUninstall-') or executable.name!='Uninstall-Edryvo.exe':return
     quote=lambda value:"'"+str(value).replace("'","''")+"'"
     # Remove only our executable, then the empty directory; never recurse.
     script=f"Wait-Process -Id {os.getpid()} -ErrorAction SilentlyContinue; for($attempt=0;$attempt -lt 30;$attempt++){{Start-Sleep -Milliseconds 500; Remove-Item -LiteralPath {quote(executable)} -Force -ErrorAction SilentlyContinue; if(-not(Test-Path -LiteralPath {quote(executable)})){{Remove-Item -LiteralPath {quote(folder)} -ErrorAction SilentlyContinue;break}}}}"
@@ -51,7 +51,7 @@ def main():
     service = Uninstaller(target, user_data_dir())  # Validate before starting any helper.
     if getattr(sys, 'frozen', False) and Path(sys.executable).resolve().is_relative_to(service.root):
         temporary = Path(tempfile.mkdtemp(prefix='LumenUninstall-'))
-        relocated = temporary / 'Uninstall-Lumen.exe'
+        relocated = temporary / 'Uninstall-Edryvo.exe'
         shutil.copy2(sys.executable, relocated)
         child = subprocess.Popen([str(relocated), '--target', str(service.root)], creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
         # This supervisor remains outside all application version folders. The UI
@@ -61,7 +61,7 @@ def main():
     api = UninstallerAPI(service)
     server = ThreadingHTTPServer(('127.0.0.1', 0), partial(Handler, directory=str(ROOT / 'web')))
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    api._window = webview.create_window('Desinstalar Lumen Studio', f'http://127.0.0.1:{server.server_port}/', js_api=api,
+    api._window = webview.create_window('Desinstalar Edryvo', f'http://127.0.0.1:{server.server_port}/', js_api=api,
         width=960, height=760, min_size=(740, 620), background_color='#F6F7FD')
     api._window.events.closing += lambda: False if service.status()['status'] == 'removing' else None
     try: webview.start()

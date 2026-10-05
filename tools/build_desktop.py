@@ -61,7 +61,7 @@ def prepare_mac_icon():
 
 
 def desktop_entry(executable,icon):
-    return '[Desktop Entry]\nType=Application\nName=Lumen Studio\nComment=Editor, Lantern Live y Forge\nExec="'+executable+'"\nIcon='+icon+'\nTerminal=false\nCategories=Development;IDE;\nStartupWMClass=Lumen Studio\n'
+    return '[Desktop Entry]\nType=Application\nName=Edryvo\nComment=Editor, Lantern Live y Forge\nExec="'+executable+'"\nIcon='+icon+'\nTerminal=false\nCategories=Development;IDE;\nStartupWMClass=Edryvo\n'
 
 
 def linux_packages(bundle,prefix):
@@ -75,9 +75,9 @@ def linux_packages(bundle,prefix):
         control=stage/'DEBIAN';control.mkdir()
         kib=sum(p.stat().st_size for p in install.rglob('*') if p.is_file())//1024
         libc=__import__('platform').libc_ver()[1] or '2.39'
-        (control/'control').write_text(f'Package: lumen-studio\nVersion: {VERSION}~preview.{REVISION}\nSection: devel\nPriority: optional\nArchitecture: {arch}\nMaintainer: Lumen Studio <lumen@users.noreply.github.com>\nInstalled-Size: {kib}\nDepends: libc6 (>= {libc}), libstdc++6, libgl1, libopengl0, libegl1, libxkbcommon0, libxkbcommon-x11-0, libxcb-cursor0, libxcb-xinerama0, libxcb-icccm4, libxcb-keysyms1, libxcb-image0, libxcb-render-util0, libnss3, libnspr4, libasound2 | libasound2t64, libxcomposite1, libxdamage1, libxrandr2, libxtst6, libxi6, libdbus-1-3, xdg-utils\nHomepage: https://github.com/Arizt00/LumenStudio\nDescription: Lumen Studio IDE preview\n Editor Monaco, Lantern Live, Forge y ventanas nativas independientes.\n Incluye su runtime; los SDK de proyectos se preparan aparte.\n',encoding='utf-8')
+        (control/'control').write_text(f'Package: lumen-studio\nVersion: {VERSION}~preview.{REVISION}\nSection: devel\nPriority: optional\nArchitecture: {arch}\nMaintainer: Edryvo <lumen@users.noreply.github.com>\nInstalled-Size: {kib}\nDepends: libc6 (>= {libc}), libstdc++6, libgl1, libopengl0, libegl1, libxkbcommon0, libxkbcommon-x11-0, libxcb-cursor0, libxcb-xinerama0, libxcb-icccm4, libxcb-keysyms1, libxcb-image0, libxcb-render-util0, libnss3, libnspr4, libasound2 | libasound2t64, libxcomposite1, libxdamage1, libxrandr2, libxtst6, libxi6, libdbus-1-3, xdg-utils\nHomepage: https://github.com/Arizt00/Edryvo\nDescription: Edryvo IDE preview\n Editor Monaco, Lantern Live, Forge y ventanas nativas independientes.\n Incluye su runtime; los SDK de proyectos se preparan aparte.\n',encoding='utf-8')
         bin_dir=stage/'usr/bin';bin_dir.mkdir(parents=True)
-        (bin_dir/'lumen').write_text('#!/bin/sh\nexec /opt/lumen-studio/lumen "$@"\n',encoding='utf-8');(bin_dir/'lumen').chmod(0o755)
+        (bin_dir/'lumen').write_text('#!/bin/sh\nexec /opt/lumen-studio/lumen "$@"\n',encoding='utf-8');(bin_dir/'lumen').chmod(0o755);(bin_dir/'edryvo').symlink_to('lumen')
         apps=stage/'usr/share/applications';apps.mkdir(parents=True)
         (apps/'lumen-studio.desktop').write_text(desktop_entry('/opt/lumen-studio/lumen','lumen-studio'),encoding='utf-8')
         icons=stage/'usr/share/icons/hicolor/scalable/apps';icons.mkdir(parents=True)
@@ -97,15 +97,15 @@ def mac_package(prefix):
     output=ROOT/f'dist/{prefix}-macOS-{architecture()}.dmg'
     with tempfile.TemporaryDirectory(prefix='lumen-dmg-') as temp:
         stage=Path(temp)
-        shutil.copytree(ROOT/'dist/Lumen Studio.app',stage/'Lumen Studio.app',symlinks=True)
+        shutil.copytree(ROOT/'dist/Edryvo.app',stage/'Edryvo.app',symlinks=True)
         (stage/'Applications').symlink_to('/Applications',target_is_directory=True)
-        (stage/'LEEME.txt').write_text('Lumen Studio '+VERSION+f' R{REVISION}\n\nArrastra Lumen Studio.app a Applications.\nIncluye Python; prepara los SDK de tus proyectos por separado.\nPreview sin firma de Developer ID ni notarización de Apple.\nSi macOS bloquea esta preview, revisa Privacidad y seguridad tras verificar la descarga.\nNo es necesario desactivar Gatekeeper.\n',encoding='utf-8')
-        subprocess.run(['hdiutil','create','-volname','Lumen Studio','-srcfolder',str(stage),'-ov','-format','UDZO',str(output)],check=True)
+        (stage/'LEEME.txt').write_text('Edryvo '+VERSION+f' R{REVISION}\n\nArrastra Edryvo.app a Applications.\nIncluye Python; prepara los SDK de tus proyectos por separado.\nPreview sin firma de Developer ID ni notarización de Apple.\nSi macOS bloquea esta preview, revisa Privacidad y seguridad tras verificar la descarga.\nNo es necesario desactivar Gatekeeper.\n',encoding='utf-8')
+        subprocess.run(['hdiutil','create','-volname','Edryvo','-srcfolder',str(stage),'-ov','-format','UDZO',str(output)],check=True)
     return [output]
 
 
 def main():
-    parser=argparse.ArgumentParser(description='Construir Lumen en el sistema de destino')
+    parser=argparse.ArgumentParser(description='Construir Edryvo en el sistema de destino')
     parser.add_argument('--installer',action='store_true')
     parser.add_argument('--plan',action='store_true')
     parser.add_argument('--require-assets',action='store_true')
@@ -122,7 +122,7 @@ def main():
         collect_licenses()
         if sys.platform=='darwin':prepare_mac_icon()
         subprocess.run(command,cwd=ROOT,check=True)
-    outputs=[];prefix=f'LumenStudio-{VERSION}-R{REVISION}'
+    outputs=[];prefix=f'Edryvo-{VERSION}-R{REVISION}'
     if args.installer:
         if sys.platform=='win32':
             for name in ('uninstaller','installer'):

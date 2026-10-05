@@ -10,7 +10,7 @@ from pathlib import Path
 import webview
 from backend.server import Application, LumenServer
 from backend.desktop import DesktopAPI
-from backend.version import REVISION
+from backend.version import PRODUCT_NAME, REVISION
 
 
 def until(fn,timeout=60):
@@ -33,12 +33,13 @@ def main():
         app.features.studio.update({'onboarded':True});app.features.prefs.update({'general.showWelcome':False,'updates.automatic':False,'appearance.motion':False})
         server=LumenServer(0,app);threading.Thread(target=server.serve_forever,daemon=True).start()
         url=f'http://127.0.0.1:{server.server_port}';api=DesktopAPI();api._application=app;api._url=url
-        api._window=webview.create_window('Lumen native package verification',url,js_api=api,width=1300,height=850,hidden=True)
+        api._window=webview.create_window(PRODUCT_NAME+' native package verification',url,js_api=api,width=1300,height=850,hidden=True)
         def verify():
             try:
                 until(lambda:api._window.evaluate_js('!!window.lumen?.ready'))
                 assert api.status()['revision']==REVISION
                 assert api._window.evaluate_js('window.lumen.editorKind')=='monaco'
+                assert api._window.evaluate_js('document.title').startswith(PRODUCT_NAME)
                 assert api._window.evaluate_js('document.querySelector(".brand-tagline").textContent').endswith('R'+str(REVISION))
                 checks.append('Packaged runtime, Monaco and native JS bridge')
                 assert app.native.lib is not None,app.native.name
@@ -57,7 +58,7 @@ def main():
                 checks.append('Separate Forge window executes unsaved UTF-8 Python in real PTY')
                 forge.evaluate_js('document.querySelector("[data-action=forge-terminal]").click()')
                 until(lambda:'forge' not in api._children)
-                checks.append('Forge returns to Lumen without replacing the source file')
+                checks.append('Forge returns to '+PRODUCT_NAME+' without replacing the source file')
                 print(json.dumps({'checks':checks,'errors':errors}),flush=True)
             except Exception:errors.append(traceback.format_exc());print(errors[-1],flush=True)
             finally:

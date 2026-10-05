@@ -67,7 +67,7 @@ class CodexAccount:
             self.process = subprocess.Popen(args, cwd=self.cwd, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL, text=True, encoding='utf-8', errors='replace', bufsize=1, creationflags=FLAGS)
             threading.Thread(target=self._read, args=(self.process,), daemon=True).start()
-            self.rpc('initialize', {'clientInfo':{'name':'lumen_studio','title':'Lumen Studio','version':'0.5.2'}})
+            self.rpc('initialize', {'clientInfo':{'name':'lumen_studio','title':'Edryvo','version':'0.5.2'}})
             self.send({'method':'initialized','params':{}})
 
     def send(self, message):

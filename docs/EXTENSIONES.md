@@ -1,6 +1,6 @@
-# Extensiones · Preview R9
+# Extensiones · 0.5.3 Preview R1
 
-Lumen consulta Open VSX y permite importar VSIX. El paquete se inspecciona antes de instalarlo: rutas, enlaces, duplicados, tamaño expandido y manifiesto. Las actualizaciones siguen el mismo proceso.
+Edryvo consulta Open VSX y permite importar VSIX. El paquete se inspecciona antes de instalarlo: rutas, enlaces, duplicados, tamaño expandido y manifiesto. Las actualizaciones siguen el mismo proceso. Consulta [los servicios nuevos y límites de 0.5.3 R1](PREVIEW_053_R1.md).
 
 ## Aportaciones
 
@@ -8,7 +8,7 @@ Asociaciones de lenguaje, snippets, temas para el editor y la interfaz e iconos 
 
 El host implementa comandos, documentos, configuración persistente y eventos, `extensions.getExtension`, diagnósticos, autocompletado, navegación a definición, inlays, hover, formato, símbolos, CodeLens y tokens semánticos. Algunas clases y puntos de registro existen para integración progresiva: no implican que toda la API de VS Code esté implementada.
 
-Las APIs ausentes producen un mensaje con su nombre. No hay compatibilidad universal con webviews, Electron, gestores de tareas ni cualquier adaptador DAP aportado por un plugin. Los depuradores integrados de Lumen se configuran por separado.
+Las APIs ausentes producen un mensaje con su nombre. 0.5.3 R1 conecta webviews, tareas, terminales y adaptadores DAP con servicios reales. Esto no implica compatibilidad universal con Electron ni cualquier extensión. Los depuradores integrados se configuran por separado.
 
 ## Descarga e integridad
 
@@ -20,7 +20,7 @@ El hash detecta cambios, pero no certifica al publicador. El proceso Node separa
 
 ## Estado comprobado
 
-Las pruebas automatizadas usan paquetes reales de prueba instalados en el mismo host que los plugins. También se verificaron la activación de nC Language y Material Icon Theme, y una descarga real de Java VSIX de más de 54 MB. Maven for Java sigue requiriendo APIs no implementadas; se muestra esa limitación al activarlo.
+Las pruebas automatizadas usan paquetes de prueba instalados en el mismo host que los plugins. También se verificaron la activación de nC Language y Material Icon Theme, y una descarga real de Java VSIX de más de 54 MB. En 0.5.3 R1 se verificó Maven for Java 0.45.3: 38 comandos, su vista de proyectos y los objetivos reales validate, compile, test y package. No se certifican todos los objetivos ni cualquier plugin.
 
 El registro utilizado es [Open VSX](https://open-vsx.org/). El contrato de referencia es la [API de VS Code](https://code.visualstudio.com/api/references/vscode-api); Lumen implementa únicamente el subconjunto descrito.
 

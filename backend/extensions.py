@@ -108,15 +108,25 @@ def download_file(url, destination, progress=lambda **kw:None, cancelled=lambda:
         if total and received!=total:raise ValueError('Descarga incompleta. Inténtalo de nuevo; no se instaló el paquete.')
 
 
-def localized_manifest(root):
+def localized_manifest(root,locale=None):
     manifest=json_resource(root,'package.json')
     try:messages=json_resource(root,'package.nls.json')
     except (OSError,ValueError):messages={}
-    for key in ('displayName','description'):
-        value=manifest.get(key,'')
+    if not isinstance(messages,dict):messages={}
+    if isinstance(locale,str) and re.fullmatch(r'[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})*',locale):
+        language=locale.replace('_','-').lower()
+        for candidate in dict.fromkeys((language.split('-')[0],language)):
+            try:translation=json_resource(root,'package.nls.'+candidate+'.json')
+            except (OSError,ValueError):continue
+            if isinstance(translation,dict):messages.update(translation)
+    def translate(value):
         if isinstance(value,str) and value.startswith('%') and value.endswith('%'):
-            manifest[key]=messages.get(value[1:-1],manifest.get('name','') if key=='displayName' else '')
-    return manifest
+            result=messages.get(value[1:-1],value)
+            return result if isinstance(result,str) else value
+        if isinstance(value,list):return [translate(item) for item in value]
+        if isinstance(value,dict):return {key:translate(item) for key,item in value.items()}
+        return value
+    return translate(manifest)
 
 
 def safe_member(name):

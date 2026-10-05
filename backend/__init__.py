@@ -1,1 +1,1 @@
-"""Local services for Lumen Studio."""
+"""Local services for Edryvo."""

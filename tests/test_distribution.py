@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from backend.updates import package_matches, update_asset, Updates
-from backend.version import RELEASE_TAG, REVISION
+from backend.version import RELEASE_TAG, REPOSITORY, REVISION, VERSION
 from tools.build_desktop import desktop_entry
 
 
@@ -20,9 +20,10 @@ class DistributionTests(unittest.TestCase):
         self.assertFalse(package_matches(names[2],'darwin','x86_64'))
 
     def test_update_service_selects_newest_release_for_this_platform(self):
-        future='v0.5.2-preview.'+str(REVISION+1)
-        assets=[{'name':name,'size':100,'digest':'sha256:'+'a'*64,'browser_download_url':'https://github.com/Arizt00/LumenStudio/releases/download/'+future+'/'+name} for name in ['LumenStudio-0.5.2-R9-Windows-Setup.exe','LumenStudio-0.5.2-R9-Linux-amd64.deb','LumenStudio-0.5.2-R9-macOS-arm64.dmg']]
-        release={'tag_name':future,'html_url':'https://github.com/Arizt00/LumenStudio/releases/tag/'+future,'assets':assets}
+        future=f'v{VERSION}-preview.{REVISION+1}'
+        names=[f'Edryvo-{VERSION}-R{REVISION+1}-Windows-Setup.exe',f'Edryvo-{VERSION}-R{REVISION+1}-Linux-amd64.deb',f'Edryvo-{VERSION}-R{REVISION+1}-macOS-arm64.dmg']
+        assets=[{'name':name,'size':100,'digest':'sha256:'+'a'*64,'browser_download_url':f'https://github.com/{REPOSITORY}/releases/download/'+future+'/'+name} for name in names]
+        release={'tag_name':future,'html_url':f'https://github.com/{REPOSITORY}/releases/tag/'+future,'assets':assets}
         for system,cpu,suffix in [('win32','AMD64','.exe'),('linux','x86_64','.deb'),('darwin','arm64','.dmg')]:
             selected=update_asset([release],RELEASE_TAG,system,cpu)
             self.assertTrue(selected['name'].endswith(suffix))

@@ -21,6 +21,8 @@ from .extension_runtime import ExtensionRuntime
 from .hacker import Hacker
 from .updates import Updates
 from .buffers import Buffers
+from .extension_services import ExtensionServices,file_path
+from .version import VERSION
 
 
 class PlatformServices:
@@ -35,9 +37,10 @@ class PlatformServices:
         self.downloads=Downloads(self.prefs.directory);self.extension_runtime=ExtensionRuntime(self.extensions)
         self.hacker=Hacker(self);self.updates=Updates(self.prefs,self.downloads)
         self.buffers=Buffers()
+        self.extension_services=ExtensionServices(self);self.extension_runtime.services=self.extension_services
     def state(self):
         web=self.app.project/'web/vendor'
-        return {'version':'0.5.2','preferences':self.prefs.export(),'providers':self.ai.vault.state(),
+        return {'version':VERSION,'preferences':self.prefs.export(),'providers':self.ai.vault.state(),
                 'xterm':(web/'xterm/xterm.js').is_file() and (web/'xterm-fit/addon-fit.js').is_file(),
                 'installedExtensions':len(self.extensions.installed),'dataDirectory':str(self.prefs.directory),
                 'development':self.tools.discover_servers(),'commandSequence':self.command_seq}
@@ -60,6 +63,10 @@ class PlatformServices:
         if path=='/lantern/template':return self.lantern.template(q('language'))
         if path=='/downloads':return self.downloads.snapshot()
         if path=='/extensions/runtime':return self.extension_runtime.snapshot()
+        if path=='/extensions/services':return self.extension_services.snapshot()
+        if path=='/extensions/resource':return self.extension_services.resource(q('panel'),q('path'))
+        if path=='/extensions/file':
+            self._trusted();p=file_path(q('path'));item=self.extension_services.file_workspace(p).read(p.name);item.update(path=self.extension_services.key(self.app.workspace,p),name=p.name,external=not p.is_relative_to(self.app.workspace.root));return item
         if path=='/extensions/review':return self.extensions.review_status(q('id'))
         if path=='/extensions/updates':return self.extensions.updates()
         if path=='/languages':return self.runtimes.status()
@@ -85,6 +92,11 @@ class PlatformServices:
     def post(self,path,body):
         ws=self.app.workspace
         if path=='/buffers':return self.buffers.update(ws,body)
+        if path=='/extensions/applyEdit':return self.extension_services.workspace_edit(ws,body['edit'],body.get('documents'))
+        if path=='/extensions/pick':self._trusted();return self.extension_services.answer_prompt(body['id'],body.get('value'))
+        if path=='/extensions/webview/document':self._trusted();return self.extension_services.webview_document(body['panel'],body['html'])
+        if path=='/extensions/save':
+            self._trusted();p=file_path(body['path']);item=self.extension_services.file_workspace(p).save(p.name,body['content'],body.get('revision'),newline=body.get('newline','LF'),bom=body.get('bom',False));item.update(path=str(p),saved=True);return item
         if path=='/hacker/start':return self.hacker.start(ws,body.get('path',''),body.get('content'),body.get('mode'))
         if path=='/hacker/attach':return self.hacker.attach(ws,body.get('job'))
         if path=='/updates/check':return self.updates.check(body.get('download') is True)

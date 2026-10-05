@@ -1,10 +1,10 @@
-# Lumen Studio · 0.5.2 Preview R9
+# Edryvo · 0.5.3 Preview R1
 
-Lumen es un IDE de escritorio con editor Monaco, terminal integrada, depuración por lenguaje, Lantern Live y asistencia de IA. R9 añade correcciones rápidas de extensiones entre archivos, formato al escribir, colores y decoraciones del Explorador, además de mejorar los paneles y el catálogo. Consulta [Preview R9](docs/PREVIEW_R9.md) y los [límites del IDE](docs/PREVIEW_R7.md).
+Edryvo es el nuevo nombre de Lumen Studio: un IDE de escritorio con editor Monaco, terminal integrada, depuración por lenguaje, Lantern Live y asistencia de IA. 0.5.3 R1 conecta terminales, tareas, webviews y adaptadores de depuración de extensiones a servicios reales del IDE, y amplía las ediciones entre archivos. Consulta [los cambios y límites de 0.5.3 R1](docs/PREVIEW_053_R1.md).
 
-## Usar Lumen
+## Usar Edryvo
 
-Instalador `.exe` para Windows 10/11 x64 (Edge WebView2), `.deb` y portable para Linux x64 compatible con Ubuntu 24.04. La pipeline prepara `.dmg` separados para macOS Apple Silicon e Intel; su publicación queda pendiente de construcción y verificación en Mac. Los paquetes incluyen el runtime Python del IDE; los compiladores y SDK de tus proyectos se preparan aparte. Los ejecutables de esta preview no tienen firma Authenticode ni notarización de Apple. Consulta [los paquetes de R9](docs/PREVIEW_R9.md) y [las instrucciones de cada plataforma](docs/PREVIEW_R8.md).
+Instalador `.exe` para Windows 10/11 x64 (Edge WebView2), `.deb` y portable para Linux x64 compatible con Ubuntu 24.04. La pipeline prepara `.dmg` separados para macOS Apple Silicon e Intel; su publicación queda pendiente de construcción y verificación en Mac. Los paquetes incluyen el runtime Python del IDE; los compiladores y SDK de tus proyectos se preparan aparte. Los ejecutables de esta preview no tienen firma Authenticode ni notarización de Apple. Consulta [los paquetes de 0.5.3 R1](docs/PREVIEW_053_R1.md) y [las instrucciones de cada plataforma](docs/PREVIEW_R8.md).
 
 El primer inicio permite elegir tema, idioma, distribución y perfil. Una instalación nueva comienza sin archivos recientes inventados. Los paneles principales usan superficies al 92 % en Día y al 94 % en Oscuro y Bosque, con colores de sintaxis integrados e iridiscencia animada configurable.
 
@@ -13,7 +13,7 @@ El primer inicio permite elegir tema, idioma, distribución y perfil. Una instal
 - Pestañas agrupadas por carpeta, selector de archivos, menús contextuales, renombrado, eliminación recuperable y apertura en otra ventana.
 - Proyecto, Asistente y Terminal pueden cerrarse, recuperarse, acoplarse, flotar dentro del área de trabajo o abrirse en ventanas nativas independientes en otro monitor.
 - Dos archivos de código simultáneos con Ctrl+\. El editor separado comparte el búfer sin guardar y detecta cambios simultáneos.
-- Arrastra archivos a los bordes para dividir el editor en filas o columnas; arrastra pestañas y encabezados de panel fuera de Lumen para separarlos en otra ventana o monitor.
+- Arrastra archivos a los bordes para dividir el editor en filas o columnas; arrastra pestañas y encabezados de panel fuera de Edryvo para separarlos en otra ventana o monitor.
 - Estilos persistentes con herramientas propias: desarrollo general, vista web sin guardar, exploración CSV/TSV y paleta/contraste para diseño.
 - Forge: espacio de ejecución y depuración con contexto del archivo, herramientas detectadas, Python desde el búfer actual y C con GCC y GDB integrado.
 - La última carpeta y las extensiones instaladas se conservan; los motores previamente autorizados se recuperan en proyectos de confianza.
@@ -57,6 +57,6 @@ Las pruebas visuales requieren Playwright y Microsoft Edge. Las pruebas dependie
 
 ## Documentación y licencia
 
-[Lantern, cambios y límites](docs/PREVIEW_R7.md) · [Lenguajes](docs/LENGUAJES.md) · [Extensiones](docs/EXTENSIONES.md) · [Seguridad](docs/SEGURIDAD.md)
+[0.5.3 R1](docs/PREVIEW_053_R1.md) · [Lantern, cambios y límites](docs/PREVIEW_R7.md) · [Lenguajes](docs/LENGUAJES.md) · [Extensiones](docs/EXTENSIONES.md) · [Seguridad](docs/SEGURIDAD.md)
 
 Repositorio público bajo [licencia propietaria](LICENSE), sin licencia de código abierto por el momento. Las dependencias mantienen sus propias licencias: [avisos de terceros](THIRD_PARTY_NOTICES.md).

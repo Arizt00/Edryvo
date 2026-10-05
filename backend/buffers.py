@@ -7,7 +7,12 @@ class Buffers:
     def snapshot(self):
         with self.lock:return {'buffers':[dict(x) for x in self.items.values()]}
     def update(self, ws, body):
-        path=body.get('path');ws.resolve(path,must_exist=False)
+        path=body.get('path')
+        from pathlib import Path
+        if isinstance(path,str) and Path(path).is_absolute():
+            if not ws.trusted:raise PermissionError('Proyecto no autorizado.')
+            path=str(Path(path).resolve())
+        else:ws.resolve(path,must_exist=False)
         text=body.get('text');expected=body.get('sequence',0)
         if not isinstance(text,str) or len(text)>2_000_000:raise ValueError('El búfer compartido admite hasta 2 MB.')
         if type(expected) is not int:raise ValueError('Revisión inválida.')

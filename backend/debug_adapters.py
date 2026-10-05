@@ -58,7 +58,12 @@ class ProtocolDebugger:
                     key,_,value=line.partition(b':');headers[key.lower().strip()]=value.strip()
                 length=int(headers.get(b'content-length',0))
                 if not 0<length<=4_000_000:raise ValueError('Mensaje DAP no válido.')
-                message=json.loads(stream.read(length))
+                chunks=[];remaining=length
+                while remaining:
+                    chunk=stream.read(remaining)
+                    if not chunk:raise ValueError('Mensaje DAP incompleto.')
+                    chunks.append(chunk);remaining-=len(chunk)
+                message=json.loads(b''.join(chunks))
                 if message.get('type')=='response':
                     if target:=self.pending.get(message.get('request_seq')):target.put(message)
                 elif message.get('type')=='event':self.event(message.get('event'),message.get('body',{}))
@@ -121,7 +126,7 @@ class ProtocolDebugger:
             threading.Thread(target=self.drain,args=(self.process.stdout,),daemon=True).start()
         else:stream=self.process.stdout
         threading.Thread(target=self.read,args=(stream,),daemon=True).start()
-        capabilities=self.request('initialize',{'clientID':'lumen','clientName':'Lumen Studio','adapterID':'lumen','pathFormat':'path','linesStartAt1':True,'columnsStartAt1':True,'supportsVariableType':True,'supportsRunInTerminalRequest':True})
+        capabilities=self.request('initialize',{'clientID':'lumen','clientName':'Edryvo','adapterID':'lumen','pathFormat':'path','linesStartAt1':True,'columnsStartAt1':True,'supportsVariableType':True,'supportsRunInTerminalRequest':True})
         launch=dict(launch);entry=launch.pop('_lumenEntry',False);self.entry_function=launch.pop('_lumenEntryFunction',None)
         version=re.search(r'lldb version (\d+)',capabilities.get('$__lldb_version',''))
         if os.name=='nt' and self.lldb and version and int(version[1])>=22 and launch.get('console')=='internalConsole' and 'stdio' not in launch:

@@ -57,7 +57,7 @@ jobs:
       - name: Install and verify Linux package
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get install -y ./dist/LumenStudio-*-Linux-amd64.deb
+          sudo apt-get install -y ./dist/Edryvo-*-Linux-amd64.deb
           xvfb-run -a python tools/verify_native_package.py --bundle /opt/lumen-studio
       - name: Verify Windows and macOS package
         if: runner.os != 'Linux'
@@ -65,8 +65,8 @@ jobs:
       - name: Upload verified installers
         uses: actions/upload-artifact@v4
         with:
-          name: LumenStudio-${{ matrix.artifact }}
-          path: dist/LumenStudio-*
+          name: Edryvo-${{ matrix.artifact }}
+          path: dist/Edryvo-*
           if-no-files-found: error
           retention-days: 14
       - name: Preserve diagnostics
@@ -91,7 +91,7 @@ jobs:
           python-version: '3.12'
       - uses: actions/download-artifact@v4
         with:
-          pattern: LumenStudio-*
+          pattern: Edryvo-*
           path: release-assets
           merge-multiple: true
       - name: Publish all four verified native builds

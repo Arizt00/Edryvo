@@ -14,7 +14,7 @@ from backend.version import VERSION,REVISION
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--bundle',type=Path);args=parser.parse_args()
-    prefix=f'LumenStudio-{VERSION}-R{REVISION}'
+    prefix=f'Edryvo-{VERSION}-R{REVISION}'
     manifest=json.loads((ROOT/f'dist/{prefix}-{sys.platform}-{architecture()}-manifest.json').read_text(encoding='utf-8'))
     for item in manifest['outputs']:
         file=ROOT/'dist'/item['name'];assert file.stat().st_size==item['bytes'] and sha256(file)==item['sha256'],file
@@ -24,7 +24,7 @@ def main():
             subprocess.run(['hdiutil','attach',str(dmg),'-readonly','-nobrowse','-mountpoint',temp],check=True)
             try:
                 assert (Path(temp)/'Applications').is_symlink()
-                executable=Path(temp)/'Lumen Studio.app/Contents/MacOS/lumen-python'
+                executable=Path(temp)/'Edryvo.app/Contents/MacOS/lumen-python'
                 probe(executable,prefix)
             finally:subprocess.run(['hdiutil','detach',temp],check=True)
     else:

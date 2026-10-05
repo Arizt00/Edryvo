@@ -12,7 +12,8 @@ for package in ('webview','keyring','copilot'):
 data=[(str(ROOT/'web'),'web'),(str(ROOT/'licenses'),'licenses'),(str(ROOT/'README.md'),'.'),(str(ROOT/'LICENSE'),'.'),(str(ROOT/'THIRD_PARTY_NOTICES.md'),'.'),(str(ROOT/'LEEME_PRIMERO.txt'),'.'),(str(ROOT/'config/runtime-defaults.json'),'config'),(str(ROOT/'debugger-support'),'debugger-support'),(str(ROOT/'examples/lantern/counter.c'),'examples/lantern'),(str(ROOT/'examples/lantern/counter.cpp'),'examples/lantern'),(str(ROOT/'examples/lantern/counter.n'),'examples/lantern'),(str(ROOT/'backend/LumenJavaDebugger.java'),'backend'),(str(ROOT/'backend/emma_bridge.mjs'),'backend'),(str(ROOT/'backend/lantern_memory.cjs'),'backend'),(str(ROOT/'backend/extension_host.cjs'),'backend'),(str(ROOT/'backend/extension_api.cjs'),'backend')]
 # Package documentation deliberately: historical QA can contain local user paths.
 data.append((str(ROOT/'backend/extension_views.cjs'),'backend'))
-for name in ('PREVIEW_R9.md','PREVIEW_R8.md','PREVIEW_R7.md','PREVIEW_R6.md','PREVIEW_R5.md','LENGUAJES.md','EXTENSIONES.md','SEGURIDAD.md'):
+data.append((str(ROOT/'backend/extension_services.cjs'),'backend'))
+for name in ('PREVIEW_053_R1.md','PREVIEW_R9.md','PREVIEW_R8.md','PREVIEW_R7.md','PREVIEW_R6.md','PREVIEW_R5.md','LENGUAJES.md','EXTENSIONES.md','SEGURIDAD.md'):
     data.append((str(ROOT/'docs'/name),'docs'))
 # Only the shipped examples belong in the bundle, never compiler/profile caches.
 for file in (ROOT/'workspace').rglob('*'):
@@ -37,4 +38,4 @@ exe=EXE(pyz,a.scripts,[],exclude_binaries=True,name='lumen',debug=False,bootload
 python_exe=EXE(pyz,a.scripts,[],exclude_binaries=True,name='lumen-python',debug=False,bootloader_ignore_signals=False,strip=False,version=str(ROOT/'packaging/version.txt') if sys.platform=='win32' else None,upx=False,console=True)
 collection=COLLECT(exe,python_exe,a.binaries,a.datas,strip=False,upx=False,name='LumenStudio')
 if sys.platform=='darwin':
-    app=BUNDLE(collection,name='Lumen Studio.app',icon=str(icon) if icon.exists() else None,bundle_identifier='studio.lumen.ide',info_plist={'CFBundleShortVersionString':'0.5.2','CFBundleVersion':'0.5.2.9','NSHighResolutionCapable':True,'LSMinimumSystemVersion':'14.0','NSHumanReadableCopyright':'Lumen Studio. Licencia propietaria de preview.'})
+    app=BUNDLE(collection,name='Edryvo.app',icon=str(icon) if icon.exists() else None,bundle_identifier='studio.lumen.ide',info_plist={'CFBundleShortVersionString':'0.5.3','CFBundleVersion':'0.5.3.1','NSHighResolutionCapable':True,'LSMinimumSystemVersion':'14.0','NSHumanReadableCopyright':'Edryvo. Licencia propietaria de preview.'})

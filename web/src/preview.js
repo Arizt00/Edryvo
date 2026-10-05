@@ -3,12 +3,14 @@ import {explorerDecorations} from './extension-decorations.js';
 import {icon,escapeHTML as esc} from './icons.js';
 import {languageFor} from './editor.js';
 import {DocumentDrag} from './document-drag.js';
+import {ExtensionServicesUI} from './extension-services.js';
 const $=s=>document.querySelector(s);
 
 export function installPreview(host){return new Preview(host);}
 class Preview{
   constructor(host){
     this.host=host;host.editor.mount.append(document.getElementById('editor-empty'));this.grouped=true;this.group=null;this.providers=[];
+    this.services=new ExtensionServicesUI(host);host.platform.extensionServices=this.services;
     const group=document.createElement('button');group.className='icon-button';group.dataset.action='group-tabs';group.title='Agrupar pestañas por carpeta';group.setAttribute('aria-label',group.title);group.innerHTML=icon('folder');$('.new-tab').after(group);
     this.groups=document.createElement('div');this.groups.className='file-groups';this.groups.setAttribute('aria-label','Grupos de archivos');$('#file-tabs').before(this.groups);
     this.drop=document.createElement('button');this.drop.className='window-drop-target';this.drop.hidden=true;this.drop.innerHTML=icon('plus')+' Soltar en nueva ventana';$('.editor-tabbar').append(this.drop);
@@ -119,6 +121,14 @@ class Preview{
     const call=(ext,kind,model,extra={})=>platform.api('/extensions/runtime/request',{id:ext.id,method:'provide',kind,document:doc(model),...extra}).then(x=>x.items);
     const mr=r=>r?new m.Range(r.start.line+1,r.start.character+1,r.end.line+1,r.end.character+1):undefined;
     if(!this.extensionCommandBridge)this.extensionCommandBridge=m?.editor.registerCommand('lumen.extension.command',(_,id,args)=>this.safe(()=>platform.pluginCommand(id,args)));
+    if(!this.extensionEditBridge)this.extensionEditBridge=m?.editor.registerCommand('edryvo.extension.workspaceEdit',async(_,edit,path,version,command,args)=>{
+      try{
+        const record=ed.models.get(path);if(!record?.model||record.model.getVersionId()!==version)throw Error('El archivo cambió. Solicita de nuevo la acción.');
+        const root=this.host.service().workspace.replaceAll('\\','/').replace(/\/$/,''),documents=[...ed.models.values()].map(r=>({uri:/^(?:[A-Za-z]:[\\/]|\/)/.test(r.path)?r.path:root+'/'+r.path,text:r.model?.getValue()??r.value}));
+        const result=await platform.api('/extensions/applyEdit',{edit,documents});await this.services.event({command:'edryvo.workspace.edit',edit:result});
+        if(command)await platform.pluginCommand(command,args);return result.applied;
+      }catch(error){this.host.notify(error.message,'error');throw error;}
+    });
     this.runtimeCommands=new Map();
     for(const ext of hosts.filter(x=>x.running)){
       for(const command of ext.commands)this.runtimeCommands.set(ext.id+':'+command.id,{ext:ext.id,...command});

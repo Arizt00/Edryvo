@@ -6,6 +6,8 @@ console.log=console.info=(...args)=>process.stderr.write(args.map(String).join('
 const cp=require('node:child_process');
 for(const name of ['spawn','spawnSync','execFile','execFileSync']){const original=cp[name];cp[name]=function(command,args,options,...rest){if(!Array.isArray(args)){rest=[options,...rest];options=args;args=[];}if(typeof options==='function'){rest.unshift(options);options={};}return original.call(this,command,args,{...options,windowsHide:true},...rest.filter(x=>x!==undefined));};}
 const commands=new Map(),providers=[],tokens=[],actions=new Map();let actionSequence=0;let active={path:'',text:'',language:'plaintext'},effects=[],bridge,loaded=false;
+const pendingServices=new Map();let serviceSequence=0;
+function service(method,params={}){const id=++serviceSequence;return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{pendingServices.delete(id);reject(Error('El servicio '+method+' no respondió.'));},45000);pendingServices.set(id,{resolve,reject,timer});write(JSON.stringify({type:'service',id,method,params})+'\n');});}
 const disposable=fn=>({dispose:fn||(()=>{})});
 const registerCommand=(id,fn,title=id)=>{commands.set(id,{fn,title});return disposable(()=>commands.delete(id));};
 const register=(kind,language,fn,extra={})=>{const p={kind,language,fn,...extra};providers.push(p);return disposable(()=>{const i=providers.indexOf(p);if(i>=0)providers.splice(i,1);});};
@@ -13,7 +15,7 @@ const api={registerCommand,registerCompletionProvider:(l,f)=>register('completio
 const original=Module._load;Module._load=function(id,...args){return id==='vscode'?bridge.vscode:id==='lumen'?api:original.call(this,id,...args);};
 async function request(message){
   if(message.method==='activate'){
-    bridge=createAPI({...api,register,effect:e=>effects.push(e),commandIds:()=>[...commands.keys()],execute:async(id,args)=>{if(commands.has(id))return commands.get(id).fn(...args);if(['setContext','workbench.action.reloadWindow'].includes(id))return;throw Error('El comando '+id+' no está disponible en Lumen.');}},{...message,id:message.extensionId});
+    bridge=createAPI({...api,register,service,effect:e=>effects.push(e),commandIds:()=>[...commands.keys()],execute:async(id,args)=>{if(commands.has(id))return commands.get(id).fn(...args);if(id==='setContext')return service('context.set',{key:args[0],value:args[1]});if(id==='workbench.action.tasks.runTask')return bridge.services.runTask(args[0]);return service('command.execute',{id,args});}},{...message,id:message.extensionId});
     const extension=await import(pathToFileURL(message.entry).href),target=extension.default||extension;
     if(typeof target.activate!=='function')throw Error('La extensión no exporta activate().');
     await target.activate(bridge.context,api);loaded=true;
@@ -24,6 +26,8 @@ async function request(message){
     return {commands:[...commands].map(([id,c])=>({id,title:c.title})),providers:capabilities,tokens,views:bridge.treeViews.snapshot(),fileDecorations:bridge.hasFileDecorations(),unsupportedApis:[...bridge.unsupportedApis]};
   }
   if(!loaded)throw Error('Extensión no activada.');
+  if(message.method==='webviewMessage')return bridge.services.message(message.panel,message.message);
+  if(message.method==='webviewDispose')return bridge.services.disposePanel(message.panel);
   effects=[];active=message.document||active;bridge.syncDocument(active);
   if(message.method==='willSave')return bridge.willSave(message.reason);
   if(message.method==='didSave'){bridge.didSave();return {ok:true};}
@@ -54,5 +58,8 @@ async function request(message){
 }
 let queue=Promise.resolve();
 readline.createInterface({input:process.stdin}).on('line',line=>{
+  let message;try{message=JSON.parse(line);}catch{return;}
+  if(message.type==='serviceResult'){const p=pendingServices.get(message.id);if(p){pendingServices.delete(message.id);clearTimeout(p.timer);message.error?p.reject(Error(message.error)):p.resolve(message.result);}return;}
+  if(message.type==='serviceEvent'){bridge?.services?.event(message.name,message.value);return;}
   queue=queue.then(async()=>{let m;try{m=JSON.parse(line);const result=await request(m);const text=JSON.stringify({id:m.id,result},(_,v)=>v instanceof Uint32Array?[...v]:v);if(Buffer.byteLength(text)>2000000)throw Error('Respuesta de extensión demasiado grande.');write(text+'\n');}catch(error){write(JSON.stringify({id:m?.id,error:error.message})+'\n');}});
 });
