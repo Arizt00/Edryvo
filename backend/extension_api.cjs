@@ -188,7 +188,8 @@ module.exports=function createAPI(host,options){
     if(!result.saved)return false;doc._revision=result.buffer.revision;doc.isDirty=false;event('save').fire(doc);return true;
   }
   vscode.workspace.saveAll=async(includeUntitled=false)=>{let success=true;for(const doc of [...documents.values()])if(doc.isDirty){if(doc.isUntitled){if(includeUntitled)success=false;continue;}if(!await saveDocument(doc.uri))success=false;}return success;};
-  const serviceEvent=services.event;services.event=(name,value)=>{if(name==='document.saved'){const uri=Uri.file(value.uri),old=documents.get(uri.toString());if(old&&old.getText()===value.text){old._revision=value.revision;old.isDirty=false;event('save').fire(old);}return;}return serviceEvent(name,value);};
+  const updateEditors=require('./extension_editors.cjs')(vscode,options,event,makeDocument,documents,doc=>{current=doc;});
+  const serviceEvent=services.event;services.event=(name,value)=>{if(name==='editor.state'){updateEditors(value);return;}if(name==='document.saved'){const uri=Uri.file(value.uri),old=documents.get(uri.toString());if(old&&old.getText()===value.text){old._revision=value.revision;old.isDirty=false;event('save').fire(old);}return;}return serviceEvent(name,value);};
   function didSave(){if(current){if(current.uri.scheme==='file')try{current._revision=require('node:crypto').createHash('sha256').update(fs.readFileSync(current.uri.fsPath)).digest('hex');}catch{}current.isDirty=false;event('save').fire(current);}}
   return {vscode,context,services,syncDocument,willSave,didSave,treeViews,fileDecorations,hasFileDecorations:()=>decorationProviders.size>0,unsupportedApis,getDiagnostics:()=>current?[...diagnostics.values()].flatMap(map=>map.get(current.uri.toString())||[]):[],diagnosticCollections:diagnostics,readVirtual:async value=>{const u=Uri.parse(value);const p=virtual.get(u.scheme);if(!p)throw Error('Documento virtual no registrado.');return p.provideTextDocumentContent(u);}};
 };

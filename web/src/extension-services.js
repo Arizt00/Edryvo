@@ -57,6 +57,7 @@ export class ExtensionServicesUI {
     if(this.disposed)return;
     try{
       const {panels,quickinputs=[]}=await this.host.platform.api('/extensions/services');
+      await this.syncEditors();
       if(!this.quickinput.root)for(const input of quickinputs)if(input.visible)this.quickinput.update(input);
       const ids=new Set(panels.filter(x=>x.visible).map(x=>x.id));
       for(const [id,state] of this.panels)if(!ids.has(id)){this.remove(state);this.panels.delete(id);}
@@ -66,6 +67,19 @@ export class ExtensionServicesUI {
       }
     }catch(error){if(!this.disposed)console.warn('Extension services:',error.message);}
     this.timer=setTimeout(()=>this.poll(),500);
+  }
+  async syncEditors(){
+    const h=this.host,ed=h.editor;if(ed.kind!=='monaco'||!document.hasFocus()||!(h.isTrusted?.()??h.service?.().trusted))return;
+    const covered=document.documentElement.dataset.editorCovered==='true',editors=[];
+    const pos=(line,column)=>({line:line-1,character:column-1});
+    if(!covered)for(const [index,pane] of (ed.panes||[]).entries()){
+      const view=pane.view,model=view?.getModel(),path=ed.pathFor(model);if(!path||!pane.node.getClientRects().length)continue;
+      const opts=model.getOptions();editors.push({id:String(index),path,version:model.getVersionId(),language:model.getLanguageId(),active:view===ed.view,
+        visibleRanges:view.getVisibleRanges().map(r=>({start:pos(r.startLineNumber,r.startColumn),end:pos(r.endLineNumber,r.endColumn)})),
+        selections:view.getSelections().map(s=>({anchor:pos(s.selectionStartLineNumber,s.selectionStartColumn),active:pos(s.positionLineNumber,s.positionColumn)})),options:{tabSize:opts.tabSize,insertSpaces:opts.insertSpaces}});
+    }
+    const key=JSON.stringify(editors);if(key===this.editorKey&&Date.now()-this.editorSent<1500)return;
+    await h.platform.api('/extensions/editor-state',{editors});this.editorKey=key;this.editorSent=Date.now();
   }
   restoreTabs(){for(const state of this.panels.values())if(state.tab&&!state.tab.isConnected)document.getElementById('file-tabs').append(state.tab);}
   title(state){if(state.tab)state.tab.querySelector('span').textContent=state.panel.title;if(state.node)state.node.querySelector('strong').textContent=state.panel.title;}

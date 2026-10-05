@@ -143,10 +143,16 @@ class PlatformServices:
             return result
         if path=='/extensions/inspect':
             return self.extensions.inspect_local(body['path']) if 'path' in body else self.extensions.inspect_remote(body.get('id',''),body.get('version','latest'))
+        if path=='/extensions/editor-state':return self.extension_services.editor_state(ws,body)
         if path=='/extensions/review/start':return self.extensions.start_review(body)
         if path=='/extensions/review/cancel':return self.extensions.review_status(body.get('id'),cancel=True)
-        if path=='/extensions/install':return self.extensions.install(body.get('ticket',''),body.get('consent'))
-        if path=='/extensions/discard':self.extensions.discard(body.get('ticket',''));return {'discarded':True}
+        if path=='/extensions/install':
+            if body.get('plan'):return self.extensions.install_plan(body['plan'],body.get('consent'))
+            return self.extensions.install(body.get('ticket',''),body.get('consent'))
+        if path=='/extensions/discard':
+            if body.get('plan'):self.extensions.discard_plan(body['plan'])
+            else:self.extensions.discard(body.get('ticket',''))
+            return {'discarded':True}
         if path=='/extensions/toggle':
             self.extension_runtime.stop(body.get('id'))
             return self.extensions.update_state(body.get('id'),body.get('enabled'))

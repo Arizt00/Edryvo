@@ -129,7 +129,39 @@ class ExtensionDebugger(ProtocolDebugger):
 
 class ExtensionServices:
     def __init__(self,platform):
-        self.platform=platform;self.lock=threading.RLock();self.terminals={};self.tasks={};self.panels={};self.debuggers={};self.contexts={};self.prompts={};self.documents={};self.file_workspaces={};self.quickinputs={}
+        self.platform=platform;self.lock=threading.RLock();self.terminals={};self.tasks={};self.panels={};self.debuggers={};self.contexts={};self.prompts={};self.documents={};self.file_workspaces={};self.quickinputs={};self.editor_snapshot=None
+    def editor_state(self,ws,body):
+        if not ws.trusted:raise PermissionError('Proyecto no autorizado.')
+        items=body.get('editors')
+        if not isinstance(items,list) or len(items)>4:raise ValueError('Estado de editores inválido.')
+        def position(value):
+            if not isinstance(value,dict) or any(type(value.get(k)) is not int or not 0<=value[k]<=2_000_000 for k in ('line','character')):raise ValueError('Posición del editor inválida.')
+            return {k:value[k] for k in ('line','character')}
+        editors=[]
+        for i,item in enumerate(items):
+            if not isinstance(item,dict) or not isinstance(item.get('path'),str):raise ValueError('Archivo del editor inválido.')
+            path=item.get('path');p=file_path(path) if Path(path or '').is_absolute() else ws.resolve(path)
+            key=self.key(ws,p);buffer=self.platform.buffers.items.get(key)
+            text=buffer['text'] if buffer else (ws.read(key)['content'] if p.is_relative_to(ws.root) else self.file_workspace(p).read(p.name)['content'])
+            ranges=item.get('visibleRanges',[]);selections=item.get('selections',[]);opts=item.get('options',{})
+            if not isinstance(ranges,list) or len(ranges)>100 or not isinstance(selections,list) or len(selections)>500:raise ValueError('Rangos del editor inválidos.')
+            if any(not isinstance(x,dict) for x in [*ranges,*selections]) or not isinstance(opts,dict):raise ValueError('Estado del editor inválido.')
+            visible=[{'start':position(r.get('start')),'end':position(r.get('end'))} for r in ranges]
+            if any((r['start']['line'],r['start']['character'])>(r['end']['line'],r['end']['character']) for r in visible):raise ValueError('Rango del editor invertido.')
+            selected=[{'anchor':position(s.get('anchor')),'active':position(s.get('active'))} for s in selections]
+            if type(opts.get('tabSize')) is not int or not 1<=opts['tabSize']<=20 or type(opts.get('insertSpaces')) is not bool:raise ValueError('Opciones del editor inválidas.')
+            editors.append({'id':str(item.get('id',i))[:100],'path':str(p),'text':text,'language':str(item.get('language','plaintext'))[:80],
+                'dirty':bool(buffer and not buffer.get('saved')),'active':item.get('active') is True,'column':i+1,
+                'visibleRanges':visible,'selections':selected,'options':{k:opts[k] for k in ('tabSize','insertSpaces')}})
+        if sum(x['active'] for x in editors)>1:raise ValueError('Solo puede haber un editor activo.')
+        snapshot={'editors':editors};signature=json.dumps(snapshot,ensure_ascii=False)
+        if len(signature.encode('utf-8'))>1_900_000:raise ValueError('Estado de editores demasiado grande para el host.')
+        with self.lock:
+            self.editor_snapshot=snapshot
+            for host in list(self.platform.extension_runtime.hosts.values()):
+                if not hasattr(host,'event') or getattr(host,'_editor_signature',None)==signature:continue
+                host.event('editor.state',snapshot);host._editor_signature=signature
+        return {'ok':True}
     def file_workspace(self,p):
         from .workspace import Workspace
         with self.lock:

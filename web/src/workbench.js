@@ -1,4 +1,4 @@
-import {extensionReviewHTML,formatBytes} from './extension-installer.js';
+import {extensionReviewHTML,extensionPlanHTML,extensionProgressHTML,updateExtensionProgress} from './extension-installer.js';
 import {ACCOUNT_PROVIDERS,accountPanel,bindAccount} from './accounts.js';
 import {icon,escapeHTML,setFileIcons} from './icons.js';
 import {languageFor} from './editor.js';
@@ -207,7 +207,7 @@ export class LumenPlatform {
   }
   async reviewExtension(request){
     const generation=this.extensionReviewGeneration=(this.extensionReviewGeneration||0)+1;
-    this.host.modal(this.t('Revisando paquete','Reviewing package'),`<div class="platform-loading" id="extension-review-progress">${this.t('Consultando el paquete...','Looking up package...')}</div><progress id="extension-review-bar" style="width:100%"></progress><p class="muted-copy">${this.t('Descarga a disco. Puedes cancelar la revisión en cualquier momento.','Downloading to disk. You can cancel the review at any time.')}</p><div class="modal-actions"><button id="extension-review-cancel" class="secondary-button">${this.t('Cancelar','Cancel')}</button></div>`);
+    this.host.modal(this.t(request.ticket?'Revisando dependencias':'Revisando paquete',request.ticket?'Reviewing dependencies':'Reviewing package'),extensionProgressHTML((...args)=>this.t(...args),request.id||request.path?.split(/[\\/]/).pop()||this.reviewedExtension?.id));
     let jobId;
     try{
       const job=await this.api('/extensions/review/start',request);jobId=job.id;
@@ -217,22 +217,22 @@ export class LumenPlatform {
         if(generation!==this.extensionReviewGeneration||!document.getElementById('extension-review-progress')){await this.api('/extensions/review/cancel',{id:jobId});return;}
         status=await this.api('/extensions/review?id='+encodeURIComponent(jobId));
         if(status.done)break;
-        const label=document.getElementById('extension-review-progress'),bar=document.getElementById('extension-review-bar');
-      if(label)label.textContent=status.phase==='download'?`${this.t('Descargando','Downloading')} · ${formatBytes(status.received)}${status.total?' / '+formatBytes(status.total):''}`:status.phase==='extract'?this.t('Descomprimiendo y revisando contribuciones…','Extracting and reviewing contributions…'):this.t('Verificando el paquete…','Verifying package…');
-        if(bar&&status.total){bar.max=status.total;bar.value=status.received;}
+        updateExtensionProgress(document,status,(...args)=>this.t(...args));
         await new Promise(resolve=>setTimeout(resolve,300));
       }
       if(status.error)throw new Error(status.error);
       if(generation!==this.extensionReviewGeneration||!document.getElementById('extension-review-progress')){await this.api('/extensions/review/cancel',{id:jobId});return;}
-      const info=status.result;this.reviewedExtension=info;
-      this.host.modal(this.t('Revisión de extensión','Extension review'),extensionReviewHTML(info,(...args)=>this.t(...args),this.extensionLogo(info)),{wide:true});
-      document.getElementById('cancel-extension-review').onclick=()=>this.safe(async()=>{await this.api('/extensions/discard',{ticket:info.ticket});this.host.closeModal();});
+      const info=status.result;if(!info.plan)this.reviewedExtension=info;
+      this.host.modal(this.t(info.plan?'Plan de instalación':'Revisión de extensión',info.plan?'Installation plan':'Extension review'),info.plan?extensionPlanHTML(info,(...args)=>this.t(...args)):extensionReviewHTML(info,(...args)=>this.t(...args),this.extensionLogo(info)),{wide:true});
+      const prepare=document.getElementById('extension-prepare-plan');if(prepare)prepare.onclick=()=>this.safe(()=>this.reviewExtension({ticket:info.ticket,includePacks:!!document.getElementById('extension-include-packs')?.checked}));
+      document.getElementById('cancel-extension-review').onclick=()=>this.safe(async()=>{await this.api('/extensions/discard',info.plan?{plan:info.plan}:{ticket:info.ticket});this.host.closeModal();});
       document.getElementById('confirm-extension-install').onclick=async()=>{
         const install=document.getElementById('confirm-extension-install'),cancel=document.getElementById('cancel-extension-review'),label=document.getElementById('extension-install-status');
         if(install.disabled)return;install.disabled=true;cancel.disabled=true;label.textContent=this.t('Instalando y guardando el paquete…','Installing and saving the package…');
-        try{await this.api('/extensions/install',{ticket:info.ticket,consent:true});}
+        let result;try{result=await this.api('/extensions/install',{...(info.plan?{plan:info.plan}:{ticket:info.ticket}),consent:true});}
         catch(error){label.textContent=error.message;label.classList.add('status-error');install.disabled=false;cancel.disabled=false;return;}
-        this.host.closeModal();this.host.notify(this.t('Extensión instalada.','Extension installed.'));
+        this.host.closeModal();this.host.notify(this.t(info.plan?'Plan instalado.':'Extensión instalada.',info.plan?'Plan installed.':'Extension installed.'));
+        for(const warning of result.warnings||[])this.host.notify(warning,'error');
         await this.safe(async()=>{await this.loadContributions();await this.extensions('installed');});
       };
     }catch(error){

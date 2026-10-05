@@ -20,6 +20,7 @@ import zipfile
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from .preferences import atomic_json
+from .extension_install_plan import ExtensionInstallPlans
 
 ID_PART=re.compile(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$')
 VERSION=re.compile(r'^[0-9][A-Za-z0-9.+_-]{0,79}$')
@@ -211,10 +212,10 @@ def package_icon(root,manifest):
     except (OSError,ValueError,UnicodeError):return None
 
 
-class ExtensionStore:
+class ExtensionStore(ExtensionInstallPlans):
     def __init__(self,prefs):
         self.prefs=prefs; self.root=prefs.directory/'extensions';self.root.mkdir(exist_ok=True)
-        self.lock=threading.RLock(); self.pending={}; self.jobs={}; self.index=self.root/'installed.json'
+        self.lock=threading.RLock(); self.pending={}; self.plans={}; self.jobs={}; self.index=self.root/'installed.json'
         try: self.installed=json.loads(self.index.read_text(encoding='utf-8-sig'))
         except (OSError,ValueError): self.installed={}
         if not isinstance(self.installed,dict): self.installed={}
@@ -386,7 +387,7 @@ class ExtensionStore:
                     if dependency==eid or any(x['id']==dependency for x in dependencies):continue
                     installed=self.installed.get(dependency)
                     dependencies.append({'id':dependency,'required':required,'installed':bool(installed),'enabled':bool(installed and installed.get('enabled')),'version':installed.get('version') if installed else None})
-            if dependencies:warnings.append('Las dependencias y paquetes agrupados se muestran por separado; cada paquete requiere su propia revisión e instalación.')
+            if dependencies:warnings.append('Puedes preparar un plan con las dependencias requeridas y, si lo eliges, los paquetes del grupo. Sus tamaños y licencias se revisan antes de instalar.')
             extra=set(c)-{'languages','snippets','themes','grammars','iconThemes'}
             if extra: warnings.append('Contribuciones adicionales sujetas a la compatibilidad del motor: '+', '.join(sorted(extra)[:20]))
             if not supported: warnings.append('No hay contribuciones activables en este host. Instalación solo como paquete inactivo.')
@@ -397,7 +398,7 @@ class ExtensionStore:
                 'compatibility':'partial' if warnings else 'declarative','ticket':ticket,'enabled':bool(supported)}
             with self.lock:
                 self._expire()
-                if len(self.pending)>=8: raise ValueError('Cierra una revisión pendiente antes de abrir otra.')
+                if len(self.pending)>=64: raise ValueError('Cierra una revisión pendiente antes de abrir otra.')
                 self.pending[ticket]=(time.monotonic(),temp,result)
             return dict(result)
         except Exception:
@@ -411,8 +412,12 @@ class ExtensionStore:
             with self.lock:job.update(updates)
         def run():
             try:
-                result=self.inspect_local(request['path'],progress,lambda:job['cancelled']) if 'path' in request else self.inspect_remote(request.get('id',''),request.get('version','latest'),progress,lambda:job['cancelled'])
-                if job['cancelled']:self.discard(result['ticket']);raise InterruptedError('Revisión cancelada.')
+                if 'ticket' in request:result=self.prepare_plan(request['ticket'],request.get('includePacks',False),progress,lambda:job['cancelled'])
+                else:result=self.inspect_local(request['path'],progress,lambda:job['cancelled']) if 'path' in request else self.inspect_remote(request.get('id',''),request.get('version','latest'),progress,lambda:job['cancelled'])
+                if job['cancelled']:
+                    if result.get('plan'):self.discard_plan(result['plan'])
+                    else:self.discard(result['ticket'])
+                    raise InterruptedError('Revisión cancelada.')
                 progress(result=result,phase='ready')
             except Exception as exc:progress(error=str(exc),phase='cancelled' if job['cancelled'] else 'error')
             finally:progress(done=True)
@@ -424,9 +429,13 @@ class ExtensionStore:
             if not job:raise ValueError('Revisión no encontrada.')
             if cancel:
                 job['cancelled']=True
-                if job.get('result'):self.discard(job['result']['ticket'])
+                if job.get('result'):
+                    if job['result'].get('plan'):self.discard_plan(job['result']['plan'])
+                    else:self.discard(job['result']['ticket'])
             return {k:v for k,v in job.items() if k!='created'}
     def _expire(self):
+        for key,plan in list(self.plans.items()):
+            if time.monotonic()-plan['created']>600:self.discard_plan(key)
         for ticket,(t,folder,_) in list(self.pending.items()):
             if time.monotonic()-t>600:
                 shutil.rmtree(folder,ignore_errors=True);del self.pending[ticket]

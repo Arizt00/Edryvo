@@ -20,7 +20,7 @@ def main():
         manifest=json.loads(file.read_text());key=(manifest['platform'],manifest['architecture']);assert key in expected,key;expected.remove(key)
         assert manifest['sourceCommit']==commit and manifest['version']==RELEASE_TAG,'Unexpected source/version'
         report=file.with_name(file.name.replace('-manifest.json','-verification.json'))
-        verified=json.loads(report.read_text());assert verified['revision']==REVISION and not verified['errors'] and len(verified['checks'])==4,'Native verification incomplete'
+        verified=json.loads(report.read_text());assert verified['revision']==REVISION and not verified['errors'] and len(verified['checks'])==12,'Native verification incomplete'
         for item in manifest['outputs']:
             asset=directory/item['name'];assert asset.parent==directory and asset.is_file()
             assert asset.stat().st_size==item['bytes'] and sha256(asset)==item['sha256'],'Asset integrity mismatch'
@@ -28,7 +28,7 @@ def main():
         files.extend([file,report,file.with_name(file.name.replace('-manifest.json','-SHA256.txt'))])
     assert not expected
     body=directory/'release-notes.md'
-    body.write_text((ROOT/'docs/PREVIEW_053_R2.md').read_text(encoding='utf-8'),encoding='utf-8')
+    body.write_text((ROOT/'docs'/f'PREVIEW_053_R{REVISION}.md').read_text(encoding='utf-8'),encoding='utf-8')
     result=subprocess.run(['gh','release','view',RELEASE_TAG,'--json','targetCommitish,assets'],capture_output=True,text=True)
     if result.returncode:
         subprocess.run(['gh','release','create',RELEASE_TAG,'--target',commit,'--title',f'Zénit {VERSION} · Preview R{REVISION} · Windows, Linux y macOS','--prerelease','--notes-file',str(body)],check=True)

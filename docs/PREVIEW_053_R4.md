@@ -1,0 +1,17 @@
+# Zénit 0.5.3 Preview R4
+
+El catálogo de extensiones comparte un mismo margen entre encabezado, presentación, búsqueda, contador y tarjetas. La presentación ocupa menos espacio y los controles se adaptan a la anchura del panel. Los menús contextuales de Monaco usan filas compactas, colores del tema y desplazamiento dentro del área disponible. La descarga presenta fase, paquete, bytes y porcentaje cuando se conoce el total; las fases sin total muestran progreso indeterminado. Las animaciones respetan el movimiento reducido.
+
+La revisión de una extensión permite preparar sus dependencias requeridas y elegir si se incluyen los paquetes opcionales de `extensionPack`. El plan recorre el grafo, deduplica dependencias, rechaza ciclos y muestra versiones, licencias declaradas, SHA-256 y tamaños reales por paquete y en total. Las dependencias ya instaladas se conservan, incluida su desactivación. Se revisan como máximo 32 paquetes; el tamaño permitido por VSIX sigue siendo distinto del límite del gestor de compiladores.
+
+Instalar el plan confirma el índice completo una sola vez. Si falla la escritura, se recuperan los paquetes temporales para poder reintentar. Cancelar limpia la revisión sin instalar. La instalación que realice otra ventana durante la revisión se vuelve a comprobar y no se sustituye una dependencia por una versión inferior. Instalar no inicia automáticamente los motores ni habilita dependencias desactivadas.
+
+La integración del editor entrega al host Node las vistas reales de Monaco: archivo, búfer, rango visible, selección, opciones y columna. `onDidChangeTextEditorVisibleRanges`, `onDidChangeTextEditorOptions` y `onDidChangeTextEditorViewColumn` se conectan a esos datos. Los eventos de selección y de editores visibles distinguen las vistas divididas y no se repiten si el estado no cambia. La activación de un host recibe el último estado conocido. El envío se realiza desde la ventana enfocada y tiene un intervalo de actualización; no guarda el archivo.
+
+Las pruebas verifican cancelación, ciclos, límites, concurrencia, recuperación de escritura, persistencia, eventos en el host Node y desplazamiento/selección en Edge con el servidor real. Se revisa el catálogo en Día, Oscuro y Bosque a tres tamaños de escritorio. Los paquetes congelados verifican también el plan de dependencias y el rango visible del editor, además de Forge, ventanas separadas, Lantern y QuickInput.
+
+**La paridad completa con VS Code sigue pendiente.** La prueba con Markdown Preview Enhanced 0.8.39 supera la ausencia del evento de rango visible, pero aún solicita `window.registerCustomEditorProvider`; no queda certificada como funcional. Continúan pendientes los exports compartidos entre hosts, TextMate, entradas `browser`, restauración completa de webviews, setters y operaciones avanzadas de TextEditor y otras APIs específicas. Consulta el [estado de extensiones](EXTENSIONES.md).
+
+Distribución: EXE y ZIP Windows; DEB y portable Linux. macOS requiere construcción y verificación en Mac; las ejecuciones de GitHub Actions siguen bloqueadas por la facturación de la cuenta. No se publica un DMG sin verificar. La preview conserva su [licencia propietaria](../LICENSE).
+
+Cada revisión instala su contenido en una carpeta propia. Los accesos directos abren la revisión nueva y los archivos de revisiones anteriores se conservan mientras sus ventanas sigan abiertas. Se reutilizan los perfiles existentes.

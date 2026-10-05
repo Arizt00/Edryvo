@@ -123,7 +123,7 @@ def main():
                 raw=io.BytesIO()
                 with zipfile.ZipFile(raw,'w') as z:
                     z.writestr('extension/package.json',json.dumps({'publisher':'qa','name':'native-input','version':'1.0.0','main':'main.cjs'}))
-                    z.writestr('extension/main.cjs',"const v=require('vscode');exports.activate=()=>v.commands.registerCommand('qa.nativeInput',()=>v.window.showInputBox({title:'Entrada nativa',validateInput:value=>value.length<3?'Tres letras':undefined}));")
+                    z.writestr('extension/main.cjs',"const v=require('vscode');exports.activate=()=>{v.commands.registerCommand('qa.nativeViews',()=>v.window.visibleTextEditors.map(e=>({path:e.document.uri.fsPath,ranges:e.visibleRanges.length})));return v.commands.registerCommand('qa.nativeInput',()=>v.window.showInputBox({title:'Entrada nativa',validateInput:value=>value.length<3?'Tres letras':undefined}));};")
                 store=app.features.extensions;store.install(store.inspect_bytes(raw.getvalue())['ticket'],True)
                 runtime=app.features.extension_runtime;runtime.start(app.workspace,'qa.native-input',True)
                 with concurrent.futures.ThreadPoolExecutor() as pool:
@@ -135,6 +135,22 @@ def main():
                     assert result.result(20)['result']=='proyecto ñ'
                 until(lambda:parent.evaluate_js("!document.querySelector('.zenit-quickinput')"))
                 checks.append('Packaged QuickInput receives native UI text and returns it to the real extension')
+                parent.evaluate_js("document.querySelector('[data-file=\"Web.html\"]').click()")
+                until(lambda:any(x['ranges']>0 and x['path'].endswith('Web.html') for x in runtime.request(app.workspace,{'id':'qa.native-input','method':'command','command':'qa.nativeViews'})['result']))
+                checks.append('Packaged Monaco sends actual visible editor ranges to the Node extension')
+                def dependency_package(name,dependencies=()):
+                    raw=io.BytesIO()
+                    with zipfile.ZipFile(raw,'w') as z:z.writestr('extension/package.json',json.dumps({'publisher':'qa','name':name,'version':'1.0.0','license':'MIT','extensionDependencies':list(dependencies),'contributes':{'languages':[{'id':name}]}}))
+                    return raw.getvalue()
+                original=store.inspect_remote
+                try:
+                    store.inspect_remote=lambda eid,**kw:store.inspect_bytes(dependency_package('native-child'),'Open VSX')
+                    root_review=store.inspect_bytes(dependency_package('native-plan',['qa.native-child']))
+                    plan=store.prepare_plan(root_review['ticket']);assert len(plan['packages'])==2
+                    store.install_plan(plan['plan'],True)
+                    assert {'qa.native-child','qa.native-plan'}<=set(type(store)(store.prefs).installed)
+                finally:store.inspect_remote=original
+                checks.append('Packaged dependency plan installs reviewed packages and persists its complete index')
                 print(json.dumps({'checks':checks,'errors':errors}),flush=True)
             except Exception:errors.append(traceback.format_exc());print(errors[-1],flush=True)
             finally:
@@ -146,6 +162,6 @@ def main():
             server.shutdown();server.server_close();app.features.shutdown();app.runner.shutdown()
             args.report.parent.mkdir(parents=True,exist_ok=True)
             args.report.write_text(json.dumps({'platform':sys.platform,'revision':REVISION,'checks':checks,'errors':errors},indent=2),encoding='utf-8')
-        if errors or len(checks)!=10:raise AssertionError('Packaged desktop verification failed')
+        if errors or len(checks)!=12:raise AssertionError('Packaged desktop verification failed')
 
 if __name__=='__main__':main()
