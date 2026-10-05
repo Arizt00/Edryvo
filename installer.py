@@ -218,6 +218,15 @@ class Installer:
         for location in locations:
             name = "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Zénit.lnk')" if location == 'DESKTOP' else ps_quote(location)
             commands += [f'$s = $w.CreateShortcut({name})', '$s.TargetPath = ' + ps_quote(destination / 'zenit.exe'), '$s.WorkingDirectory = ' + ps_quote(destination), '$s.Save()']
+        # Remove only legacy links owned by this installation after creating its
+        # new link. An unrelated shortcut with the same name stays untouched.
+        menu=Path(os.environ['APPDATA'])/'Microsoft/Windows/Start Menu/Programs'
+        commands += ['$appRoot = '+ps_quote(str(self.target.resolve())+os.sep),
+            'foreach ($folder in @('+ps_quote(menu)+", [Environment]::GetFolderPath('Desktop'))) {",
+            "foreach ($oldName in @('Edryvo.lnk','Lumen Studio.lnk','Desinstalar Edryvo.lnk','Desinstalar Lumen Studio.lnk')) {",
+            '$legacy = Join-Path $folder $oldName',
+            'if (Test-Path -LiteralPath $legacy) { $link = $w.CreateShortcut($legacy); if ($link.TargetPath.StartsWith($appRoot,[StringComparison]::OrdinalIgnoreCase)) { Remove-Item -LiteralPath $legacy } }',
+            '}','}']
         subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', '\n'.join(commands)], check=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
 
     def _register(self, destination):

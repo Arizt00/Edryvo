@@ -37,7 +37,9 @@ def main():
         app.features.studio.update({'onboarded':True});app.features.prefs.update({'general.showWelcome':False,'updates.automatic':False,'appearance.motion':False})
         server=LumenServer(0,app);threading.Thread(target=server.serve_forever,daemon=True).start()
         url=f'http://127.0.0.1:{server.server_port}';api=DesktopAPI();api._application=app;api._url=url
-        api._window=webview.create_window(PRODUCT_NAME+' native package verification',url,js_api=api,width=1300,height=850,hidden=True)
+        # Qt exits when its last visible child closes if the parent stays hidden.
+        # Linux QA runs in its own Xvfb display, so keep its parent visible there.
+        api._window=webview.create_window(PRODUCT_NAME+' native package verification',url,js_api=api,width=1300,height=850,hidden=sys.platform!='linux')
         def verify():
             try:
                 until(lambda:api._window.evaluate_js('!!window.lumen?.ready'))
