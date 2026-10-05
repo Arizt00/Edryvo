@@ -113,10 +113,16 @@ class ExtensionRuntime:
         host=self.hosts.get(body.get('id'))
         if not host:raise ValueError('Inicia el motor de la extensión primero.')
         method=body.get('method')
-        if method not in ('command','provide','virtual','willSave','didSave','tree'):raise ValueError('Operación no válida.')
+        if method not in ('command','provide','virtual','willSave','didSave','tree','resolveAction','decorations'):raise ValueError('Operación no válida.')
+        if method=='decorations':
+            paths=body.get('paths')
+            if not isinstance(paths,list) or len(paths)>300:raise ValueError('Lista de decoraciones no válida.')
+            for path in paths:
+                if not isinstance(path,str):raise ValueError('Ruta de decoración no válida.')
+                workspace.resolve(path,must_exist=False)
         document=body.get('document',{})
         if document.get('path'):workspace.resolve(document['path'],must_exist=False)
-        return host.request({k:body[k] for k in ('method','command','kind','document','position','range','uri','arguments','reason','newName','view','element') if k in body})
+        return host.request({k:body[k] for k in ('method','command','kind','document','position','range','uri','arguments','reason','newName','view','element','context','options','character','positions','color','action','paths','revision') if k in body})
     def stop(self,eid,forget=False):
         with self.lock:
             if forget:

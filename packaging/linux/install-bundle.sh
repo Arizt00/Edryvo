@@ -2,7 +2,7 @@
 # Per-user installation of the native portable package. No sudo or source build.
 set -eu
 base=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-target="$HOME/.local/opt/lumen-studio/0.5.2-R8"
+target="$HOME/.local/opt/lumen-studio/0.5.2-R9"
 [ -x "$base/LumenStudio/lumen" ] || { echo 'Falta el ejecutable nativo de Linux.' >&2; exit 1; }
 [ ! -e "$target" ] || { echo 'Esta versión ya está instalada. Los datos se conservan.' >&2; exit 1; }
 mkdir -p "$HOME/.local/opt/lumen-studio" "$HOME/.local/bin" "$HOME/.local/share/applications"

@@ -238,7 +238,7 @@ export class LumenEditor {
     this.resizeObserver=new ResizeObserver(()=>this.schedulePaint());this.resizeObserver.observe(this.mount);
     this.applySettings(this.settings);
   }
-  open(item) {
+  open(item,{activate=true}={}) {
     if (!this.models.has(item.path)) {
       const record={...item,savedValue:item.content,value:item.content,selection:[0,0],scrollTop:0,scrollLeft:0};
       if(this.kind==='monaco'){
@@ -247,7 +247,7 @@ export class LumenEditor {
       }
       this.models.set(item.path,record);
     }
-    this.activate(item.path);
+    if(activate)this.activate(item.path);
   }
   activate(path) {
     const previous=this.models.get(this.current);
@@ -327,7 +327,7 @@ export class LumenEditor {
     document.documentElement.style.setProperty('--editor-line',lineHeight+'px');
     if(this.settings.fontFamily)document.documentElement.style.setProperty('--font-code',this.settings.fontFamily);
     document.documentElement.style.setProperty('--editor-tab-size',this.settings.tabSize);
-    if(this.kind==='monaco'&&this.view){this.view.updateOptions({fontSize:size,fontFamily:this.settings.fontFamily,lineHeight,tabSize:this.settings.tabSize,insertSpaces:this.settings.insertSpaces!==false,minimap:{enabled:this.settings.minimap},wordWrap:this.settings.wordWrap?'on':'off',lineNumbers:this.settings.lineNumbers===false?'off':'on',fontLigatures:!!this.settings.fontLigatures,bracketPairColorization:{enabled:this.settings.bracketColors!==false},renderWhitespace:this.settings.renderWhitespace||'selection',cursorBlinking:this.settings.cursorBlinking||'blink',smoothScrolling:!!this.settings.smoothScrolling});for(const record of this.models.values())record.model?.updateOptions({tabSize:this.settings.tabSize,insertSpaces:this.settings.insertSpaces!==false});}
+    if(this.kind==='monaco'&&this.view){this.view.updateOptions({fontSize:size,fontFamily:this.settings.fontFamily,lineHeight,tabSize:this.settings.tabSize,insertSpaces:this.settings.insertSpaces!==false,minimap:{enabled:this.settings.minimap},wordWrap:this.settings.wordWrap?'on':'off',lineNumbers:this.settings.lineNumbers===false?'off':'on',fontLigatures:!!this.settings.fontLigatures,bracketPairColorization:{enabled:this.settings.bracketColors!==false},renderWhitespace:this.settings.renderWhitespace||'selection',cursorBlinking:this.settings.cursorBlinking||'blink',smoothScrolling:!!this.settings.smoothScrolling,formatOnType:!!this.settings.formatOnType});for(const record of this.models.values())record.model?.updateOptions({tabSize:this.settings.tabSize,insertSpaces:this.settings.insertSpaces!==false});}
     else if(this.base){this.base.classList.toggle('no-minimap',!this.settings.minimap);this.base.classList.toggle('no-line-numbers',this.settings.lineNumbers===false);this.schedulePaint();}
     for(const pane of this.panes||[])if(pane.view!==this.view)pane.view.updateOptions(this.view.getRawOptions());
   }

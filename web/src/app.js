@@ -39,9 +39,14 @@ async function api(path,body) {
   return data;
 }
 function notify(message,type='info',duration=5000){
+  const duplicate=[...$('#toasts').children].find(t=>t.dataset.message===message&&t.dataset.type===type);
+  if(duplicate){clearTimeout(duplicate.dismissTimer);duplicate.dismissTimer=setTimeout(()=>duplicate.remove(),duration);return;}
   const toast=document.createElement('div');toast.className='toast'+(type==='error'?' error':'');
-  toast.innerHTML=icon(type==='error'?'warning':'info')+`<span>${esc(message)}</span>`;$('#toasts').appendChild(toast);motion.enter(toast,6);
-  setTimeout(()=>toast.remove(),duration);
+  toast.dataset.message=message;toast.dataset.type=type;toast.setAttribute('role',type==='error'?'alert':'status');
+  toast.innerHTML=icon(type==='error'?'warning':'info')+`<span>${esc(message)}</span><button class="toast-dismiss icon-button" aria-label="Cerrar aviso">${icon('close')}</button>`;$('#toasts').appendChild(toast);motion.enter(toast,6);
+  toast.querySelector('button').onclick=()=>toast.remove();
+  while($('#toasts').children.length>3)$('#toasts').firstElementChild.remove();
+  toast.dismissTimer=setTimeout(()=>toast.remove(),duration);
   notifications.unshift({message,type,time:new Date().toLocaleTimeString()});notifications=notifications.slice(0,25);
   $('#notification-dot').classList.remove('hidden');
 }
@@ -108,7 +113,7 @@ function renderTabs(){
   previewUI?.renderGroups();
   for(const tab of $('#file-tabs').querySelectorAll('[data-tab]'))if(!previousTabs.has(tab.dataset.tab))motion.enter(tab,3);
   const empty=editor.models.size===0;$('#editor-empty').classList.toggle('hidden',!empty);
-  $('#editor-mount').style.visibility=empty?'hidden':'visible';
+  $('#editor-mount').style.visibility='visible';
   document.title=(editor.current?editor.current.split('/').pop()+' · ':'')+'Lumen Studio';
   const selected=$('#file-tabs .file-tab.active');
   if(selected){const container=$('#file-tabs'),r=selected.getBoundingClientRect(),b=container.getBoundingClientRect();if(r.right>b.right)container.scrollLeft+=r.right-b.right;else if(r.left<b.left)container.scrollLeft-=b.left-r.left;}
@@ -562,7 +567,7 @@ async function start(){
       isTrusted:()=>service.trusted,setTrusted:value=>{service.trusted=value;},showConsole:()=>showTerminal(),graphicsKind:()=>scene?.kind||'css',
       applyPlatformSettings:p=>{
         for(const [key,value] of Object.entries(p))if(key.startsWith('editor.'))settings[key.slice(7)]=value;
-        settings.motion=p['appearance.motion'];settings.density=p['appearance.density'];applySettings();applyTheme(p['appearance.theme'],false);
+        settings.formatOnType=p['editor.formatOnType'];settings.motion=p['appearance.motion'];settings.density=p['appearance.density'];applySettings();applyTheme(p['appearance.theme'],false);
       },
       setPluginCommands:items=>{for(let i=commandDefinitions.length-1;i>=0;i--)if(commandDefinitions[i][0].startsWith('plugin.'))commandDefinitions.splice(i,1);for(const item of items)commandDefinitions.push(['plugin.'+item.id,'extensions',item.title,'']);}
     });

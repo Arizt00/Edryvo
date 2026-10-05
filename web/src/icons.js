@@ -1,6 +1,7 @@
 /** Lumen Line. Original 24-unit vector family; local, theme-aware and font-free. */
 export const ICON_NAMES=Object.freeze(["camera", "minus", "maximize", "layout", "sliders", "grip", "focus", "dock-left", "dock-right", "dock-bottom", "panel-collapse-left", "panel-collapse-right", "panel-expand-left", "panel-expand-right", "rail-compact", "search", "files", "file", "folder", "folder-open", "git", "play", "run", "stop", "extensions", "ai-circle", "settings", "plus", "more", "close", "chevron-down", "chevron-up", "chevron-right", "chevron-left", "cube", "sparkles", "refactor", "book", "bug", "send", "bulb", "plus-square", "terminal", "split", "trash", "error-circle", "warning", "bell", "sun", "moon", "leaf", "check", "shield", "info", "refresh", "code", "copy", "keyboard", "arrow-up-right", "pin", "globe", "build", "cpu", "download", "upload", "arrow-right", "palette", "cloud-off"]);
 const paths = {
+  "java": "<path d=\"M6 10h10v5a4 4 0 0 1-4 4h-2a4 4 0 0 1-4-4Zm10 1h2a2.5 2.5 0 0 1 0 5h-2M4 22h16M9 7c-4-3 4-3 0-6m5 7c-4-3 4-3 0-6\"/>",
   "camera": '<rect x="3" y="6" width="18" height="15" rx="3"/><path d="m8 6 1.5-3h5L16 6"/><circle cx="12" cy="13.5" r="4"/>',
   "globe": "<circle cx=\"12\" cy=\"12\" r=\"8.5\"/><path d=\"M3.5 12h17M12 3.5c5 4.5 5 12.5 0 17-5-4.5-5-12.5 0-17Z\"/>",
   "build": "<path d=\"m13.5 5 3.5 3.5 3-1a6 6 0 0 1-7.5 7.5L6 21l-3-3 6-6.5A6 6 0 0 1 16.5 4Z\"/>",
@@ -91,7 +92,8 @@ export function fileIcon(path) {
     if(typeof src==='string'&&src.startsWith('data:image/svg+xml;base64,'))return `<span class="file-type extension-file-icon"><img src="${escapeHTML(src)}" alt=""></span>`;
   }
   const ext = path.split('.').pop().toLowerCase();
-  const label = {cs:'C#',js:'JS',mjs:'JS',ts:'TS',py:'Py',cpp:'C++',cc:'C++',c:'C',h:'H',hpp:'H',rs:'Rs',s:'ASM',asm:'ASM',n:'nC',nm:'nC',ncp:'nC',nb:'nC',nbb:'nC',json:'{}',css:'#'}[ext];
+  if(ext==='java')return `<span class="file-type file-type-java">${icon('java')}</span>`;
+  const label = {cs:'C#',js:'JS',mjs:'JS',cjs:'JS',jsx:'JS',ts:'TS',tsx:'TS',py:'Py',cpp:'C++',cc:'C++',c:'C',h:'H',hpp:'H',rs:'Rs',go:'Go',kt:'Kt',kts:'Kt',swift:'Sw',rb:'Rb',php:'Ph',html:'<>',xml:'<>',sql:'DB',s:'ASM',asm:'ASM',n:'nC',nm:'nC',ncp:'nC',nb:'nC',nbb:'nC',json:'{}',css:'#',scss:'#'}[ext];
   if (label) return `<span class="file-type file-type-${ext} ${ext==='py'?'python':''}">${label}</span>`;
   return `<span class="file-type">${icon(['unity','prefab'].includes(ext)?'cube':'file')}</span>`;
 }

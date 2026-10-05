@@ -72,5 +72,13 @@ class Lens:
         try:
             destination=Path(self.path);temporary=destination.with_suffix('.lens-tmp')
             temporary.write_text(json.dumps({'generation':self.generation,'values':list(self.values.values())},ensure_ascii=False),encoding='utf-8')
-            os.replace(temporary,destination)
+            # A Windows reader can briefly prevent replacement. Retry the final
+            # snapshot so a completed revision does not retain earlier values.
+            for attempt in range(8 if force else 1):
+                try:
+                    os.replace(temporary,destination)
+                    break
+                except PermissionError:
+                    if not force or attempt == 7: raise
+                    time.sleep(.01)
         except OSError: pass

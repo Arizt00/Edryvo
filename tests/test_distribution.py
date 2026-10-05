@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from backend.updates import package_matches, update_asset, Updates
-from backend.version import RELEASE_TAG
+from backend.version import RELEASE_TAG, REVISION
 from tools.build_desktop import desktop_entry
 
 
@@ -20,8 +20,9 @@ class DistributionTests(unittest.TestCase):
         self.assertFalse(package_matches(names[2],'darwin','x86_64'))
 
     def test_update_service_selects_newest_release_for_this_platform(self):
-        assets=[{'name':name,'size':100,'digest':'sha256:'+'a'*64,'browser_download_url':'https://github.com/Arizt00/LumenStudio/releases/download/v0.5.2-preview.9/'+name} for name in ['LumenStudio-0.5.2-R9-Windows-Setup.exe','LumenStudio-0.5.2-R9-Linux-amd64.deb','LumenStudio-0.5.2-R9-macOS-arm64.dmg']]
-        release={'tag_name':'v0.5.2-preview.9','html_url':'https://github.com/Arizt00/LumenStudio/releases/tag/v0.5.2-preview.9','assets':assets}
+        future='v0.5.2-preview.'+str(REVISION+1)
+        assets=[{'name':name,'size':100,'digest':'sha256:'+'a'*64,'browser_download_url':'https://github.com/Arizt00/LumenStudio/releases/download/'+future+'/'+name} for name in ['LumenStudio-0.5.2-R9-Windows-Setup.exe','LumenStudio-0.5.2-R9-Linux-amd64.deb','LumenStudio-0.5.2-R9-macOS-arm64.dmg']]
+        release={'tag_name':future,'html_url':'https://github.com/Arizt00/LumenStudio/releases/tag/'+future,'assets':assets}
         for system,cpu,suffix in [('win32','AMD64','.exe'),('linux','x86_64','.deb'),('darwin','arm64','.dmg')]:
             selected=update_asset([release],RELEASE_TAG,system,cpu)
             self.assertTrue(selected['name'].endswith(suffix))

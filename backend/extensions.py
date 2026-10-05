@@ -66,15 +66,25 @@ def download(url,limit=2_000_000):
     validate_remote(url)
     req=urllib.request.Request(url,headers={'User-Agent':'LumenStudio/0.5.2','Accept':'application/json, application/octet-stream'})
     opener=urllib.request.build_opener(CheckedRedirect())
-    try:
-        with opener.open(req,timeout=25) as r:
-            validate_remote(r.geturl())
-            if int(r.headers.get('Content-Length','0'))>limit: raise ValueError('Descarga demasiado grande.')
-            data=r.read(limit+1)
-            if len(data)>limit: raise ValueError('Descarga demasiado grande.')
-            return data
-    except (OSError,TimeoutError) as e:
-        raise ValueError('No se pudo contactar con Open VSX. Comprueba la conexión; no se han instalado archivos.') from e
+    # HTTPError is also an OSError. Preserve 404 so platform resolution can try
+    # universal packages, rather than misreporting a healthy registry as offline.
+    for attempt in range(3):
+        try:
+            with opener.open(req,timeout=8) as r:
+                validate_remote(r.geturl())
+                if int(r.headers.get('Content-Length','0'))>limit: raise ValueError('Descarga demasiado grande.')
+                data=r.read(limit+1)
+                if len(data)>limit: raise ValueError('Descarga demasiado grande.')
+                return data
+        except urllib.error.HTTPError as e:
+            code=e.code;e.close()
+            if code==404:raise
+            if code not in (408,429,500,502,503,504) or attempt==2:
+                message='El registro está ocupado. Inténtalo de nuevo en unos momentos.' if code==429 else 'Open VSX devolvió un error HTTP '+str(code)+'. Puedes importar un VSIX local o volver a intentarlo.'
+                raise ValueError(message) from e
+        except (OSError,TimeoutError) as e:
+            if attempt==2:raise ValueError('No se pudo contactar con Open VSX después de tres intentos. Comprueba la conexión o importa un VSIX local.') from e
+        time.sleep(.4*(attempt+1))
 
 
 def download_file(url, destination, progress=lambda **kw:None, cancelled=lambda:False):

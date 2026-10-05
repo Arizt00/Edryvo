@@ -52,6 +52,7 @@ SCHEMA = {
  'appearance.errorColor': ('appearance','red','Color de los errores de código','Code error color',['red','rose','amber','mint']),
  'editor.autoLanguageServer': ('editor',True,'Conectar servidor del lenguaje en proyectos de confianza','Connect language server in trusted projects','bool'),
  'editor.completion': ('editor',True,'Autocompletado de código','Code completion','bool'),
+ 'editor.formatOnType': ('editor',False,'Formatear al escribir · extensiones','Format on type · extensions','bool','monaco'),
  'editor.prediction': ('editor',True,'Predicción local en línea','Local inline prediction','bool'),
  'editor.diagnostics': ('editor',True,'Subrayar diagnósticos','Underline diagnostics','bool'),
  'lantern.lens': ('editor',True,'Lantern Lens: valores junto al código','Lantern Lens: inline values','bool'),

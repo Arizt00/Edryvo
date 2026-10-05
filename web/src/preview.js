@@ -1,3 +1,5 @@
+import {editingProvider} from './extension-editing.js';
+import {explorerDecorations} from './extension-decorations.js';
 import {icon,escapeHTML as esc} from './icons.js';
 import {languageFor} from './editor.js';
 import {DocumentDrag} from './document-drag.js';
@@ -6,7 +8,7 @@ const $=s=>document.querySelector(s);
 export function installPreview(host){return new Preview(host);}
 class Preview{
   constructor(host){
-    this.host=host;this.grouped=true;this.group=null;this.providers=[];
+    this.host=host;host.editor.mount.append(document.getElementById('editor-empty'));this.grouped=true;this.group=null;this.providers=[];
     const group=document.createElement('button');group.className='icon-button';group.dataset.action='group-tabs';group.title='Agrupar pestañas por carpeta';group.setAttribute('aria-label',group.title);group.innerHTML=icon('folder');$('.new-tab').after(group);
     this.groups=document.createElement('div');this.groups.className='file-groups';this.groups.setAttribute('aria-label','Grupos de archivos');$('#file-tabs').before(this.groups);
     this.drop=document.createElement('button');this.drop.className='window-drop-target';this.drop.hidden=true;this.drop.innerHTML=icon('plus')+' Soltar en nueva ventana';$('.editor-tabbar').append(this.drop);
@@ -107,10 +109,11 @@ class Preview{
     if(this.runtimeHosts?.some(x=>x.id===id&&x.running)){const stopped=await this.host.platform.api('/extensions/runtime/stop',{id});this.registerExtensions(stopped.hosts);return;}
     if(!await this.host.platform.host.ensureTrust())return;
     if(!await this.host.confirmDialog('Ejecutar '+id,'Este plugin ejecutará su motor con tus permisos de usuario. Tendrá acceso al equipo y a los documentos que consultes. El proceso separado evita que bloquee la interfaz; no es un aislamiento de seguridad.','Autorizar motor'))return;
-    const data=await this.host.platform.api('/extensions/runtime/start',{id,consent:true});this.registerExtensions(data.hosts);this.host.notify(data.hosts.find(x=>x.id===id)?.engine||'Motor iniciado. Comandos disponibles en la paleta.');
+    const data=await this.host.platform.api('/extensions/runtime/start',{id,consent:true});this.registerExtensions(data.hosts);const engine=data.hosts.find(x=>x.id===id);this.host.notify(engine?.unsupportedApis?.length?'Motor con servicios pendientes: '+engine.unsupportedApis.join(', '):engine?.engine||'Motor iniciado. Comandos disponibles en la paleta.',engine?.unsupportedApis?.length?'error':'info');
   }
   registerExtensions(hosts){
     for(const p of this.providers)p.dispose?.();this.providers=[];this.runtimeHosts=hosts;document.querySelectorAll('[data-extension-execute]').forEach(b=>b.textContent=hosts.some(x=>x.id===b.dataset.extensionExecute&&x.running)?'Detener motor':'Iniciar motor');const platform=this.host.platform,m=window.monaco,ed=this.host.editor;
+    this.providers.push(explorerDecorations(this.host,hosts.filter(x=>x.running&&x.fileDecorations)));
     const doc=model=>{const path=[...ed.models].find(([,r])=>r.model===model)?.[0]||ed.current;return {path,text:model?.getValue()??ed.getValue(),language:languageFor(path)};};
     const relativeUri=value=>{const raw=typeof value==='string'?value:(value?.fsPath||value?.external||value?.path||'');const absolute=decodeURIComponent(raw.replace(/^file:\/\//,'')).replaceAll('\\','/').replace(/^\/(?:([A-Za-z]:))/, '$1');const root=this.host.service().workspace.replaceAll('\\','/').replace(/\/$/,'');if(absolute.toLowerCase().startsWith(root.toLowerCase()+'/'))return absolute.slice(root.length+1);if(/^(?:[A-Za-z]:|\/)/.test(absolute))throw Error('La definición está fuera del proyecto abierto.');return absolute;};
     const call=(ext,kind,model,extra={})=>platform.api('/extensions/runtime/request',{id:ext.id,method:'provide',kind,document:doc(model),...extra}).then(x=>x.items);
@@ -122,13 +125,13 @@ class Preview{
       if(!m)continue;
       for(const token of ext.tokens||[])this.providers.push(m.languages.setMonarchTokensProvider(token.language,{tokenizer:{root:token.rules.map(r=>[new RegExp(r.pattern,r.flags||''),r.token])}}));
       const contents=value=>(Array.isArray(value)?value:[value]).filter(Boolean).map(c=>typeof c==='string'?{value:c}:{value:c.value||String(c),isTrusted:false});
-      for(const p of ext.providers){const language=p.language;
+      for(const p of ext.providers){const language=p.language;const editing=editingProvider(ext,p,{m,ed,call,mr,relativeUri,host:this.host});if(editing)this.providers.push(editing);
         if(p.kind==='hover')this.providers.push(m.languages.registerHoverProvider(language,{provideHover:async(model,pos)=>{const items=await call(ext,'hover',model,{position:{line:pos.lineNumber-1,character:pos.column-1}});return items.length?{contents:items.flatMap(i=>contents(i.contents)),range:mr(items[0].range)}:null;}}));
         if(p.kind==='signature')this.providers.push(m.languages.registerSignatureHelpProvider(language,{signatureHelpTriggerCharacters:p.triggers||[],provideSignatureHelp:async(model,pos)=>{const items=await call(ext,'signature',model,{position:{line:pos.lineNumber-1,character:pos.column-1}});return items.length?{value:items[0],dispose(){}}:null;}}));
         if(p.kind==='links')this.providers.push(m.languages.registerLinkProvider(language,{provideLinks:async model=>({links:(await call(ext,'links',model)).flatMap(i=>{const raw=typeof i.target==='string'?i.target:i.target?.external;try{const url=new URL(raw);return ['http:','https:','mailto:'].includes(url.protocol)?[{range:mr(i.range),url:url.href}]:[];}catch{return [];}}),dispose(){}})}));
         if(p.kind==='folding')this.providers.push(m.languages.registerFoldingRangeProvider(language,{provideFoldingRanges:async model=>(await call(ext,'folding',model)).map(r=>({start:r.start+1,end:r.end+1,kind:r.kind==='comment'?m.languages.FoldingRangeKind.Comment:r.kind==='imports'?m.languages.FoldingRangeKind.Imports:r.kind==='region'?m.languages.FoldingRangeKind.Region:undefined}))}));
         if(p.kind==='rename')this.providers.push(m.languages.registerRenameProvider(language,{provideRenameEdits:async(model,pos,newName)=>{const items=await call(ext,'rename',model,{newName,position:{line:pos.lineNumber-1,character:pos.column-1}});return {edits:items.flatMap(i=>(i.changes||[]).flatMap(c=>c.edits.map(e=>({resource:ed.models.get(relativeUri(c.uri))?.model?.uri||m.Uri.parse('file:///'+relativeUri(c.uri)),textEdit:{range:mr(e.range),text:e.newText},versionId:undefined}))))};}}));
-        if(p.kind==='format')this.providers.push(m.languages.registerDocumentFormattingEditProvider(language,{provideDocumentFormattingEdits:async model=>(await call(ext,'format',model)).map(e=>({range:mr(e.range),text:e.newText}))}));
+        if(p.kind==='format')this.providers.push(m.languages.registerDocumentFormattingEditProvider(language,{provideDocumentFormattingEdits:async(model,options)=>(await call(ext,'format',model,{options})).map(e=>({range:mr(e.range),text:e.newText}))}));
         if(p.kind==='semantic'&&p.legend)this.providers.push(m.languages.registerDocumentSemanticTokensProvider(language,{getLegend:()=>p.legend,provideDocumentSemanticTokens:async model=>{const items=await call(ext,'semantic',model);return items.length?{data:new Uint32Array(items[0].data),resultId:items[0].resultId}:null;},releaseDocumentSemanticTokens(){}}));
         if(p.kind==='symbols')this.providers.push(m.languages.registerDocumentSymbolProvider(language,{provideDocumentSymbols:async model=>{const convert=s=>({...s,range:mr(s.range),selectionRange:mr(s.selectionRange||s.range),children:(s.children||[]).map(convert)});return (await call(ext,'symbols',model)).map(convert);}}));
         if(p.kind==='codelens')this.providers.push(m.languages.registerCodeLensProvider(language,{provideCodeLenses:async model=>({lenses:(await call(ext,'codelens',model)).map(c=>({...c,range:mr(c.range),command:c.command?{id:'lumen.extension.command',title:c.command.title,arguments:[ext.id+':'+c.command.command,c.command.arguments||[]]}:undefined})),dispose(){}})}));

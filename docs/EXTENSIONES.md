@@ -1,4 +1,4 @@
-# Extensiones · Preview R8
+# Extensiones · Preview R9
 
 Lumen consulta Open VSX y permite importar VSIX. El paquete se inspecciona antes de instalarlo: rutas, enlaces, duplicados, tamaño expandido y manifiesto. Las actualizaciones siguen el mismo proceso.
 
@@ -8,7 +8,7 @@ Asociaciones de lenguaje, snippets, temas para el editor y la interfaz e iconos 
 
 El host implementa comandos, documentos, configuración persistente y eventos, `extensions.getExtension`, diagnósticos, autocompletado, navegación a definición, inlays, hover, formato, símbolos, CodeLens y tokens semánticos. Algunas clases y puntos de registro existen para integración progresiva: no implican que toda la API de VS Code esté implementada.
 
-Las APIs ausentes producen un mensaje con su nombre. No hay compatibilidad universal con webviews, Electron, decoración de archivos, gestores de tareas ni cualquier adaptador DAP aportado por un plugin. Los depuradores integrados de Lumen se configuran por separado.
+Las APIs ausentes producen un mensaje con su nombre. No hay compatibilidad universal con webviews, Electron, gestores de tareas ni cualquier adaptador DAP aportado por un plugin. Los depuradores integrados de Lumen se configuran por separado.
 
 ## Descarga e integridad
 
@@ -42,3 +42,13 @@ Esto amplía la compatibilidad, pero no proporciona paridad total con VS Code: w
 `registerTreeDataProvider` y `createTreeView` consultan nodos reales del plugin. Las vistas se abren desde Vistas de extensiones en la barra del editor y permiten expandir, actualizar y ejecutar comandos. Los argumentos de los nodos conservan su identidad y sus métodos en el motor Node.
 
 Los proveedores de ayuda de firmas, plegado, enlaces HTTP/HTTPS/correo y renombrado están conectados al editor Monaco. Las ediciones de renombrado se limitan al proyecto abierto. El transporte de `WorkspaceEdit` y `SemanticTokensBuilder` conserva los campos necesarios para aplicarlos. No todas las opciones de estas APIs ni los servicios de interfaz de VS Code están disponibles. [Alcance de R8](PREVIEW_R8.md).
+
+## Acciones, formato y decoraciones de R9
+
+`registerCodeActionsProvider` y `resolveCodeAction` permiten aplicar correcciones a varios búferes de texto del proyecto sin guardarlos. La resolución conserva los objetos del motor y rechaza una acción si cambió el documento de origen. Las correcciones tienen deshacer en Monaco.
+
+Se conectan `registerOnTypeFormattingEditProvider`, `registerDocumentRangeFormattingEditProvider`, `registerDocumentHighlightProvider`, `registerSelectionRangeProvider` y `registerColorProvider`. Se respetan los caracteres de activación y las opciones de indentación del editor. El formato al escribir se habilita desde Ajustes.
+
+`window.registerFileDecorationProvider` aporta insignias, descripciones y avisos de cambios al Explorador. `RelativePattern` admite la carpeta de trabajo como base. El logger de extensiones respeta la política de telemetría desactivada. Las llamadas a APIs pendientes se registran aunque la extensión capture su excepción.
+
+La resolución Open VSX cae a la variante universal cuando la variante de plataforma responde 404. Las consultas transitorias se reintentan de forma limitada. Se comprobó la descarga e instalación de Maven 0.45.3; su motor registra 29 comandos y una vista, pero aún solicita servicios de terminal ausentes. Esto no equivale a compatibilidad completa con Maven ni con cualquier plugin. [Cambios y límites de R9](PREVIEW_R9.md).
