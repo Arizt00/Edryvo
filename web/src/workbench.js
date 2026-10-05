@@ -89,6 +89,10 @@ export class LumenPlatform {
   openPage(kind,content){
     const changed=this.page!==kind;
     this.previousPageFocus ||= document.activeElement;
+    for(const pane of this.host.editor.panes||[]){
+      for(const command of ['hideSuggestWidget','closeParameterHints'])pane.view?.trigger('lumen.page',command,{});
+    }
+    document.documentElement.dataset.editorCovered='true';
     if(!this.settingsOverlay){this.settingsOverlay=document.createElement('div');this.settingsOverlay.className='settings-overlay';this.settingsOverlay.hidden=true;this.settingsOverlay.setAttribute('role','dialog');this.settingsOverlay.setAttribute('aria-modal','true');this.settingsOverlay.setAttribute('aria-label','Ajustes de Lumen');document.body.append(this.settingsOverlay);this.settingsOverlay.onclick=e=>{if(e.target===this.settingsOverlay)this.closePage();};this.settingsOverlay.onkeydown=e=>{if(e.key==='Tab'){const list=[...this.settingsOverlay.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)')].filter(x=>x.offsetParent);if(e.shiftKey&&document.activeElement===list[0]){e.preventDefault();list.at(-1)?.focus();}else if(!e.shiftKey&&document.activeElement===list.at(-1)){e.preventDefault();list[0]?.focus();}}};}
     this.settingsOverlay.hidden=kind!=='settings';document.getElementById('app').inert=kind==='settings';
     (kind==='settings'?this.settingsOverlay:document.getElementById('editor-panel')).append(this.workbench);
@@ -100,6 +104,7 @@ export class LumenPlatform {
     if(changed)this.host.motion.enter(this.workbench,4);this.workbench.querySelector('input,button')?.focus({preventScroll:true});
   }
   closePage(){
+    delete document.documentElement.dataset.editorCovered;
     if(this.settingsOverlay)this.settingsOverlay.hidden=true;
     document.getElementById('app').inert=false;delete document.getElementById('workspace').dataset.page;
     document.getElementById('editor-panel').append(this.workbench);this.previousPageFocus?.focus?.({preventScroll:true});this.previousPageFocus=null;

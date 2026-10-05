@@ -42,7 +42,9 @@ def main():
       r=element.bounding_box();assert r['x']>=bounds['x']-1 and r['x']+r['width']<=bounds['x']+bounds['width']+1 and r['y']+r['height']<=bounds['y']+bounds['height']+1,(width,height,r,bounds)
      page.locator('[data-ai-action="fix"]').scroll_into_view_if_needed();expect(page.locator('[data-ai-action="fix"]')).to_be_in_viewport();page.screenshot(path=str(out/f'r9-layout-{width}.png'))
     passed('Assistant composer, editing permission and last action fit at desktop and laptop sizes')
-    page.set_viewport_size({'width':1700,'height':1000});page.locator('[data-action="extensions"].rail-item').click();expect(page.locator('.extension-card')).to_have_count(1);assert page.locator('.extension-hero').bounding_box()['height']<210;page.screenshot(path=str(out/'r9-extensions.png'));passed('Extension catalog uses a compact header and aligned cards')
+    page.set_viewport_size({'width':1700,'height':1000});page.locator('[data-action="extensions"].rail-item').click();expect(page.locator('.extension-card')).to_have_count(1);assert page.locator('.extension-hero').bounding_box()['height']<210
+    for widget in page.locator('.suggest-widget,.monaco-hover,.parameter-hints-widget').all():expect(widget).not_to_be_visible()
+    page.screenshot(path=str(out/'r9-extensions.png'));passed('Extension catalog uses a compact header, aligned cards and no leaked editor popups')
     page.route('**/api/platform/extensions/review?*',lambda route:route.fulfill(json={'done':True,'error':'Open VSX devolvió un error HTTP 503.'}))
     page.locator('[data-extension-inspect]').click();expect(page.locator('.extension-review-error')).to_contain_text('HTTP 503');expect(page.locator('#extension-review-retry')).to_be_visible();assert page.locator('.toast.error').count()==0;page.locator('#extension-review-close').click();page.unroute('**/api/platform/extensions/review?*');passed('Failed review stays in one retryable dialog instead of repeating toasts over the composer')
     for theme in ['dark','forest','day']:

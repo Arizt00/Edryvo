@@ -25,6 +25,8 @@ Los avisos idénticos se agrupan, se pueden cerrar y aparecen arriba para libera
 
 Se corrige una capa invisible de Monaco que interceptaba los clics en las correcciones rápidas. La lista conserva colores legibles y sus acciones se pueden seleccionar con el ratón.
 
+Al abrir otro apartado, se cierran las sugerencias y pistas del editor. Los widgets de Monaco insertados fuera de su panel quedan ocultos mientras lo cubre la página de trabajo, para evitar que aparezcan sobre el catálogo o los ajustes.
+
 Lantern Lens reintenta la publicación de su última captura cuando Windows mantiene el archivo abierto durante una lectura. Esto evita perder los últimos valores observados al terminar una revisión corta de Python.
 
 ## Verificación y límites
