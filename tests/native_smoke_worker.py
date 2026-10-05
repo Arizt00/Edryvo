@@ -115,10 +115,6 @@ def main():
                 assert data.evaluate_js("document.querySelector('.profile-table-filter').getBoundingClientRect().width>50")
                 data.evaluate_js("monaco.editor.getModels().find(m=>m.uri.path.endsWith('data.csv')).setValue('name,value\\none,8\\n')")
                 until(lambda:parent.evaluate_js("monaco.editor.getModels().find(m=>m.uri.path.endsWith('data.csv')).getValue().includes('one,8')"))
-                data.evaluate_js("document.querySelector('.profile-detach').click()")
-                until(lambda:'profile-data' not in api._children)
-                assert (workspace/'data.csv').read_text(encoding='utf-8')=='name,value\none,2\n'
-                checks.append('Native development mode shares edits and reattaches with the same control')
                 # Require the new adapter from the frozen package and use its actual UI.
                 raw=io.BytesIO()
                 with zipfile.ZipFile(raw,'w') as z:
@@ -126,6 +122,12 @@ def main():
                     z.writestr('extension/main.cjs',"const v=require('vscode');exports.activate=()=>{v.commands.registerCommand('qa.nativeViews',()=>v.window.visibleTextEditors.map(e=>({path:e.document.uri.fsPath,ranges:e.visibleRanges.length})));return v.commands.registerCommand('qa.nativeInput',()=>v.window.showInputBox({title:'Entrada nativa',validateInput:value=>value.length<3?'Tres letras':undefined}));};")
                 store=app.features.extensions;store.install(store.inspect_bytes(raw.getvalue())['ticket'],True)
                 runtime=app.features.extension_runtime;runtime.start(app.workspace,'qa.native-input',True)
+                until(lambda:any(x['ranges']>0 and x['path'].endswith('data.csv') for x in runtime.request(app.workspace,{'id':'qa.native-input','method':'command','command':'qa.nativeViews'})['result']))
+                checks.append('Packaged Monaco sends actual visible editor ranges to the Node extension')
+                data.evaluate_js("document.querySelector('.profile-detach').click()")
+                until(lambda:'profile-data' not in api._children)
+                assert (workspace/'data.csv').read_text(encoding='utf-8')=='name,value\none,2\n'
+                checks.append('Native development mode shares edits and reattaches with the same control')
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     result=pool.submit(runtime.request,app.workspace,{'id':'qa.native-input','method':'command','command':'qa.nativeInput'})
                     until(lambda:parent.evaluate_js("document.querySelector('#zenit-quick-title')?.textContent==='Entrada nativa'"))
@@ -135,9 +137,6 @@ def main():
                     assert result.result(20)['result']=='proyecto ñ'
                 until(lambda:parent.evaluate_js("!document.querySelector('.zenit-quickinput')"))
                 checks.append('Packaged QuickInput receives native UI text and returns it to the real extension')
-                parent.evaluate_js("document.querySelector('[data-file=\"Web.html\"]').click()")
-                until(lambda:any(x['ranges']>0 and x['path'].endswith('Web.html') for x in runtime.request(app.workspace,{'id':'qa.native-input','method':'command','command':'qa.nativeViews'})['result']))
-                checks.append('Packaged Monaco sends actual visible editor ranges to the Node extension')
                 def dependency_package(name,dependencies=()):
                     raw=io.BytesIO()
                     with zipfile.ZipFile(raw,'w') as z:z.writestr('extension/package.json',json.dumps({'publisher':'qa','name':name,'version':'1.0.0','license':'MIT','extensionDependencies':list(dependencies),'contributes':{'languages':[{'id':name}]}}))
