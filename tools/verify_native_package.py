@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify the generated manifest, executable and native GUI on its target OS."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -18,6 +19,13 @@ def main():
     manifest=json.loads((ROOT/f'dist/{prefix}-{sys.platform}-{architecture()}-manifest.json').read_text(encoding='utf-8'))
     for item in manifest['outputs']:
         file=ROOT/'dist'/item['name'];assert file.stat().st_size==item['bytes'] and sha256(file)==item['sha256'],file
+    if sys.platform=='win32':
+        from PyInstaller.archive.readers import CArchiveReader
+        installer=next(ROOT/'dist'/item['name'] for item in manifest['outputs'] if item['name'].endswith('-Windows-Setup.exe'))
+        archive=CArchiveReader(str(installer))
+        uninstaller='Uninstall-Edryvo.exe'
+        assert uninstaller in archive.toc, 'Windows installer is missing its graphical uninstaller'
+        assert hashlib.sha256(archive.extract(uninstaller)).hexdigest()==sha256(ROOT/'dist'/uninstaller)
     if sys.platform=='darwin':
         dmg=ROOT/'dist'/manifest['outputs'][0]['name'];subprocess.run(['hdiutil','verify',str(dmg)],check=True)
         with tempfile.TemporaryDirectory(prefix='lumen-dmg-mount-') as temp:

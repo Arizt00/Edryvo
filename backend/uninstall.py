@@ -131,7 +131,7 @@ class Uninstaller:
                 pythoncom.CoInitialize()
                 try:self._windows()
                 finally:pythoncom.CoUninitialize()
-            for name in ('installation.json', 'Uninstall-Lumen.ps1', 'Uninstall-Lumen.exe'):
+            for name in ('installation.json', 'Uninstall-Lumen.ps1', 'Uninstall-Lumen.exe', 'Uninstall-Edryvo.exe'):
                 path = no_links(self.root / name)
                 if path.is_file(): path.unlink()
             # User-added files in the install root are not application files.

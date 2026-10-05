@@ -73,6 +73,7 @@ class UninstallTests(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();base=Path(self.tmp.name);self.root=base/'installation';self.profile=base/'profile'
         (self.root/'app-0.5.2').mkdir(parents=True);(self.root/'app-0.5.2/lumen.exe').write_text('fixture')
         (self.root/'installation.json').write_text(json.dumps({'directory':'app-0.5.2'}));(self.profile/'workspaces/Project').mkdir(parents=True)
+        for name in ('Uninstall-Lumen.exe','Uninstall-Edryvo.exe'):(self.root/name).write_bytes(b'launcher fixture')
         (self.profile/'workspaces/Project/main.py').write_text('keep me');(self.profile/'preferences.json').write_text('{}')
         self.external=base/'outside.py';self.external.write_text('external')
     def tearDown(self):self.tmp.cleanup()
