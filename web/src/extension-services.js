@@ -1,11 +1,13 @@
 import {escapeHTML as esc,icon} from './icons.js';
+import {ExtensionQuickInputUI} from './extension-quickinput.js';
 
 export class ExtensionServicesUI {
-  constructor(host){this.host=host;this.panels=new Map();this.disposed=false;this.message=e=>this.receive(e);window.addEventListener('message',this.message);this.resize=new ResizeObserver(()=>this.layout());this.resize.observe(document.getElementById('editor-panel'));this.poll();}
+  constructor(host){this.host=host;this.quickinput=new ExtensionQuickInputUI(host);this.panels=new Map();this.disposed=false;this.message=e=>this.receive(e);window.addEventListener('message',this.message);this.resize=new ResizeObserver(()=>this.layout());this.resize.observe(document.getElementById('editor-panel'));this.poll();}
   layout(){const panel=document.getElementById('editor-panel').getBoundingClientRect(),mount=document.getElementById('editor-mount').getBoundingClientRect();for(const state of this.panels.values())if(state.node)state.node.style.top=Math.max(54,mount.top-panel.top)+'px';}
   async event(event){
     const h=this.host,p=h.platform,ed=h.editor;
     if(event.command==='zenit.pick')return this.pick(event);
+    if(event.command==='zenit.quickinput')return this.quickinput.update(event);
     if(event.command==='zenit.document.saved'){
       const buffer=event.buffer,record=ed.models.get(buffer.path);if(record&&(record.model?.getValue()??record.value)===buffer.text){record.savedValue=buffer.text;record.revision=buffer.revision;ed.callbacks.change?.(buffer.path,false);h.renderTabs();}return;
     }
@@ -54,7 +56,9 @@ export class ExtensionServicesUI {
   async poll(){
     if(this.disposed)return;
     try{
-      const {panels}=await this.host.platform.api('/extensions/services');const ids=new Set(panels.filter(x=>x.visible).map(x=>x.id));
+      const {panels,quickinputs=[]}=await this.host.platform.api('/extensions/services');
+      if(!this.quickinput.root)for(const input of quickinputs)if(input.visible)this.quickinput.update(input);
+      const ids=new Set(panels.filter(x=>x.visible).map(x=>x.id));
       for(const [id,state] of this.panels)if(!ids.has(id)){this.remove(state);this.panels.delete(id);}
       for(const panel of panels){if(!panel.visible)continue;let state=this.panels.get(panel.id);
         if(!state){state={panel,seq:0,urls:[]};this.panels.set(panel.id,state);await this.render(state);this.show(state);}else if(state.panel.html!==panel.html){state.panel=panel;await this.render(state);}else {const previous=state.panel;state.panel=panel;this.title(state);if(previous.revision!==panel.revision&&panel.revealSequence!==previous.revealSequence)this.show(state);}
@@ -83,5 +87,5 @@ export class ExtensionServicesUI {
   }
   show(state){for(const value of this.panels.values()){if(value.node){value.node.hidden=true;value.node.classList.remove('active');}value.tab?.classList.remove('active');}this.host.platform.closePage();state.node.hidden=false;state.node.classList.add('active');state.tab.classList.add('active');document.documentElement.dataset.editorCovered='true';}
   async receive(event){const id=event.data?.zenitWebview,state=this.panels.get(id);if(!state||event.source!==state.frame?.contentWindow)return;if(event.data.stateUpdate){state.savedState=event.data.state;return;}try{await this.host.platform.api('/extensions/runtime/request',{id:state.panel.extension,method:'webviewMessage',panel:id,message:event.data.message});}catch(error){this.host.notify(error.message,'error');}}
-  dispose(){this.disposed=true;clearTimeout(this.timer);this.resize.disconnect();window.removeEventListener('message',this.message);for(const state of this.panels.values())this.remove(state);}
+  dispose(){this.disposed=true;this.quickinput.dispose();clearTimeout(this.timer);this.resize.disconnect();window.removeEventListener('message',this.message);for(const state of this.panels.values())this.remove(state);}
 }

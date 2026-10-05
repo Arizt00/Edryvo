@@ -1,6 +1,6 @@
 """0.5.2: persisted profiles, real Python stepping and staged installer behavior."""
 from pathlib import Path
-from backend.version import VERSION
+from backend.version import VERSION, REVISION
 import json
 import tempfile
 import time
@@ -36,15 +36,22 @@ class StudioTests(unittest.TestCase):
         with self.assertRaises(ValueError):s.update({'recent':[{'path':'x.py'}]})
     def test_installer_copies_actual_payload_and_keeps_existing_version(self):
         payload=self.base/'payload';payload.mkdir();(payload/'zenit.exe').write_bytes(b'MZ-test-fixture');(payload/'_internal').mkdir();(payload/'_internal/test.txt').write_text('payload',encoding='utf-8')
-        target=self.base/'installed';old=target/f'app-{VERSION}';old.mkdir(parents=True);(old/'old.txt').write_text('preserved')
+        target=self.base/'installed';old=target/f'app-{VERSION}-R{REVISION}';old.mkdir(parents=True);(old/'old.txt').write_text('preserved')
         inst=Installer(payload,target);inst._install({'packages':[],'locale':'es','shortcuts':False,'register':False})
-        self.assertEqual(inst.status()['status'],'finished');self.assertEqual((target/f'app-{VERSION}/_internal/test.txt').read_text(),'payload')
-        self.assertEqual(len(list(target.glob(f'app-{VERSION}-previous-*/old.txt'))),1)
+        self.assertEqual(inst.status()['status'],'finished');self.assertEqual((target/f'app-{VERSION}-R{REVISION}/_internal/test.txt').read_text(),'payload')
+        self.assertEqual(len(list(target.glob(f'app-{VERSION}-R{REVISION}-previous-*/old.txt'))),1)
         self.assertEqual(json.loads((target/'installation.json').read_text())['version'],VERSION)
     def test_installer_rejects_unknown_packages_before_start(self):
         inst=Installer(self.base/'payload',self.base/'target')
         with self.assertRaises(ValueError):inst.start({'packages':['arbitrary-command']})
         self.assertFalse((self.base/'target').exists())
+    def test_preview_upgrade_preserves_the_payload_of_an_older_running_revision(self):
+        payload=self.base/'payload';payload.mkdir();(payload/'zenit.exe').write_bytes(b'MZ-new-revision')
+        target=self.base/'installed';previous=target/f'app-{VERSION}';previous.mkdir(parents=True);(previous/'zenit.exe').write_bytes(b'MZ-existing-running-revision')
+        (target/'installation.json').write_text(json.dumps({'version':VERSION,'revision':2,'directory':previous.name,'directories':[previous.name]}),encoding='utf-8')
+        inst=Installer(payload,target);inst._install({'packages':[],'locale':'es','shortcuts':False,'register':False})
+        self.assertEqual(inst.status()['status'],'finished');self.assertEqual((previous/'zenit.exe').read_bytes(),b'MZ-existing-running-revision')
+        manifest=json.loads((target/'installation.json').read_text());self.assertEqual(manifest['revision'],REVISION);self.assertIn(previous.name,manifest['directories']);self.assertEqual(manifest['directory'],f'app-{VERSION}-R{REVISION}')
 
 class DebuggerTests(unittest.TestCase):
     def setUp(self):

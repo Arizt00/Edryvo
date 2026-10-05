@@ -95,6 +95,7 @@ class PlatformServices:
         if path=='/buffers':return self.buffers.update(ws,body)
         if path=='/extensions/applyEdit':return self.extension_services.workspace_edit(ws,body['edit'],body.get('documents'))
         if path=='/extensions/pick':self._trusted();return self.extension_services.answer_prompt(body['id'],body.get('value'))
+        if path=='/extensions/quickinput/event':self._trusted();return self.extension_services.quickinput_event(body)
         if path=='/extensions/webview/document':self._trusted();return self.extension_services.webview_document(body['panel'],body['html'])
         if path=='/extensions/save':
             self._trusted();p=file_path(body['path']);item=self.extension_services.file_workspace(p).save(p.name,body['content'],body.get('revision'),newline=body.get('newline','LF'),bom=body.get('bom',False));item.update(path=str(p),saved=True);return item

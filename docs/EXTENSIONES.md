@@ -1,54 +1,38 @@
-# Extensiones · 0.5.3 Preview R1
+# Extensiones · Zénit 0.5.3 Preview R3
 
-Zénit consulta Open VSX y permite importar VSIX. El paquete se inspecciona antes de instalarlo: rutas, enlaces, duplicados, tamaño expandido y manifiesto. Las actualizaciones siguen el mismo proceso. Consulta [los servicios nuevos y límites de 0.5.3 R1](PREVIEW_053_R1.md).
+Zénit consulta Open VSX y permite importar VSIX. Revisa rutas, enlaces, duplicados, tamaño expandido y manifiesto antes de instalar. La revisión presenta icono propio, versión, licencia declarada, bytes del archivo, bytes descomprimidos y dependencias. Las cifras corresponden al paquete revisado; cada dependencia requiere su propia revisión e instalación.
 
-## Aportaciones
+## Instalación y persistencia
 
-Asociaciones de lenguaje, snippets, temas para el editor y la interfaz e iconos se cargan como aportaciones declarativas. Un paquete con `main` compatible puede ejecutar su motor Node desde Extensiones, en un proyecto de confianza y con autorización.
+La descarga remota es incremental a disco, con progreso, cancelación y reintento. Límites de inspección: VSIX de 4 GiB, total expandido de 8 GiB, archivo individual de 2 GiB y 20.000 entradas. Son distintos del gestor de compiladores de 500 GB. La exportación por el canal JSON antiguo conserva un límite de 48 MiB.
 
-El host implementa comandos, documentos, configuración persistente y eventos, `extensions.getExtension`, diagnósticos, autocompletado, navegación a definición, inlays, hover, formato, símbolos, CodeLens y tokens semánticos. Algunas clases y puntos de registro existen para integración progresiva: no implican que toda la API de VS Code esté implementada.
+Se verifica longitud, espacio libre y SHA-256. El ticket dura diez minutos y se refiere a los mismos bytes revisados. El botón de instalación bloquea envíos duplicados mientras guarda el paquete e identifica los errores. Instalar no inicia automáticamente el motor ejecutable.
 
-Las APIs ausentes producen un mensaje con su nombre. 0.5.3 R1 conecta webviews, tareas, terminales y adaptadores DAP con servicios reales. Esto no implica compatibilidad universal con Electron ni cualquier extensión. Los depuradores integrados se configuran por separado.
+El índice se lee en UTF-8 y se actualiza con bloqueo entre procesos. Cada instalación conserva un recibo de recuperación. Un índice dañado puede reconstruirse desde paquetes completos; las extensiones desactivadas permanecen desactivadas. Las autorizaciones de motores se recuerdan por proyecto y solo se restauran en proyectos de confianza. Los errores de activación se conservan.
 
-## Descarga e integridad
+## Servicios conectados
 
-La descarga remota es incremental a disco, con progreso y cancelación; ya no pasa por el anterior límite de 48 MiB. Límites de inspección: VSIX de 4 GiB, total expandido de 8 GiB, archivo individual de 2 GiB y 20.000 entradas. No son límites del gestor de compiladores de 500 GB.
+| Área | Comportamiento implementado |
+| --- | --- |
+| Aportaciones | Asociaciones de lenguaje, snippets, temas para editor e interfaz e iconos de archivos. Se resuelven textos de package.nls.json. |
+| Documentos y archivos | Búferes sin guardar, TextDocument.save(), workspace.saveAll(), guardado atómico y conflictos. WorkspaceEdit permite ediciones, creación, borrado y renombrado con rollback. Las ediciones conservan deshacer en Monaco. |
+| Lenguajes | Diagnósticos, completado, definición, referencias, inlays, hover, formato, firmas, plegado, enlaces, renombrado, acciones, colores, selección, resaltado y tokens semánticos según los proveedores registrados. |
+| Árboles | registerTreeDataProvider y createTreeView consultan nodos reales. Los argumentos de comandos conservan identidad y métodos en el proceso de la extensión. |
+| Terminales y tareas | Terminales reales o pseudoterminales de extensión, eventos de cierre, tareas de proveedores y tasks.json, procesos y códigos de salida. |
+| Webviews | Paneles con HTML, recursos del paquete, mensajes bidireccionales y estado en la sesión. |
+| Depuración | Adaptadores DAP de proceso, servidor, pipe o inline, con eventos y pila conectados a la depuración integrada. |
+| QuickInput, R3 | createQuickPick, createInputBox, showQuickPick, showInputBox, cambios dinámicos, selección múltiple, separadores, botones Back y de elemento, validación asíncrona y cancelación. Los eventos y resultados llegan a la extensión original. |
 
-Se verifica longitud, espacio libre y SHA-256. El ticket dura diez minutos y se refiere a los mismos bytes revisados. Se resuelven los textos `%description%` con `package.nls.json`. La exportación por el canal JSON antiguo conserva un límite de 48 MiB; para paquetes mayores se debe usar la carpeta instalada.
+QuickInput admite navegación con teclado, límites de tamaño, cierre con Esc y el tema activo. Un asistente visible no consume el timeout del comando mientras espera al usuario. Detener su motor elimina sus controles. Una validación anterior no reemplaza el resultado de una entrada posterior.
 
-El hash detecta cambios, pero no certifica al publicador. El proceso Node separado protege la respuesta de la interfaz, no aísla código malicioso del equipo. Solo activa motores en los que confíes.
+Pyrefly usa su servidor LSP nativo para Python. Language Support for Java de Red Hat usa un adaptador de Eclipse JDT LS. Su configuración y caché se guardan en el perfil de Zénit, sin modificar el paquete instalado. Estas integraciones no ejecutan todas las interfaces exclusivas de sus extensiones de VS Code.
 
-## Estado comprobado
+## Alcance comprobado y límites
 
-Las pruebas automatizadas usan paquetes de prueba instalados en el mismo host que los plugins. También se verificaron la activación de nC Language y Material Icon Theme, y una descarga real de Java VSIX de más de 54 MB. En 0.5.3 R1 se verificó Maven for Java 0.45.3: 38 comandos, su vista de proyectos y los objetivos reales validate, compile, test y package. No se certifican todos los objetivos ni cualquier plugin.
+Las pruebas usan paquetes instalados en el host Node real y recorridos con el servidor Python y Edge. También se verificaron activación de nC Language y Material Icon Theme, Java VSIX de más de 54 MB y Maven for Java 0.45.3: 38 comandos, vista de proyectos y objetivos reales validate, compile, test y package en R1. Esto no certifica todos los objetivos ni plugins.
 
-El registro utilizado es [Open VSX](https://open-vsx.org/). El contrato de referencia es la [API de VS Code](https://code.visualstudio.com/api/references/vscode-api); Lumen implementa únicamente el subconjunto descrito.
+La paridad total sigue pendiente. No se ejecutan entradas browser de VS Code ni gramáticas TextMate. No se resuelve automáticamente toda la cadena de dependencias ni se comparten todos los exports entre hosts. Persistencia/restauración de webviews, APIs específicas de Electron, opciones avanzadas de QuickInput, menús, contribuciones y propagación de decoraciones requieren más integración. Las APIs ausentes se identifican por su nombre, incluso si la extensión captura la excepción.
 
-R6 añade selección de variante por plataforma, reinstalación, herencia de temas y eventos antes/después del guardado. Pyrefly usa su servidor LSP nativo para Python, con diagnósticos, hover y autocompletado verificados en Windows. No se ejecuta su interfaz exclusiva de VS Code. Consulta [R6](PREVIEW_R6.md).
+El proceso Node separado protege la respuesta de la interfaz; no es una sandbox de seguridad del equipo. El hash detecta cambios en el paquete y no certifica al publicador. El registro es [Open VSX](https://open-vsx.org/) y el contrato de referencia es la [API de VS Code](https://code.visualstudio.com/api/references/vscode-api).
 
-
-## Persistencia y servicios de R7
-
-El índice de paquetes se lee en UTF-8, se actualiza con un bloqueo entre procesos y cada instalación conserva un recibo de recuperación. Un índice dañado puede reconstruirse desde paquetes completos; una extensión desactivada permanece desactivada. Las autorizaciones de motores se recuerdan por proyecto. Solo se restauran en proyectos de confianza y se registra cualquier fallo de activación.
-
-`workspace.findFiles`, `workspace.fs` y los observadores de archivos tienen implementaciones reales. Las escrituras, borrados y renombrados generan eventos; los observadores se liberan al detener el motor.
-
-Language Support for Java de Red Hat usa un adaptador nativo de Eclipse JDT LS. Su configuración y caché se escriben en el perfil de Lumen, sin modificar el paquete instalado. Se verificaron diagnósticos sobre texto sin guardar, autocompletado de la biblioteca estándar, hover y definición en Windows. Pyrefly mantiene su adaptador nativo. La capa LSP también transporta formato y tokens semánticos cuando el servidor los ofrece.
-
-Esto amplía la compatibilidad, pero no proporciona paridad total con VS Code: webviews, APIs específicas de UI, contribuciones de tareas y otros servicios todavía pueden impedir la activación de un paquete. Los fallos muestran la API o herramienta que falta. [Alcance de R7](PREVIEW_R7.md).
-
-## Editor y árboles de R8
-
-`registerTreeDataProvider` y `createTreeView` consultan nodos reales del plugin. Las vistas se abren desde Vistas de extensiones en la barra del editor y permiten expandir, actualizar y ejecutar comandos. Los argumentos de los nodos conservan su identidad y sus métodos en el motor Node.
-
-Los proveedores de ayuda de firmas, plegado, enlaces HTTP/HTTPS/correo y renombrado están conectados al editor Monaco. Las ediciones de renombrado se limitan al proyecto abierto. El transporte de `WorkspaceEdit` y `SemanticTokensBuilder` conserva los campos necesarios para aplicarlos. No todas las opciones de estas APIs ni los servicios de interfaz de VS Code están disponibles. [Alcance de R8](PREVIEW_R8.md).
-
-## Acciones, formato y decoraciones de R9
-
-`registerCodeActionsProvider` y `resolveCodeAction` permiten aplicar correcciones a varios búferes de texto del proyecto sin guardarlos. La resolución conserva los objetos del motor y rechaza una acción si cambió el documento de origen. Las correcciones tienen deshacer en Monaco.
-
-Se conectan `registerOnTypeFormattingEditProvider`, `registerDocumentRangeFormattingEditProvider`, `registerDocumentHighlightProvider`, `registerSelectionRangeProvider` y `registerColorProvider`. Se respetan los caracteres de activación y las opciones de indentación del editor. El formato al escribir se habilita desde Ajustes.
-
-`window.registerFileDecorationProvider` aporta insignias, descripciones y avisos de cambios al Explorador. `RelativePattern` admite la carpeta de trabajo como base. El logger de extensiones respeta la política de telemetría desactivada. Las llamadas a APIs pendientes se registran aunque la extensión capture su excepción.
-
-La resolución Open VSX cae a la variante universal cuando la variante de plataforma responde 404. Las consultas transitorias se reintentan de forma limitada. Se comprobó la descarga e instalación de Maven 0.45.3; su motor registra 29 comandos y una vista, pero aún solicita servicios de terminal ausentes. Esto no equivale a compatibilidad completa con Maven ni con cualquier plugin. [Cambios y límites de R9](PREVIEW_R9.md).
+Historial: [0.5.3 R3](PREVIEW_053_R3.md), [0.5.3 R2](PREVIEW_053_R2.md), [0.5.3 R1](PREVIEW_053_R1.md). Los límites históricos de R7–R9 describen aquellas versiones, no el estado actual de los servicios ya conectados.

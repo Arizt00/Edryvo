@@ -165,7 +165,9 @@ class Installer:
             if target == Path(target.anchor) or len(target.parts) < 3 or target.is_symlink():
                 raise ValueError('Selecciona una carpeta de instalación válida.')
             target.mkdir(parents=True, exist_ok=True)
-            destination = target / ('app-' + VERSION)
+            # Each preview revision has its own payload path. An older running
+            # process keeps serving its original files until the user restarts it.
+            destination = target / (f'app-{VERSION}-R{REVISION}')
             staging = Path(tempfile.mkdtemp(prefix='.install-', dir=target))
             files = [p for p in self.payload.rglob('*') if p.is_file()]
             total = sum(p.stat().st_size for p in files)
@@ -181,7 +183,7 @@ class Installer:
                 self._progress(round(copied / max(1, total) * 82), 'Preparando los archivos de Zénit…')
             backup = None
             if destination.exists():
-                backup = target / ('app-' + VERSION + '-previous-' + str(time.time_ns()))
+                backup = target / (destination.name + '-previous-' + str(time.time_ns()))
                 self._rename_directory(destination,backup)
             try: self._rename_directory(staging,destination); staging = None
             except OSError:
@@ -193,7 +195,7 @@ class Installer:
             try:previous_manifest=json.loads((target/'installation.json').read_text(encoding='utf-8'))
             except (OSError,ValueError):pass
             directories=list(dict.fromkeys([*previous_manifest.get('directories',[]),*([previous_manifest['directory']] if previous_manifest.get('directory') else []),destination.name,*([backup.name] if backup else [])]))
-            atomic_json(target / 'installation.json', {'version': VERSION, 'directory': destination.name, 'directories':directories, 'packages': options.get('packages', []), 'locale': options.get('locale', 'es')})
+            atomic_json(target / 'installation.json', {'version': VERSION, 'revision':REVISION, 'directory': destination.name, 'directories':directories, 'packages': options.get('packages', []), 'locale': options.get('locale', 'es')})
             # The app consumes this only if there is no profile yet.
             atomic_json(destination / 'first-launch.json', {'general.locale': options.get('locale', 'es')})
             if options.get('shortcuts', True): self._shortcuts(destination, options.get('desktop', False))
@@ -245,7 +247,7 @@ class Installer:
 
     def launch(self):
         if self.status()['status'] != 'finished': raise ValueError('Completa la instalación antes de abrir Zénit.')
-        path = self.target / ('app-' + VERSION) / 'zenit.exe'
+        path = self.target / (f'app-{VERSION}-R{REVISION}') / 'zenit.exe'
         subprocess.Popen([str(path)], cwd=path.parent)
         self.window.destroy()
         return True

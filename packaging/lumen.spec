@@ -13,7 +13,8 @@ data=[(str(ROOT/'web'),'web'),(str(ROOT/'licenses'),'licenses'),(str(ROOT/'READM
 # Package documentation deliberately: historical QA can contain local user paths.
 data.append((str(ROOT/'backend/extension_views.cjs'),'backend'))
 data.append((str(ROOT/'backend/extension_services.cjs'),'backend'))
-for name in ('PREVIEW_053_R2.md','PREVIEW_053_R1.md','PREVIEW_R9.md','PREVIEW_R8.md','PREVIEW_R7.md','PREVIEW_R6.md','PREVIEW_R5.md','LENGUAJES.md','EXTENSIONES.md','SEGURIDAD.md'):
+data.append((str(ROOT/'backend/extension_quickinput.cjs'),'backend'))
+for name in ('PREVIEW_053_R3.md','PREVIEW_053_R2.md','PREVIEW_053_R1.md','PREVIEW_R9.md','PREVIEW_R8.md','PREVIEW_R7.md','PREVIEW_R6.md','PREVIEW_R5.md','LENGUAJES.md','EXTENSIONES.md','SEGURIDAD.md'):
     data.append((str(ROOT/'docs'/name),'docs'))
 # Only the shipped examples belong in the bundle, never compiler/profile caches.
 for file in (ROOT/'workspace').rglob('*'):
@@ -38,4 +39,4 @@ exe=EXE(pyz,a.scripts,[],exclude_binaries=True,name='zenit',debug=False,bootload
 python_exe=EXE(pyz,a.scripts,[],exclude_binaries=True,name='zenit-python',debug=False,bootloader_ignore_signals=False,strip=False,version=str(ROOT/'packaging/version.txt') if sys.platform=='win32' else None,upx=False,console=True)
 collection=COLLECT(exe,python_exe,a.binaries,a.datas,strip=False,upx=False,name='Zenit')
 if sys.platform=='darwin':
-    app=BUNDLE(collection,name='Zenit.app',icon=str(icon) if icon.exists() else None,bundle_identifier='studio.lumen.ide',info_plist={'CFBundleShortVersionString':'0.5.3','CFBundleVersion':'0.5.3.2','NSHighResolutionCapable':True,'LSMinimumSystemVersion':'14.0','NSHumanReadableCopyright':'Zénit. Licencia propietaria de preview.'})
+    app=BUNDLE(collection,name='Zenit.app',icon=str(icon) if icon.exists() else None,bundle_identifier='studio.lumen.ide',info_plist={'CFBundleShortVersionString':'0.5.3','CFBundleVersion':'0.5.3.3','NSHighResolutionCapable':True,'LSMinimumSystemVersion':'14.0','NSHumanReadableCopyright':'Zénit. Licencia propietaria de preview.'})

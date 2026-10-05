@@ -377,14 +377,23 @@ class ExtensionStore:
                 supported.append('runtime');warnings.append('Motor Python Pyrefly integrado mediante LSP: autocompletado, diagnósticos, definiciones, referencias e inlay hints. La interfaz y los comandos propios de VS Code no se ejecutan.' if eid.lower()=='meta.pyrefly' else 'Código Node.js ejecutable: requiere autorización para iniciar. API Zénit preview y subconjunto de VS Code; APIs no implementadas producen un error explícito.')
             elif manifest.get('browser'):warnings.append('La entrada browser de VS Code no es compatible con el host Node.js de esta preview.')
             if c.get('grammars'): warnings.append('Las gramáticas TextMate se conservan, pero no se ejecutan. El resaltado depende de los lenguajes integrados en Monaco.')
-            if manifest.get('extensionDependencies') or manifest.get('extensionPack'): warnings.append('Las dependencias y paquetes agrupados no se instalan automáticamente.')
+            dependencies=[]
+            for field,required in (('extensionDependencies',True),('extensionPack',False)):
+                values=manifest.get(field,[])
+                if not isinstance(values,list) or len(values)>200:raise ValueError('Dependencias de extensión inválidas.')
+                for dependency in values:
+                    if not isinstance(dependency,str) or len(dependency.split('.'))!=2 or not all(ID_PART.fullmatch(x) for x in dependency.split('.')):raise ValueError('Identidad de dependencia inválida.')
+                    if dependency==eid or any(x['id']==dependency for x in dependencies):continue
+                    installed=self.installed.get(dependency)
+                    dependencies.append({'id':dependency,'required':required,'installed':bool(installed),'enabled':bool(installed and installed.get('enabled')),'version':installed.get('version') if installed else None})
+            if dependencies:warnings.append('Las dependencias y paquetes agrupados se muestran por separado; cada paquete requiere su propia revisión e instalación.')
             extra=set(c)-{'languages','snippets','themes','grammars','iconThemes'}
-            if extra: warnings.append('Contribuciones no implementadas: '+', '.join(sorted(extra)[:20]))
+            if extra: warnings.append('Contribuciones adicionales sujetas a la compatibilidad del motor: '+', '.join(sorted(extra)[:20]))
             if not supported: warnings.append('No hay contribuciones activables en este host. Instalación solo como paquete inactivo.')
             ticket=secrets.token_urlsafe(24)
             result={'id':eid,'name':name,'publisher':ns,'displayName':str(manifest.get('displayName') or name)[:160],
                 'version':version,'description':str(manifest.get('description',''))[:1000],'license':str(manifest.get('license','No declarada'))[:200],
-                'source':source,'sha256':sha,'size':size,'unpackedSize':total,'supported':supported,'warnings':warnings,
+                'source':source,'sha256':sha,'size':size,'unpackedSize':total,'supported':supported,'warnings':warnings,'dependencies':dependencies,'icon':package_icon(temp/'extension',manifest),
                 'compatibility':'partial' if warnings else 'declarative','ticket':ticket,'enabled':bool(supported)}
             with self.lock:
                 self._expire()

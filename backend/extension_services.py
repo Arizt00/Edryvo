@@ -129,7 +129,7 @@ class ExtensionDebugger(ProtocolDebugger):
 
 class ExtensionServices:
     def __init__(self,platform):
-        self.platform=platform;self.lock=threading.RLock();self.terminals={};self.tasks={};self.panels={};self.debuggers={};self.contexts={};self.prompts={};self.documents={};self.file_workspaces={}
+        self.platform=platform;self.lock=threading.RLock();self.terminals={};self.tasks={};self.panels={};self.debuggers={};self.contexts={};self.prompts={};self.documents={};self.file_workspaces={};self.quickinputs={}
     def file_workspace(self,p):
         from .workspace import Workspace
         with self.lock:
@@ -166,8 +166,13 @@ class ExtensionServices:
         with self.lock:
             for ident,panel in list(self.panels.items()):
                 if panel['owner'] is host:self.dispose_panel(ident)
+            for ident,item in list(self.quickinputs.items()):
+                if item['owner'] is host:
+                    del self.quickinputs[ident];self.emit('zenit.quickinput',id=ident,visible=False)
     def snapshot(self):
-        with self.lock:return {'panels':[{k:copy.deepcopy(v) for k,v in panel.items() if k!='owner'} for panel in self.panels.values()]}
+        with self.lock:return {'panels':[{k:copy.deepcopy(v) for k,v in panel.items() if k!='owner'} for panel in self.panels.values()], 'quickinputs':[{k:copy.deepcopy(v) for k,v in item.items() if k!='owner'} for item in self.quickinputs.values()]}
+    def has_interaction(self,host):
+        with self.lock:return any(item['owner'] is host and item.get('visible') for item in self.quickinputs.values())
     def workspace_edit(self,ws,edit,documents=None):
         if not ws.trusted:raise PermissionError('Proyecto no autorizado.')
         operations=edit.get('operations') or [{'kind':'text',**item} for item in edit.get('changes',[])]
@@ -284,6 +289,19 @@ class ExtensionServices:
             try:reply.wait(40);return prompt['result']
             finally:
                 with self.lock:self.prompts.pop(ident,None)
+        if method=='quickinput.update':
+            if not isinstance(p.get('id'),str) or len(json.dumps(p))>2_000_000:raise ValueError('QuickInput inválido.')
+            with self.lock:
+                old=self.quickinputs.get(p['id'])
+                if old and old['owner'] is not host:raise PermissionError('QuickInput de otra extensión.')
+                self.quickinputs[p['id']]={**p,'owner':host,'extension':host.extension_id}
+            self.emit('zenit.quickinput',**p,extension=host.extension_id);return {'ok':True}
+        if method=='quickinput.dispose':
+            with self.lock:
+                old=self.quickinputs.get(p['id'])
+                if old and old['owner'] is not host:raise PermissionError('QuickInput de otra extensión.')
+                self.quickinputs.pop(p['id'],None)
+            self.emit('zenit.quickinput',id=p['id'],visible=False);return {'ok':True}
         if method=='context.set':self.contexts[p['key']]=p.get('value');return None
         if method=='command.execute':
             if p['id'] in ('workbench.action.reloadWindow','workbench.action.terminal.focus'):self.emit('zenit.command',id=p['id'],arguments=p.get('args',[]));return None
@@ -380,6 +398,13 @@ class ExtensionServices:
             prompt=self.prompts.get(ident)
             if not prompt:raise ValueError('La selección ha caducado.')
             prompt['result']=value;prompt['reply'].set();return {'ok':True}
+    def quickinput_event(self,data):
+        with self.lock:
+            item=self.quickinputs.get(data.get('id'))
+            if not item or not item.get('visible'):return {'ok':False}
+            if data.get('type') not in ('value','active','selection','accept','hide','button','itemButton'):raise ValueError('Evento QuickInput inválido.')
+            if len(json.dumps(data))>100_000:raise ValueError('Evento QuickInput demasiado grande.')
+            item['owner'].event('quickinput',data);return {'ok':True}
 
 
 class VirtualTerminal:

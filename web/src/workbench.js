@@ -1,3 +1,4 @@
+import {extensionReviewHTML,formatBytes} from './extension-installer.js';
 import {ACCOUNT_PROVIDERS,accountPanel,bindAccount} from './accounts.js';
 import {icon,escapeHTML,setFileIcons} from './icons.js';
 import {languageFor} from './editor.js';
@@ -217,16 +218,23 @@ export class LumenPlatform {
         status=await this.api('/extensions/review?id='+encodeURIComponent(jobId));
         if(status.done)break;
         const label=document.getElementById('extension-review-progress'),bar=document.getElementById('extension-review-bar');
-        if(label)label.textContent=status.phase==='download'?`${this.t('Descargando','Downloading')} · ${(status.received/1024**2).toFixed(1)} MB${status.total?' / '+(status.total/1024**2).toFixed(1)+' MB':''}`:status.phase==='extract'?this.t('Descomprimiendo y revisando contribuciones…','Extracting and reviewing contributions…'):this.t('Verificando el paquete…','Verifying package…');
+      if(label)label.textContent=status.phase==='download'?`${this.t('Descargando','Downloading')} · ${formatBytes(status.received)}${status.total?' / '+formatBytes(status.total):''}`:status.phase==='extract'?this.t('Descomprimiendo y revisando contribuciones…','Extracting and reviewing contributions…'):this.t('Verificando el paquete…','Verifying package…');
         if(bar&&status.total){bar.max=status.total;bar.value=status.received;}
         await new Promise(resolve=>setTimeout(resolve,300));
       }
       if(status.error)throw new Error(status.error);
       if(generation!==this.extensionReviewGeneration||!document.getElementById('extension-review-progress')){await this.api('/extensions/review/cancel',{id:jobId});return;}
       const info=status.result;this.reviewedExtension=info;
-      this.host.modal(this.t('Revisión de extensión','Extension review'),`<div class="extension-review-heading"><span class="extension-logo">${this.glyph('extensions')}</span><div><h3>${this.e(info.displayName)}</h3><p>${this.e(info.id)} · ${this.e(info.version)}</p></div></div><div class="review-metadata"><span>${this.t('Origen','Source')}</span><strong>${this.e(info.source)}</strong><span>${this.t('Licencia declarada','Declared license')}</span><strong>${this.e(info.license)}</strong><span>${this.t('Capacidades activables','Activatable contributions')}</span><strong>${this.e(info.supported.join(', ')||this.t('Ninguna','None'))}</strong></div><details class="extension-checksum"><summary>${this.t('Integridad del paquete · SHA-256','Package integrity · SHA-256')}</summary><code>${this.e(info.sha256)}</code></details><details class="extension-compatibility"><summary>${this.glyph('info')}${this.t('Compatibilidad y detalles técnicos','Compatibility and technical details')}<small>${info.warnings.length}</small></summary>${info.warnings.map(w=>`<p>${this.e(w)}</p>`).join('')}</details><p class="review-disclaimer">${this.t('La comprobación del archivo no certifica que el editor sea fiable ni sustituye la revisión de su licencia. Su código solo se ejecuta al autorizar Iniciar motor.','Package validation does not certify the publisher or replace license review. Code runs only after you authorize Start engine.')}</p><div class="modal-actions"><button class="secondary-button" id="cancel-extension-review">${this.t('Cancelar','Cancel')}</button><button class="primary-button" id="confirm-extension-install">${this.t('Instalar este paquete','Install this package')}</button></div>`,{wide:true});
+      this.host.modal(this.t('Revisión de extensión','Extension review'),extensionReviewHTML(info,(...args)=>this.t(...args),this.extensionLogo(info)),{wide:true});
       document.getElementById('cancel-extension-review').onclick=()=>this.safe(async()=>{await this.api('/extensions/discard',{ticket:info.ticket});this.host.closeModal();});
-      document.getElementById('confirm-extension-install').onclick=()=>this.safe(async()=>{await this.api('/extensions/install',{ticket:info.ticket,consent:true});this.host.closeModal();await this.loadContributions();await this.extensions('installed');this.host.notify(this.t('Extensión instalada.','Extension installed.'));});
+      document.getElementById('confirm-extension-install').onclick=async()=>{
+        const install=document.getElementById('confirm-extension-install'),cancel=document.getElementById('cancel-extension-review'),label=document.getElementById('extension-install-status');
+        if(install.disabled)return;install.disabled=true;cancel.disabled=true;label.textContent=this.t('Instalando y guardando el paquete…','Installing and saving the package…');
+        try{await this.api('/extensions/install',{ticket:info.ticket,consent:true});}
+        catch(error){label.textContent=error.message;label.classList.add('status-error');install.disabled=false;cancel.disabled=false;return;}
+        this.host.closeModal();this.host.notify(this.t('Extensión instalada.','Extension installed.'));
+        await this.safe(async()=>{await this.loadContributions();await this.extensions('installed');});
+      };
     }catch(error){
       if(generation!==this.extensionReviewGeneration)return;
       this.host.modal(this.t('No se pudo revisar el paquete','Package review failed'),`<div class="extension-review-error" role="alert">${this.glyph('cloud-off')}<p>${this.e(error.message)}</p></div><div class="modal-actions"><button class="secondary-button" id="extension-review-close">${this.t('Cerrar','Close')}</button><button class="primary-button" id="extension-review-retry">${this.t('Volver a intentar','Retry')}</button></div>`);

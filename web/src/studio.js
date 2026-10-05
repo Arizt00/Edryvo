@@ -23,7 +23,7 @@ export class LenonStudio {
   }
   decorate(){
     $('.brand').dataset.action='home';$('.brand-name').innerHTML='ZÉNIT <span>IDE</span>';
-    $('.brand-tagline').textContent='0.5.3 · R2';
+    $('.brand-tagline').textContent='0.5.3 · R3';
     $('.assistant-heading-title h2').textContent='Melody';$('#assistant-panel').setAttribute('aria-label','Melody');
     $('#assistant-hero').innerHTML=glassArt('orb','melody-art')+`<div class="melody-copy"><h3>${this.t('Hola,','Hello,')}</h3><h4>${this.t('¿En qué puedo ayudarte?','How can I help you?')}</h4><p id="assistant-subtitle">${this.t('Convierte ideas en realidad.<br>Más simple. Más lejos.','Turn ideas into reality.<br>Simpler. Further.')}</p></div><span class="handwritten">${this.t('Ideas<br>en movimiento.','Ideas<br>in motion.')}</span>`;
     const actions=$('#ai-actions');actions.append(actions.querySelector('[data-ai-action="refactor"]'),actions.querySelector('[data-ai-action="fix"]'));

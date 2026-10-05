@@ -1,11 +1,14 @@
 """Run with the packaged zenit-python helper, using its embedded modules/runtime."""
 import argparse
+import concurrent.futures
+import io
 import json
 import sys
 import tempfile
 import threading
 import time
 import traceback
+import zipfile
 from urllib.request import urlopen
 from pathlib import Path
 import webview
@@ -116,6 +119,22 @@ def main():
                 until(lambda:'profile-data' not in api._children)
                 assert (workspace/'data.csv').read_text(encoding='utf-8')=='name,value\none,2\n'
                 checks.append('Native development mode shares edits and reattaches with the same control')
+                # Require the new adapter from the frozen package and use its actual UI.
+                raw=io.BytesIO()
+                with zipfile.ZipFile(raw,'w') as z:
+                    z.writestr('extension/package.json',json.dumps({'publisher':'qa','name':'native-input','version':'1.0.0','main':'main.cjs'}))
+                    z.writestr('extension/main.cjs',"const v=require('vscode');exports.activate=()=>v.commands.registerCommand('qa.nativeInput',()=>v.window.showInputBox({title:'Entrada nativa',validateInput:value=>value.length<3?'Tres letras':undefined}));")
+                store=app.features.extensions;store.install(store.inspect_bytes(raw.getvalue())['ticket'],True)
+                runtime=app.features.extension_runtime;runtime.start(app.workspace,'qa.native-input',True)
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    result=pool.submit(runtime.request,app.workspace,{'id':'qa.native-input','method':'command','command':'qa.nativeInput'})
+                    until(lambda:parent.evaluate_js("document.querySelector('#zenit-quick-title')?.textContent==='Entrada nativa'"))
+                    parent.evaluate_js("const input=document.querySelector('.zenit-quick-field input');input.value='proyecto ñ';input.dispatchEvent(new Event('input',{bubbles:true}))")
+                    until(lambda:parent.evaluate_js("document.querySelector('.zenit-quick-validation')?.textContent===''"))
+                    parent.evaluate_js("document.querySelector('.zenit-quick-accept').click()")
+                    assert result.result(20)['result']=='proyecto ñ'
+                until(lambda:parent.evaluate_js("!document.querySelector('.zenit-quickinput')"))
+                checks.append('Packaged QuickInput receives native UI text and returns it to the real extension')
                 print(json.dumps({'checks':checks,'errors':errors}),flush=True)
             except Exception:errors.append(traceback.format_exc());print(errors[-1],flush=True)
             finally:
@@ -127,6 +146,6 @@ def main():
             server.shutdown();server.server_close();app.features.shutdown();app.runner.shutdown()
             args.report.parent.mkdir(parents=True,exist_ok=True)
             args.report.write_text(json.dumps({'platform':sys.platform,'revision':REVISION,'checks':checks,'errors':errors},indent=2),encoding='utf-8')
-        if errors or len(checks)!=9:raise AssertionError('Packaged desktop verification failed')
+        if errors or len(checks)!=10:raise AssertionError('Packaged desktop verification failed')
 
 if __name__=='__main__':main()

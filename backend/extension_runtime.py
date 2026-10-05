@@ -5,6 +5,7 @@ from pathlib import Path
 import queue
 import subprocess
 import threading
+import time
 import uuid
 from .extensions import localized_manifest
 from .runtime_paths import find_tool
@@ -61,8 +62,13 @@ class Host:
         with self.lock:
             message={**message,'id':uuid.uuid4().hex}
             self.send(message)
-            try:result=self.responses.get(timeout=60)
-            except queue.Empty:self.close();raise ValueError('La extensión no respondió en 60 segundos. Se detuvo su proceso.')
+            deadline=time.monotonic()+60
+            while True:
+                try:result=self.responses.get(timeout=1);break
+                except queue.Empty:
+                    # A visible wizard is waiting for the human, not a hung command.
+                    if self.services and self.services.has_interaction(self):deadline=time.monotonic()+60
+                    if time.monotonic()>=deadline:self.close();raise ValueError('La extensión no respondió en 60 segundos. Se detuvo su proceso.')
             if result.get('error'):raise ValueError(result['error'])
             if result.get('id')!=message['id']:raise ValueError('Respuesta inesperada de la extensión.')
             return result['result']

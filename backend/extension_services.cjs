@@ -40,7 +40,7 @@ module.exports=function install(v,host,options,event,makeDocument,documents){
     },onDidStartTaskProcess:event('taskProcessStart').event
   });
   Object.defineProperty(v.tasks,'taskExecutions',{get:()=>[...executions.values()]});
-  v.window.showQuickPick=async(items,opts={})=>{items=await items;const indices=await call('window.pick',{items:items.map(x=>typeof x==='string'?{label:x}:x),options:opts});return indices==null?undefined:opts.canPickMany?indices.map(i=>items[i]):items[indices];};
+  const quickInputEvent=require('./extension_quickinput.cjs')(v,call);
   async function runTask(filter){const tasks=await v.tasks.fetchTasks(typeof filter==='object'?filter:{});let task=typeof filter==='string'?tasks.find(x=>x.name===filter||x.definition?.label===filter):undefined;if(!task){const picked=await v.window.showQuickPick(tasks.map((x,i)=>({label:x.name,description:x.source,index:i})),{title:'Ejecutar tarea',placeHolder:'Elige una tarea de tus extensiones'});task=picked&&tasks[picked.index];}return task?await v.tasks.executeTask(task):undefined;}
   function panel(viewType,title,column,opts={},id=uid()){
     let html='',disposed=false;const receive=new v.EventEmitter(),didDispose=new v.EventEmitter(),viewState=new v.EventEmitter();
@@ -114,6 +114,7 @@ module.exports=function install(v,host,options,event,makeDocument,documents){
     return JSON.parse(result);
   }
   function serviceEvent(name,value){
+      if(name==='quickinput')return quickInputEvent(value);
       const execution=executions.get(value?.id);
       if(name.startsWith('task.')&&execution?._events){execution._events.push([name,value]);return;}
       dispatch(name,value);

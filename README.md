@@ -1,12 +1,12 @@
-# Zénit · 0.5.3 Preview R2
+# Zénit 0.5.3 Preview R3
 
-Zénit es el nuevo nombre de Edryvo y Lumen Studio: un IDE de escritorio con editor Monaco, terminal integrada, depuración por lenguaje, Lantern Live y asistencia de IA. 0.5.3 R2 permite desacoplar y volver a acoplar la vista web, Lantern y los espacios de desarrollo conservando los cambios del búfer en vivo. El catálogo utiliza los iconos de las extensiones y la API incorpora guardados reales mediante `TextDocument.save()` y `workspace.saveAll()`. Consulta [los cambios y límites de 0.5.3 R2](docs/PREVIEW_053_R2.md).
+Zénit es el nuevo nombre de Edryvo y Lumen Studio: un IDE de escritorio con editor Monaco, terminal integrada, depuración por lenguaje, Lantern Live y asistencia de IA. 0.5.3 R3 mejora la paleta de comandos, las superficies del IDE y la revisión de extensiones con tamaños reales, dependencias e iconos propios. La compatibilidad incorpora asistentes QuickPick e InputBox conectados al motor de las extensiones. Consulta [los cambios y límites de 0.5.3 R3](docs/PREVIEW_053_R3.md).
 
 ## Usar Zénit
 
-Instalador `.exe` para Windows 10/11 x64 (Edge WebView2), `.deb` y portable para Linux x64 compatible con Ubuntu 24.04. La pipeline prepara `.dmg` separados para macOS Apple Silicon e Intel; su publicación queda pendiente de construcción y verificación en Mac. Los paquetes incluyen el runtime Python del IDE; los compiladores y SDK de tus proyectos se preparan aparte. Los ejecutables de esta preview no tienen firma Authenticode ni notarización de Apple. Consulta [los paquetes de 0.5.3 R2](docs/PREVIEW_053_R2.md) y [las instrucciones de cada plataforma](docs/PREVIEW_R8.md).
+Instalador `.exe` para Windows 10/11 x64 (Edge WebView2), `.deb` y portable para Linux x64 compatible con Ubuntu 24.04. La pipeline prepara `.dmg` separados para macOS Apple Silicon e Intel; su publicación queda pendiente de construcción y verificación en Mac. Los paquetes incluyen el runtime Python del IDE; los compiladores y SDK de tus proyectos se preparan aparte. Los ejecutables de esta preview no tienen firma Authenticode ni notarización de Apple. Consulta [los paquetes de 0.5.3 R3](docs/PREVIEW_053_R3.md) y [las instrucciones de cada plataforma](docs/PREVIEW_R8.md).
 
-El primer inicio permite elegir tema, idioma, distribución y perfil. Una instalación nueva comienza sin archivos recientes inventados. Los paneles principales usan superficies al 92 % en Día y al 94 % en Oscuro y Bosque, con colores de sintaxis integrados e iridiscencia animada configurable.
+El primer inicio permite elegir tema, idioma, distribución y perfil. Una instalación nueva comienza sin archivos recientes inventados. Los paneles principales usan superficies opacas con colores del tema, sintaxis integrada e iridiscencia animada configurable.
 
 ## Trabajo diario
 
@@ -57,6 +57,6 @@ Las pruebas visuales requieren Playwright y Microsoft Edge. Las pruebas dependie
 
 ## Documentación y licencia
 
-[0.5.3 R2](docs/PREVIEW_053_R2.md) · [0.5.3 R1](docs/PREVIEW_053_R1.md) · [Lantern, cambios y límites](docs/PREVIEW_R7.md) · [Lenguajes](docs/LENGUAJES.md) · [Extensiones](docs/EXTENSIONES.md) · [Seguridad](docs/SEGURIDAD.md)
+[0.5.3 R3](docs/PREVIEW_053_R3.md) · [0.5.3 R2](docs/PREVIEW_053_R2.md) · [0.5.3 R1](docs/PREVIEW_053_R1.md) · [Lantern, cambios y límites](docs/PREVIEW_R7.md) · [Lenguajes](docs/LENGUAJES.md) · [Extensiones](docs/EXTENSIONES.md) · [Seguridad](docs/SEGURIDAD.md)
 
 Repositorio público bajo [licencia propietaria](LICENSE), sin licencia de código abierto por el momento. Las dependencias mantienen sus propias licencias: [avisos de terceros](THIRD_PARTY_NOTICES.md).

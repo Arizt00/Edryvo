@@ -202,7 +202,13 @@ export class LumenEditor {
         'editorSuggestWidget.highlightForeground':c('accent'),'editorSuggestWidget.focusHighlightForeground':c('accent'),
         'editorHoverWidget.background':c('surface'),'editorHoverWidget.border':c('border'),
         'editorError.foreground':c('error-color')||'#df3958','editorGhostText.foreground':c('muted'),
-        'list.hoverBackground':c('hover'),'list.activeSelectionBackground':c('selected'),'focusBorder':'#00000000'},
+        'list.hoverBackground':c('hover'),'list.activeSelectionBackground':c('selected'),'focusBorder':'#00000000',
+        'quickInput.background':c('surface'),'quickInput.foreground':c('text'),'quickInputTitle.background':c('glass'),
+        'quickInputList.focusBackground':c('selected'),'quickInputList.focusForeground':c('text'),
+        'input.background':c('field'),'input.foreground':c('text'),'input.border':c('border'),
+        'input.placeholderForeground':c('muted'),'keybindingLabel.background':c('field'),
+        'keybindingLabel.foreground':c('secondary'),'keybindingLabel.border':c('border'),
+        'pickerGroup.foreground':c('accent'),'pickerGroup.border':c('border')},
     });
     if(this.extensionTheme){
       const theme=this.extensionTheme,{colors,dark}=themePalette(theme),rules=[];
