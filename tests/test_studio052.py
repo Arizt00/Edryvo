@@ -11,6 +11,7 @@ sys.path.insert(0,str(ROOT))
 from backend.server import Application
 from backend.studio import StudioState
 from installer import Installer
+from backend.uninstall import Uninstaller
 
 def until(check, timeout=8):
     end=time.monotonic()+timeout
@@ -52,6 +53,7 @@ class StudioTests(unittest.TestCase):
         inst=Installer(payload,target);inst._install({'packages':[],'locale':'es','shortcuts':False,'register':False})
         self.assertEqual(inst.status()['status'],'finished');self.assertEqual((previous/'zenit.exe').read_bytes(),b'MZ-existing-running-revision')
         manifest=json.loads((target/'installation.json').read_text());self.assertEqual(manifest['revision'],REVISION);self.assertIn(previous.name,manifest['directories']);self.assertEqual(manifest['directory'],f'app-{VERSION}-R{REVISION}')
+        uninstall=Uninstaller(target,self.base/'profile',integrate_windows=False);self.assertEqual({p.name for p in uninstall.targets},{previous.name,f'app-{VERSION}-R{REVISION}'})
 
 class DebuggerTests(unittest.TestCase):
     def setUp(self):

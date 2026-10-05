@@ -35,7 +35,7 @@ class Uninstaller:
             raise ValueError('Manifiesto de instalación no válido.')
         self.targets = []
         for name in dict.fromkeys(names):
-            if not isinstance(name, str) or not re.fullmatch(r'app-\d+\.\d+\.\d+(?:-previous-\d+)?', name):
+            if not isinstance(name, str) or not re.fullmatch(r'app-\d+\.\d+\.\d+(?:-R[1-9]\d*)?(?:-previous-\d+)?', name):
                 raise ValueError('Versión de instalación no válida.')
             target = no_links(self.root / name)
             if target.parent != self.root:
