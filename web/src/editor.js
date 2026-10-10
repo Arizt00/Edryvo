@@ -1,6 +1,8 @@
 import {installMonacoOverlays} from './monaco-overlays.js';
 import {waitForQtBridge} from './native-ready.js';
 import {themePalette} from './extension-theme.js';
+import {TextMateLanguages,textMateTheme} from './textmate.js';
+import {assemblyCompletions,assemblySyntax} from './assembly-language.js';
 import {escapeHTML, icon} from './icons.js';
 // Monaco rejects outstanding worker requests when a model/provider is disposed.
 // Handle only that expected cancellation; other editor failures still surface.
@@ -77,15 +79,17 @@ export class LumenEditor {
     });
     this.kind='monaco';
     this.disposables.push(installMonacoOverlays());
+    this.languageSyntax=new Map();
     for (const [id,exts] of [['nc',['.n','.nm','.ncp','.nb','.nbb']],['asm',['.asm','.S','.s']]]) {
       monaco.languages.register({id,extensions:exts});
-      monaco.languages.setMonarchTokensProvider(id,{tokenizer:{root:[
+      const syntax=id==='asm'?assemblySyntax():{tokenizer:{root:[
         [/\/\/.*$/,'comment'],[/;.*$/,'comment'],[/\[@[^\]]*\]/,'annotation'],
         [/\b(stc|fn|use|primitive|return|if|else|for|while|const|static|binary|raw|mov|lea|push|pop|call|ret|xor|test|cmp|je|jne|add|sub)\b/,'keyword'],
         [/\b(int|str|text|bool|float|double|ptr|memRegion|void)\b/,'type'],
         [/"([^"\\]|\\.)*"/,'string'],[/\b\d+\b/,'number']
-      ]}});
+      ]}};this.languageSyntax.set(id,syntax);monaco.languages.setMonarchTokensProvider(id,syntax);
     }
+    this.textmate=new TextMateLanguages(monaco,()=>this.defineMonacoTheme(),id=>this.prepareGrammarLanguage(id),(id,current)=>this.restoreGrammarLanguage(id,current));
     this.defineMonacoTheme();
     this.panes=[];this.mount.classList.add('editor-panes');
     const primary=this.createPane();
@@ -141,8 +145,14 @@ export class LumenEditor {
   }
   registerLocalIntelligence(){
     const m=monaco;
+    this.disposables.push(m.languages.registerCompletionItemProvider('asm',{provideCompletionItems:(model,pos)=>{
+      if(this.settings.completion===false)return {suggestions:[]};
+      const w=model.getWordUntilPosition(pos),range=new m.Range(pos.lineNumber,w.startColumn,pos.lineNumber,w.endColumn);
+      const kinds={instruction:m.languages.CompletionItemKind.Function,register:m.languages.CompletionItemKind.Variable,label:m.languages.CompletionItemKind.Reference,directive:m.languages.CompletionItemKind.Keyword};
+      return {suggestions:assemblyCompletions(this.assemblyArchitecture,model.getValue()).map(x=>({...x,kind:kinds[x.kind],range,insertTextRules:m.languages.CompletionItemInsertTextRule.InsertAsSnippet}))};
+    }}));
     const words={asm:'mov lea add sub mul imul div idiv xor and or not shl shr cmp test jmp je jne jz jnz call ret push pop nop section global extern db dw dd dq resb resw resd resq rax rbx rcx rdx rsi rdi rsp rbp eax ebx ecx edx',python:'def class import from return if elif else for while try except finally raise with as async await yield None True False print range len self',csharp:'public private protected class namespace using static void int string bool var return new async await override readonly Console WriteLine',c:'int char float double void const struct return if else while for sizeof include printf',cpp:'namespace class public private template typename constexpr auto std cout vector string nullptr return include',rust:'fn let mut pub impl struct enum match use mod crate self return loop while for Some None Ok Err',go:'package import func var const type struct interface return range if else for defer go chan select',java:'public private class static void int String System out println new return import package extends implements',nc:'stc fn use primitive return if else for while const static binary raw int str text bool float'};
-    for(const [language,list] of Object.entries(words))this.disposables.push(m.languages.registerCompletionItemProvider(language,{provideCompletionItems:(model,pos)=>{
+    for(const [language,list] of Object.entries(words).filter(([id])=>id!=='asm'))this.disposables.push(m.languages.registerCompletionItemProvider(language,{provideCompletionItems:(model,pos)=>{
       if(this.settings.completion===false)return {suggestions:[]};const w=model.getWordUntilPosition(pos);return {suggestions:list.split(' ').map(label=>({label,kind:m.languages.CompletionItemKind.Keyword,insertText:label,detail:'Lenguaje · '+language,range:new m.Range(pos.lineNumber,w.startColumn,pos.lineNumber,w.endColumn)}))};
     }}));
     // Reuse each installed Monaco grammar's own complete keyword/type lists.
@@ -179,8 +189,10 @@ export class LumenEditor {
     if (!window.monaco) return;
     const css=getComputedStyle(document.documentElement);
     const c=name=>css.getPropertyValue('--'+name).trim();
+    const syntax=Object.fromEntries(['keyword','type','number','string','comment','function'].map(key=>[key,c('syntax-'+key)]));
+    const encodedTokensColors=this.textmate?.setTheme(textMateTheme({text:c('text'),editor:c('editor'),...syntax},this.extensionTheme?.data?.tokenColors||[]));
     monaco.editor.defineTheme('lumen-theme',{
-      base:document.documentElement.dataset.theme==='day'?'vs':'vs-dark',inherit:true,
+      base:document.documentElement.dataset.theme==='day'?'vs':'vs-dark',inherit:true,encodedTokensColors,
       rules:[{token:'',foreground:c('text').slice(1)},{token:'keyword',foreground:c('syntax-keyword').slice(1)},
         {token:'type',foreground:c('syntax-type').slice(1)},{token:'type.identifier',foreground:c('syntax-type').slice(1)},
         {token:'number',foreground:c('syntax-number').slice(1)},{token:'string',foreground:c('syntax-string').slice(1)},
@@ -216,7 +228,7 @@ export class LumenEditor {
       const theme=this.extensionTheme,{colors,dark}=themePalette(theme),rules=[];
       const aliases={storage:'keyword',constant:'number','constant.numeric':'number','entity.name.function':'function','support.function':'function','entity.name.type':'type','support.type':'type'};
       for(const entry of theme.data?.tokenColors||[])for(const scope of Array.isArray(entry.scope)?entry.scope:String(entry.scope||'').split(',')){const settings=entry.settings||{};if(/^#[0-9a-f]{6}$/i.test(settings.foreground||''))rules.push({token:aliases[scope.trim()]||scope.trim(),foreground:settings.foreground.slice(1),fontStyle:settings.fontStyle||''});}
-      monaco.editor.defineTheme('lumen-extension-theme',{base:dark?'vs-dark':'vs',inherit:true,rules,colors});monaco.editor.setTheme('lumen-extension-theme');
+      monaco.editor.defineTheme('lumen-extension-theme',{base:dark?'vs-dark':'vs',inherit:true,rules,colors,encodedTokensColors});monaco.editor.setTheme('lumen-extension-theme');
     }else monaco.editor.setTheme('lumen-theme');
   }
   initBase() {
@@ -285,6 +297,19 @@ export class LumenEditor {
       for(const id of new Set([...Object.values(languages),...contributedAssociations.values()]))if(!registered.has(id)){monaco.languages.register({id});registered.add(id);}
       for(const [path,record] of this.models)if(record.model)monaco.editor.setModelLanguage(record.model,languageFor(path));
     }else this.schedulePaint();
+  }
+  async configureGrammars(items=[]){return this.textmate?this.textmate.configure(items):[];}
+  async prepareGrammarLanguage(id){
+    const definition=monaco.languages.getLanguages().find(x=>x.id===id);
+    if(definition?.loader){
+      const model=monaco.editor.createModel('',id),module=await definition.loader();model.dispose();
+      if(module?.language)this.languageSyntax.set(id,module.language);
+    }
+  }
+  async restoreGrammarLanguage(id,current){
+    await this.prepareGrammarLanguage(id);if(!current())return;
+    const syntax=this.languageSyntax.get(id);
+    if(syntax)monaco.languages.setMonarchTokensProvider(id,syntax);
   }
   insertText(text,replace=false) {
     if(!this.current)return;this.focus();

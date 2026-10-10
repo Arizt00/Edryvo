@@ -61,8 +61,14 @@ def main():
         html='<!doctype html><html><body><h1>DISK</h1></body></html>'
         (workspace/'Web.html').write_text(html,encoding='utf-8')
         (workspace/'data.csv').write_text('name,value\none,2\n',encoding='utf-8')
+        (workspace/'native.tm').write_text('ZENIT_TOKEN = 42\n/* comentario\ncontinúa */\n',encoding='utf-8')
         app=Application(root,workspace,data_dir=base/'profile');app.workspace.trusted=True
         app.features.studio.update({'onboarded':True});app.features.prefs.update({'general.showWelcome':False,'updates.automatic':False,'appearance.motion':False})
+        grammar_vsix=io.BytesIO()
+        with zipfile.ZipFile(grammar_vsix,'w') as z:
+            z.writestr('extension/package.json',json.dumps({'publisher':'qa','name':'native-grammar','version':'1.0.0','license':'MIT','contributes':{'languages':[{'id':'qa-native','extensions':['.tm']}],'grammars':[{'language':'qa-native','scopeName':'source.qa-native','path':'grammar.json'}]}}))
+            z.writestr('extension/grammar.json',json.dumps({'scopeName':'source.qa-native','patterns':[{'name':'keyword.control.native','match':'ZENIT_TOKEN'},{'name':'comment.block.native','begin':'/\\*','end':'\\*/'}]}))
+        app.features.extensions.install(app.features.extensions.inspect_bytes(grammar_vsix.getvalue())['ticket'],True)
         server=LumenServer(0,app);threading.Thread(target=server.serve_forever,daemon=True).start()
         url=f'http://127.0.0.1:{server.server_port}';api=DesktopAPI();api._application=app;api._url=url
         # Qt exits when its last visible child closes if the parent stays hidden.
@@ -78,6 +84,12 @@ def main():
                 checks.append('Packaged runtime, Monaco and native JS bridge')
                 assert app.native.lib is not None,app.native.name
                 checks.append('Native C/C++ core loaded')
+                api._window.evaluate_js("document.querySelector('[data-file=\"native.tm\"]').click()")
+                until(lambda:api._window.evaluate_js("[...document.querySelectorAll('.view-line span span')].some(x=>x.textContent==='ZENIT_TOKEN')"))
+                assert api._window.evaluate_js("(()=>{let span=[...document.querySelectorAll('.view-line span span')].find(x=>x.textContent==='ZENIT_TOKEN');const sample=document.createElement('span');sample.style.color='var(--syntax-keyword)';document.body.append(sample);const match=getComputedStyle(span).color===getComputedStyle(sample).color;sample.remove();return match;})()")
+                checks.append('Packaged Oniguruma WASM and contributed TextMate grammar colour actual Monaco tokens')
+                until(lambda:api._window.evaluate_js("[...document.querySelectorAll('.view-line span span')].some(x=>x.textContent.includes('continúa')&&x.classList.contains('mtki'))"))
+                checks.append('Packaged TextMate tokenizer preserves multiline comments in the native webview')
                 app.features.buffers.update(app.workspace,{'path':'first.py','text':'print("ZENIT NATIVE R2 ñ",flush=True)\n','sequence':0})
                 api.detach_panel('forge','first.py');forge=api._children['forge']
                 until(lambda:forge.evaluate_js('!!window.lumen?.ready'))
@@ -192,6 +204,6 @@ def main():
             server.shutdown();server.server_close();app.features.shutdown();app.runner.shutdown()
             args.report.parent.mkdir(parents=True,exist_ok=True)
             args.report.write_text(json.dumps({'platform':sys.platform,'revision':REVISION,'checks':checks,'errors':errors,'javascriptErrors':javascript_errors},indent=2),encoding='utf-8')
-        if errors or len(checks)!=12:raise AssertionError('Packaged desktop verification failed')
+        if errors or len(checks)!=14:raise AssertionError('Packaged desktop verification failed')
 
 if __name__=='__main__':main()

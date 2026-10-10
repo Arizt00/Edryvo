@@ -21,8 +21,8 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 VENDOR = ROOT / "web/vendor"
-PACKAGES = {"monaco": ("monaco-editor", "0.52.2"), "babylon": ("babylonjs", "8.32.0"), "three": ("three", "0.180.0"), "xterm": ("@xterm/xterm", "5.5.0"), "xterm-fit": ("@xterm/addon-fit", "0.10.0")}
-ENTRYPOINTS = {"monaco":"vs/loader.js", "babylon":"babylon.js", "three":"three.core.js", "xterm":"xterm.js", "xterm-fit":"addon-fit.js"}
+PACKAGES = {"monaco": ("monaco-editor", "0.52.2"), "babylon": ("babylonjs", "8.32.0"), "three": ("three", "0.180.0"), "xterm": ("@xterm/xterm", "5.5.0"), "xterm-fit": ("@xterm/addon-fit", "0.10.0"), "textmate": ("vscode-textmate", "9.2.0"), "oniguruma": ("vscode-oniguruma", "2.0.1")}
+ENTRYPOINTS = {"monaco":"vs/loader.js", "babylon":"babylon.js", "three":"three.core.js", "xterm":"xterm.js", "xterm-fit":"addon-fit.js", "textmate":"main.js", "oniguruma":"onig.wasm"}
 MAX_DOWNLOAD = 60 * 1024 * 1024
 
 
@@ -89,6 +89,8 @@ def install(kind: str, force=False):
                     relative = PurePosixPath(name.name)
                 if kind == "xterm-fit" and item.name == "package/lib/addon-fit.js":
                     relative = PurePosixPath("addon-fit.js")
+                if kind in ("textmate", "oniguruma") and item.name in ("package/release/main.js", "package/release/onig.wasm"):
+                    relative = PurePosixPath(name.name)
                 if item.name.lower() in ("package/license", "package/license.md", "package/license.txt", "package/thirdpartynotices.txt"):
                     relative = PurePosixPath(name.name)
                 if relative is None:

@@ -377,7 +377,7 @@ class ExtensionStore(ExtensionInstallPlans):
             if manifest.get('main') or custom.get('main'):
                 supported.append('runtime');warnings.append('Motor Python Pyrefly integrado mediante LSP: autocompletado, diagnósticos, definiciones, referencias e inlay hints. La interfaz y los comandos propios de VS Code no se ejecutan.' if eid.lower()=='meta.pyrefly' else 'Código Node.js ejecutable: requiere autorización para iniciar. API Zénit preview y subconjunto de VS Code; APIs no implementadas producen un error explícito.')
             elif manifest.get('browser'):warnings.append('La entrada browser de VS Code no es compatible con el host Node.js de esta preview.')
-            if c.get('grammars'): warnings.append('Las gramáticas TextMate se conservan, pero no se ejecutan. El resaltado depende de los lenguajes integrados en Monaco.')
+            if c.get('grammars'): warnings.append('Gramáticas TextMate: resaltado local con Oniguruma; los diagnósticos y el autocompletado requieren el servicio de lenguaje correspondiente.')
             dependencies=[]
             for field,required in (('extensionDependencies',True),('extensionPack',False)):
                 values=manifest.get(field,[])
@@ -497,7 +497,8 @@ class ExtensionStore(ExtensionInstallPlans):
             if stream.tell() > 48*1024**2: raise ValueError('La exportación web admite VSIX de hasta 48 MB; el paquete instalado se conserva en el perfil de Zénit.')
             return {'filename': item['id'] + '-' + item['version'] + '.vsix', 'data': base64.b64encode(stream.getvalue()).decode('ascii')}
     def contributions(self):
-        output={'languages':[],'snippets':[],'themes':[],'iconThemes':[],'commands':[],'errors':[]}
+        output={'languages':[],'grammars':[],'snippets':[],'themes':[],'iconThemes':[],'commands':[],'errors':[]}
+        grammar_bytes=0
         if not self.prefs.get('extensions.loadContributions'): return output
         for info in self.list():
             if not info.get('enabled'): continue
@@ -510,6 +511,24 @@ class ExtensionStore(ExtensionInstallPlans):
                     if not isinstance(lid,str) or not re.fullmatch(r'[a-zA-Z0-9_+.-]{1,80}',lid): continue
                     extensions=[x for x in language.get('extensions',[])[:60] if isinstance(x,str) and re.fullmatch(r'\.[\w.+-]{1,30}',x)]
                     output['languages'].append({'id':lid,'extensions':extensions,'aliases':[str(x)[:80] for x in language.get('aliases',[])[:4]],'owner':info['id']})
+                for declaration in c.get('grammars',[])[:200]:
+                    try:
+                        scope=declaration.get('scopeName','')
+                        if not isinstance(scope,str) or not re.fullmatch(r'[\w.+-]{1,200}',scope):raise ValueError('Scope de gramática no válido.')
+                        relative=str(safe_member(declaration.get('path','')))
+                        target=(root/relative).resolve()
+                        if not target.is_relative_to(root) or not target.is_file() or target.stat().st_size>3_000_000:raise ValueError('Recurso de gramática no válido.')
+                        text=target.read_text(encoding='utf-8-sig')
+                        if target.suffix.lower()=='.json':text=json.dumps(json_resource(root,relative),ensure_ascii=False)
+                        size=len(text.encode('utf-8'))
+                        if grammar_bytes+size>16_000_000:raise ValueError('Las gramáticas activas superan 16 MB. Desactiva las que no necesites.')
+                        grammar_bytes+=size
+                        maps={key:{str(k):v for k,v in declaration.get(key,{}).items() if isinstance(k,str) and isinstance(v,str)} for key in ('embeddedLanguages','tokenTypes') if isinstance(declaration.get(key,{}),dict)}
+                        output['grammars'].append({'scopeName':scope,'language':str(declaration.get('language',''))[:80],
+                            'path':relative,'content':text,'injectTo':[x for x in declaration.get('injectTo',[])[:100] if isinstance(x,str)],
+                            **maps,'owner':info['id']})
+                    except (OSError,ValueError,TypeError,AttributeError,UnicodeError) as e:
+                        output['errors'].append({'id':info['id'],'error':'Gramática: '+str(e)[:350]})
                 for declaration in c.get('snippets',[])[:100]:
                     snippets=json_resource(root,declaration.get('path'))
                     if not isinstance(snippets,dict): continue

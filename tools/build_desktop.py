@@ -117,7 +117,7 @@ def main():
     if not args.package_only:
         if not importlib.util.find_spec('PyInstaller') or not importlib.util.find_spec('webview'):parser.error('Instala requirements-build.txt en un entorno virtual de construcción.')
         if args.require_assets:
-            for path in ('monaco/vs/loader.js','babylon/babylon.js','xterm/xterm.js','xterm-fit/addon-fit.js','three/three.core.js'):
+            for path in ('monaco/vs/loader.js','babylon/babylon.js','xterm/xterm.js','xterm-fit/addon-fit.js','three/three.core.js','textmate/main.js','oniguruma/main.js','oniguruma/onig.wasm'):
                 if not (ROOT/'web/vendor'/path).is_file():parser.error('Falta '+path+'. Ejecuta tools/setup_assets.py.')
         collect_licenses()
         if sys.platform=='darwin':prepare_mac_icon()

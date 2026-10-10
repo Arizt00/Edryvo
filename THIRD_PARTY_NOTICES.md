@@ -35,3 +35,5 @@ tools (Apache-2.0 with LLVM exception). These development tools are not silently
 included in the public core installer. `tools/prepare_foundation.py` prepares a
 local SDK from installed tools and verified upstream downloads. Redistribution
 of that SDK requires its own corresponding-source and licensing review.
+
+TextMate highlighting uses vscode-textmate 9.2.0 (MIT) and the vscode-oniguruma 2.0.1 bindings (MIT), including their Oniguruma WASM. The underlying Oniguruma engine uses the BSD-style notice preserved in `licenses/oniguruma/COPYING`; `SOURCE.json` records the exact upstream submodule commit. The binding license notices are preserved in web/vendor/textmate and web/vendor/oniguruma. These libraries are pinned and checked against npm SHA-512 integrity at asset preparation.

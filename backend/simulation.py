@@ -17,7 +17,10 @@ EXAMPLES={
 class Simulation:
     def __init__(self,features):self.features=features
     def status(self):
-        return {'architectures':[{'id':key,'label':{'x86':'x86 · 32 bits','x86_64':'x86-64','arm':'ARM · 32 bits','arm64':'ARM64','riscv64':'RISC-V · 64 bits'}[key],'example':EXAMPLES[key]} for key in ARCHITECTURES],
+        source=Path(__file__).resolve().parents[1]/'examples/asm/x86_64_sum.s'
+        examples={key:[{'label':'7 + 5 · registros','source':EXAMPLES[key]}] for key in ARCHITECTURES}
+        if source.is_file():examples['x86_64'].append({'label':'Suma 1…10 · bucle y pila','source':source.read_text(encoding='utf-8')})
+        return {'architectures':[{'id':key,'label':{'x86':'x86 · 32 bits','x86_64':'x86-64','arm':'ARM · 32 bits','arm64':'ARM64','riscv64':'RISC-V · 64 bits'}[key],'example':EXAMPLES[key],'examples':examples[key]} for key in ARCHITECTURES],
                 'assembler':find_tool('clang'),'linker':find_tool('ld.lld'),'python':find_tool('python'),
                 'description':'Registros, memoria, instrucciones y ejecución paso a paso en una CPU emulada.'}
     def run(self,ws,body):

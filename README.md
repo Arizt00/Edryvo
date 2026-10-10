@@ -1,10 +1,10 @@
-# Zénit 0.5.3 Preview R5
+# Zénit 0.5.3 Preview R6
 
-Zénit es un IDE de escritorio con editor Monaco, terminal integrada, depuración por lenguaje, Lantern Live y asistencia de IA. R5 activa grupos Node de extensiones y dependencias con exports reales, repara cadenas transitivas y añade un laboratorio de herramientas y simulación ASM para cinco arquitecturas. Consulta [los cambios y límites de R5](docs/PREVIEW_053_R5.md).
+Zénit es un IDE de escritorio con editor Monaco, terminal integrada, depuración por lenguaje, Lantern Live y asistencia de IA. R6 ejecuta gramáticas TextMate de extensiones con Oniguruma local y mejora el laboratorio ASM con sugerencias por CPU, vista decimal y un ejemplo x86-64 de bucles y pila. Consulta [los cambios y límites de R6](docs/PREVIEW_053_R6.md).
 
 ## Usar Zénit
 
-Instalador `.exe` para Windows 10/11 x64 (Edge WebView2), `.deb` y portable para Linux x64 compatible con Ubuntu 24.04. La pipeline prepara `.dmg` separados para macOS Apple Silicon e Intel; su publicación queda pendiente de construcción y verificación en Mac. Los paquetes incluyen el runtime Python del IDE; los compiladores y SDK de tus proyectos se preparan aparte. Los ejecutables de esta preview no tienen firma Authenticode ni notarización de Apple. Consulta [los paquetes de 0.5.3 R5](docs/PREVIEW_053_R5.md) y [las instrucciones de cada plataforma](docs/PREVIEW_R8.md).
+Instalador `.exe` para Windows 10/11 x64 (Edge WebView2), `.deb` y portable para Linux x64 compatible con Ubuntu 24.04. La pipeline prepara `.dmg` separados para macOS Apple Silicon e Intel; su publicación queda pendiente de construcción y verificación en Mac. Los paquetes incluyen el runtime Python del IDE; los compiladores y SDK de tus proyectos se preparan aparte. Los ejecutables de esta preview no tienen firma Authenticode ni notarización de Apple. Consulta [los paquetes de 0.5.3 R6](docs/PREVIEW_053_R6.md) y [las instrucciones de cada plataforma](docs/PREVIEW_R8.md).
 
 El primer inicio permite elegir tema, idioma, distribución y perfil. Una instalación nueva comienza sin archivos recientes inventados. Los paneles principales usan superficies opacas con colores del tema, sintaxis integrada e iridiscencia animada configurable.
 

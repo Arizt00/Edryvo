@@ -23,6 +23,11 @@ class FoundationTest(unittest.TestCase):
   self.assertEqual(first['status'],'paused');self.assertEqual(first['registers']['rax'],'0x7')
   edited=s.run(ws,{'architecture':'x86_64','source':EXAMPLES['x86_64'].replace('7','3'),'steps':2})
   self.assertEqual(edited['registers']['rax'],'0x8')
+ def test_x86_64_loop_and_stack_example_has_real_results(self):
+  if not bundled_tool('python') or not bundled_tool('clang'):self.skipTest('Requires the prepared SDK')
+  source=(ROOT/'examples/asm/x86_64_sum.s').read_text(encoding='utf-8');sim=Simulation(None);ws=SimpleNamespace(trusted=True)
+  partial=sim.run(ws,{'architecture':'x86_64','source':source,'steps':33});self.assertEqual(partial['status'],'paused');self.assertEqual(partial['registers']['rsp'],'0x20ffe8');self.assertEqual(partial['memory'].split()[40],'37')
+  final=sim.run(ws,{'architecture':'x86_64','source':source,'steps':1000});self.assertEqual(final['status'],'complete');self.assertEqual(final['executed'],36);self.assertEqual(final['registers']['rax'],'0x37');self.assertEqual(final['registers']['rbx'],'0x37');self.assertEqual(final['registers']['rdx'],'0x6e');self.assertEqual(final['registers']['rsp'],'0x20fff0');self.assertEqual(len(next(x for x in sim.status()['architectures'] if x['id']=='x86_64')['examples']),2)
  def test_invalid_syntax_and_untrusted_project(self):
   s=Simulation(None)
   with self.assertRaises(PermissionError):s.run(SimpleNamespace(trusted=False),{})

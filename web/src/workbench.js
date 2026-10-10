@@ -257,6 +257,8 @@ export class LumenPlatform {
     const data=await this.api('/extensions/contributions');this.extensionContributions=data;
     setFileIcons(data.iconThemes?.[0]);this.host.refreshFileViews?.();
     this.host.editor.configureLanguages?.(data.languages,this.development.associations);this.renderExtensionThemes(data.themes||[]);
+    try{data.errors.push(...await this.host.editor.configureGrammars?.(data.grammars||[])||[]);}
+    catch(error){data.errors.push({id:'textmate',error:error.message});this.host.notify('No se pudo cargar el resaltado TextMate local: '+error.message,'error');}
     for(const d of this.contributionDisposables)d.dispose?.();this.contributionDisposables=[];
     if(window.monaco){
       for(const language of new Set(data.snippets.map(x=>x.language)))this.contributionDisposables.push(monaco.languages.registerCompletionItemProvider(language,{provideCompletionItems:(model,position)=>{const w=model.getWordUntilPosition(position),range={startLineNumber:position.lineNumber,endLineNumber:position.lineNumber,startColumn:w.startColumn,endColumn:w.endColumn};return {suggestions:data.snippets.filter(x=>x.language===language).map(x=>({range,label:x.prefix,detail:x.name,kind:monaco.languages.CompletionItemKind.Snippet,insertText:x.body,insertTextRules:monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet}))};}}));
