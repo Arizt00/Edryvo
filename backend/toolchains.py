@@ -22,6 +22,7 @@ TOOLS=[('python','Python',('python3','python')),('node','JavaScript / Node.js',(
  ('perl','Perl',('perl',)),('lua','Lua',('lua','lua5.4')),('swift','Swift',('swift',)),('zig','Zig',('zig',)),
  ('julia','Julia',('julia',)),('R','R',('R',)),('fpc','Pascal',('fpc',)),('ncc','nC / NCC',('ncc',)),
  ('git','Git',('git',)),('clangd','C / C++ Language Server',('clangd',)),('pylsp','Python Language Server',('pylsp',)),
+ ('bash','Bash',('bash',)),('docker','Docker CLI',('docker',)),('qemu','QEMU · máquinas virtuales',('qemu-system-x86_64',)),('maven','Maven',('mvn',)),('gradle','Gradle',('gradle',)),
  ('rust-analyzer','Rust Language Server',('rust-analyzer',)),('gopls','Go Language Server',('gopls',))]
 PACKAGES={
  'cmake':{'winget':'Kitware.CMake','brew':'cmake','apt':'cmake','dnf':'cmake','pacman':'cmake'},
@@ -110,7 +111,8 @@ class Toolchains:
             self.discover_servers()
             result=[]
             for ident,label,names in TOOLS:
-                executable=next((str(Path(p).resolve()) for n in names if (p:=shutil.which(n))),None)
+                from .runtime_paths import find_tool
+                executable=next((str(Path(p).resolve()) for n in names if (p:=find_tool(n))),None)
                 # Discovery does not execute an arbitrary compiler just to render a card.
                 result.append({'id':ident,'label':label,'path':executable,'available':bool(executable)})
             managers=[m for m in ('winget','brew','apt','dnf','pacman') if shutil.which(m)]

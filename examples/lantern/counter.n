@@ -22,7 +22,16 @@ lanternCounter :: runtime {
         checkpoint(state >> int, path >> str) -> bool {
             temporary >> str <- strConcat(path, ".tmp");
             saved >> bool <- jsonSaveFile(state, temporary, 2);
-            if (saved) { saved <- rename_file(temporary, path); }
+            if (saved) {
+                // Windows readers may briefly hold the previous checkpoint.
+                // Retry the atomic replacement, preserving the complete file.
+                saved <- false;
+                attempt >> int <- 0;
+                while (!saved && attempt < 1000) {
+                    saved <- rename_file(temporary, path);
+                    attempt <- attempt + 1;
+                }
+            }
             strRelease(temporary);
             return saved;
         }

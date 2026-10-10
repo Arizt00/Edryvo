@@ -110,7 +110,9 @@ class Preview{
   async startExtension(id){
     if(this.runtimeHosts?.some(x=>x.id===id&&x.running)){const stopped=await this.host.platform.api('/extensions/runtime/stop',{id});this.registerExtensions(stopped.hosts);return;}
     if(!await this.host.platform.host.ensureTrust())return;
-    if(!await this.host.confirmDialog('Ejecutar '+id,'Este plugin ejecutará su motor con tus permisos de usuario. Tendrá acceso al equipo y a los documentos que consultes. El proceso separado evita que bloquee la interfaz; no es un aislamiento de seguridad.','Autorizar motor'))return;
+    const graph=await this.host.platform.api('/extensions/dependencies?id='+encodeURIComponent(id));
+    const dependencies=graph.extensions.filter(x=>x.id!==id).map(x=>x.id+(x.executable?' (motor)':' (recursos)'));
+    if(!await this.host.confirmDialog('Ejecutar '+id,'Este plugin ejecutará su motor con tus permisos de usuario. Tendrá acceso al equipo y a los documentos que consultes. El proceso separado evita que bloquee la interfaz; no es un aislamiento de seguridad.'+(dependencies.length?'\n\nDependencias que se activarán en el mismo proceso:\n'+dependencies.join('\n'):''),'Autorizar motor'))return;
     const data=await this.host.platform.api('/extensions/runtime/start',{id,consent:true});this.registerExtensions(data.hosts);const engine=data.hosts.find(x=>x.id===id);this.host.notify(engine?.unsupportedApis?.length?'Motor con servicios pendientes: '+engine.unsupportedApis.join(', '):engine?.engine||'Motor iniciado. Comandos disponibles en la paleta.',engine?.unsupportedApis?.length?'error':'info');
   }
   registerExtensions(hosts){

@@ -1,4 +1,4 @@
-"""Opt-in executable extensions. One killable Node process per extension, no UI blocking."""
+"""Opt-in extensions: each requested root and its dependencies share one host."""
 import json
 import os
 from pathlib import Path
@@ -18,6 +18,7 @@ class Host:
     def __init__(self, node, root, entry, workspace, options, services=None):
         self.lock=threading.Lock();self.write_lock=threading.Lock();self.responses=queue.Queue();self.logs=''
         self.services=services;self.workspace=workspace;self.extension_id=options['extensionId'];self.extension_root=Path(root)
+        self.extension_roots=[self.extension_root,*[Path(x['root']) for x in options.get('dependencies',[])]]
         self.process=subprocess.Popen([node,str(Path(__file__).with_name('extension_host.cjs'))],cwd=workspace.root,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=child_environment(),creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
         threading.Thread(target=self.read,daemon=True).start();threading.Thread(target=self.read_errors,daemon=True).start()
         try:self.capabilities=self.request({'method':'activate','entry':str(entry),'root':str(root),'workspace':str(workspace.root),**options})
@@ -92,33 +93,57 @@ class ExtensionRuntime:
         try:self.approvals=json.loads(self.approvals_path.read_text(encoding='utf-8'))
         except (OSError,ValueError):self.approvals={}
         if not isinstance(self.approvals,dict):self.approvals={}
+        self.graph_approvals_path=store.root/'runtime-dependency-approvals.json'
+        try:self.graph_approvals=json.loads(self.graph_approvals_path.read_text(encoding='utf-8'))
+        except (OSError,ValueError):self.graph_approvals={}
+        if not isinstance(self.graph_approvals,dict):self.graph_approvals={}
+        self.graph_approvals={key:value for key,value in self.graph_approvals.items() if isinstance(value,dict)}
     def snapshot(self):
         with self.lock:return {'hosts':[{'id':key,'running':host.process.poll() is None,**host.capabilities,'logs':host.logs} for key,host in self.hosts.items()],'errors':dict(self.errors)}
-    def approve(self,workspace,eid):
+    def graph_signature(self,graph):
+        """Pin the reviewed package versions and required dependency edges."""
+        import hashlib
+        records=[{'id':item['id'].casefold(),'sha256':self.store.installed[item['id']].get('sha256'),
+                  'version':item['manifest'].get('version'),'requires':item['manifest'].get('extensionDependencies',[])} for item in graph]
+        return hashlib.sha256(json.dumps(records,sort_keys=True).encode('utf-8')).hexdigest()
+    def approve(self,workspace,eid,graph):
         key=str(workspace.root);self.approvals[key]=list(set(self.approvals.get(key,[]))|{eid});atomic_json(self.approvals_path,self.approvals);self.errors.pop(eid,None)
+        self.graph_approvals.setdefault(key,{})[eid]=self.graph_signature(graph)
+        atomic_json(self.graph_approvals_path,self.graph_approvals)
     def restore(self,workspace):
         if not workspace.trusted:return self.snapshot()
         with self.lock:
             for eid in self.approvals.get(str(workspace.root),[]):
                 if eid in self.hosts or eid in self.errors:continue
                 if not self.store.installed.get(eid,{}).get('enabled'):continue
-                try:self.start(workspace,eid,True)
+                try:
+                    from .extension_dependencies import dependency_graph
+                    graph=dependency_graph(self.store,eid)
+                    approved=self.graph_approvals.get(str(workspace.root),{}).get(eid)
+                    # Legacy single-package approvals can migrate. A newly added
+                    # executable dependency needs review instead of silent execution.
+                    if (approved and approved!=self.graph_signature(graph)) or (not approved and len(graph)>1):
+                        raise ValueError('El paquete o sus dependencias cambiaron. Revisa e inicia su motor para autorizar esta versión.')
+                    self.start(workspace,eid,True)
                 except Exception as error:self.errors[eid]=str(error)
         return self.snapshot()
     def start(self, workspace, eid, consent):
         if consent is not True or not workspace.trusted:raise PermissionError('Autoriza la extensión ejecutable en un proyecto de confianza.')
         with self.lock:
+            from .extension_dependencies import dependency_graph
+            graph=dependency_graph(self.store,eid)
+            eid=graph[-1]['id']
             info=self.store.installed.get(eid)
             if not info or not info.get('enabled'):raise ValueError('Activa primero la extensión instalada.')
             root=(self.store.root/info['directory']/'extension').resolve();manifest=localized_manifest(root,self.store.prefs.get('general.locale'))
             if eid.lower()=='meta.pyrefly':
                 self.stop(eid);self.hosts[eid]=PyreflyHost(root,workspace)
-                self.approve(workspace,eid)
+                self.approve(workspace,eid,graph)
                 self.store.prefs.audit('extension.execute',extension=eid,engine='native-lsp')
                 return self.snapshot()
             if eid.lower()=='redhat.java':
                 self.stop(eid);self.hosts[eid]=JavaLanguageHost(root,workspace,self.store.root/'.runtime-data'/eid)
-                self.approve(workspace,eid)
+                self.approve(workspace,eid,graph)
                 return self.snapshot()
             entry=(root/manifest.get('lumen',{}).get('main',manifest.get('main',''))).resolve()
             if entry.suffix not in ('.js','.cjs','.mjs') and entry.with_suffix('.js').is_file():entry=entry.with_suffix('.js')
@@ -131,9 +156,9 @@ class ExtensionRuntime:
                 try:extensions.append({'id':item['id'],'root':str(other),'manifest':localized_manifest(other,self.store.prefs.get('general.locale'))})
                 except (OSError,ValueError):pass
             profiles=terminal_profiles()
-            options={'extensionId':eid,'manifest':manifest,'extensions':extensions,'storage':str(self.store.root/'.runtime-data'/eid),'locale':self.store.prefs.get('general.locale'),'shell':profiles[0]['argv'][0] if profiles else None,'editorState':self.services.editor_snapshot if self.services else None}
+            options={'extensionId':eid,'manifest':manifest,'extensions':extensions,'dependencies':graph[:-1],'storage':str(self.store.root/'.runtime-data'/eid),'locale':self.store.prefs.get('general.locale'),'shell':profiles[0]['argv'][0] if profiles else None,'editorState':self.services.editor_snapshot if self.services else None}
             self.stop(eid);self.hosts[eid]=Host(node,root,entry,workspace,options,self.services)
-            self.approve(workspace,eid)
+            self.approve(workspace,eid,graph)
             self.store.prefs.audit('extension.execute',extension=eid)
         return self.snapshot()
     def request(self, workspace, body):
@@ -161,9 +186,20 @@ class ExtensionRuntime:
             if forget:
                 for key,ids in self.approvals.items():self.approvals[key]=[x for x in ids if x!=eid]
                 atomic_json(self.approvals_path,self.approvals)
+                for entries in self.graph_approvals.values():entries.pop(eid,None)
+                atomic_json(self.graph_approvals_path,self.graph_approvals)
             self.errors.pop(eid,None)
             host=self.hosts.pop(eid,None)
             if host:host.close()
+        return self.snapshot()
+    def invalidate(self,eids,reason='Una dependencia cambió; revisa e inicia de nuevo el motor.'):
+        changed={value.casefold() for value in eids if isinstance(value,str)}
+        with self.lock:
+            for key,host in list(self.hosts.items()):
+                members={key.casefold(),*[value.casefold() for value in host.capabilities.get('dependencies',[])]}
+                if changed & members:
+                    self.stop(key)
+                    self.errors[key]=reason
         return self.snapshot()
     def shutdown(self):
         for eid in list(self.hosts):self.stop(eid)

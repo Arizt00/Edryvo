@@ -165,7 +165,9 @@ def main():
                 checks.append('Packaged QuickInput receives native UI text and returns it to the real extension')
                 def dependency_package(name,dependencies=()):
                     raw=io.BytesIO()
-                    with zipfile.ZipFile(raw,'w') as z:z.writestr('extension/package.json',json.dumps({'publisher':'qa','name':name,'version':'1.0.0','license':'MIT','extensionDependencies':list(dependencies),'contributes':{'languages':[{'id':name}]}}))
+                    with zipfile.ZipFile(raw,'w') as z:
+                        z.writestr('extension/package.json',json.dumps({'publisher':'qa','name':name,'version':'1.0.0','license':'MIT','main':'main.cjs','extensionDependencies':list(dependencies)}))
+                        z.writestr('extension/main.cjs',"exports.activate=c=>({sum:(a,b)=>a+b,id:c.extension.id});" if name=='native-child' else "const v=require('vscode');exports.activate=async()=>{const child=await v.extensions.getExtension('qa.native-child').activate();v.commands.registerCommand('qa.nativeSum',()=>({sum:child.sum(7,5),owner:child.id}));};")
                     return raw.getvalue()
                 original=store.inspect_remote
                 try:
@@ -174,8 +176,10 @@ def main():
                     plan=store.prepare_plan(root_review['ticket']);assert len(plan['packages'])==2
                     store.install_plan(plan['plan'],True)
                     assert {'qa.native-child','qa.native-plan'}<=set(type(store)(store.prefs).installed)
+                    runtime.start(app.workspace,'qa.native-plan',True)
+                    assert runtime.request(app.workspace,{'id':'qa.native-plan','method':'command','command':'qa.nativeSum'})['result']=={'sum':12,'owner':'qa.native-child'}
                 finally:store.inspect_remote=original
-                checks.append('Packaged dependency plan installs reviewed packages and persists its complete index')
+                checks.append('Packaged dependency plan persists packages and shares real function exports with their parent')
                 assert not javascript_errors,javascript_errors
                 print(json.dumps({'checks':checks,'errors':errors}),flush=True)
             except Exception:errors.append(traceback.format_exc());print(errors[-1],flush=True)

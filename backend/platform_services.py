@@ -23,6 +23,8 @@ from .updates import Updates
 from .buffers import Buffers
 from .extension_services import ExtensionServices,file_path
 from .version import VERSION
+from .simulation import Simulation
+from .machines import Machines
 
 
 class PlatformServices:
@@ -36,6 +38,7 @@ class PlatformServices:
         self.lantern=Lantern(self.runtimes,app.runner,self.preview)
         self.downloads=Downloads(self.prefs.directory);self.extension_runtime=ExtensionRuntime(self.extensions)
         self.hacker=Hacker(self);self.updates=Updates(self.prefs,self.downloads)
+        self.simulation=Simulation(self);self.machines=Machines(self)
         self.buffers=Buffers()
         self.extension_services=ExtensionServices(self);self.extension_runtime.services=self.extension_services
     def state(self):
@@ -53,6 +56,11 @@ class PlatformServices:
     def get(self,path,query):
         q=lambda key,default='':query.get(key,[default])[0]
         if path=='/state':return self.state()
+        if path=='/foundation':
+            from .foundation import status
+            return status()
+        if path=='/simulation':return self.simulation.status()
+        if path=='/machines':return self.machines.snapshot()
         if path=='/hacker':return self.hacker.tools()
         if path=='/updates':return self.updates.snapshot()
         if path=='/buffers':return self.buffers.snapshot()
@@ -63,6 +71,9 @@ class PlatformServices:
         if path=='/lantern/template':return self.lantern.template(q('language'))
         if path=='/downloads':return self.downloads.snapshot()
         if path=='/extensions/runtime':return self.extension_runtime.snapshot()
+        if path=='/extensions/dependencies':
+            from .extension_dependencies import dependency_graph
+            return {'extensions':[{'id':x['id'],'executable':bool(x['manifest'].get('main') or x['manifest'].get('lumen',{}).get('main'))} for x in dependency_graph(self.extensions,q('id'))]}
         if path=='/extensions/services':return self.extension_services.snapshot()
         if path=='/extensions/resource':return self.extension_services.resource(q('panel'),q('path'))
         if path=='/extensions/file':
@@ -92,6 +103,16 @@ class PlatformServices:
         raise FileNotFoundError('Ruta de plataforma desconocida.')
     def post(self,path,body):
         ws=self.app.workspace
+        if path=='/simulation/run':return self.simulation.run(ws,body)
+        if path=='/foundation/action':
+            from .foundation_actions import action
+            return action(self,ws,body)
+        if path=='/machines/create':
+            self._trusted()
+            return self.machines.create_arch() if body.get('type')=='arch' and not body.get('host') else self.machines.save_ssh(body)
+        if path=='/machines/start':return self.machines.start(ws,body.get('id'))
+        if path=='/machines/stop':
+            self._trusted();return self.machines.stop(body.get('id'))
         if path=='/buffers':return self.buffers.update(ws,body)
         if path=='/extensions/applyEdit':return self.extension_services.workspace_edit(ws,body['edit'],body.get('documents'))
         if path=='/extensions/pick':self._trusted();return self.extension_services.answer_prompt(body['id'],body.get('value'))
@@ -147,18 +168,22 @@ class PlatformServices:
         if path=='/extensions/review/start':return self.extensions.start_review(body)
         if path=='/extensions/review/cancel':return self.extensions.review_status(body.get('id'),cancel=True)
         if path=='/extensions/install':
-            if body.get('plan'):return self.extensions.install_plan(body['plan'],body.get('consent'))
-            return self.extensions.install(body.get('ticket',''),body.get('consent'))
+            if body.get('plan'):
+                result=self.extensions.install_plan(body['plan'],body.get('consent'))
+                self.extension_runtime.invalidate([x['id'] for x in result['installed']])
+                return result
+            result=self.extensions.install(body.get('ticket',''),body.get('consent'))
+            self.extension_runtime.invalidate([result['id']]);return result
         if path=='/extensions/discard':
             if body.get('plan'):self.extensions.discard_plan(body['plan'])
             else:self.extensions.discard(body.get('ticket',''))
             return {'discarded':True}
         if path=='/extensions/toggle':
-            self.extension_runtime.stop(body.get('id'))
+            self.extension_runtime.invalidate([body.get('id')],'Una extensión se activó o desactivó. Revisa e inicia de nuevo los motores afectados.')
             return self.extensions.update_state(body.get('id'),body.get('enabled'))
         if path=='/extensions/remove':
             if body.get('consent') is not True:raise PermissionError('Confirma la desinstalación.')
-            self.extension_runtime.stop(body.get('id'))
+            self.extension_runtime.invalidate([body.get('id')],'Se desinstaló una dependencia. Revisa los paquetes del motor.')
             return self.extensions.update_state(body.get('id'),remove=True)
         if path=='/extensions/updates':return self.extensions.updates()
         if path=='/extensions/export':return self.extensions.export_package(body.get('id'))

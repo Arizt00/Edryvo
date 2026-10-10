@@ -26,3 +26,12 @@ LLVM, GCC, SDK .NET, JDK, Node, Rust, Go, Git, ncc y modelos de IA son herramien
 El código propio de Lumen se publica bajo la licencia propietaria de preview incluida en LICENSE. Las licencias de terceros se mantienen independientes. Las marcas de terceros no implican afiliación. Las integraciones Copilot/Ollama/API conservan las condiciones de sus proveedores. El host VSIX admite aportaciones declarativas y una API Node parcial; no equivale al host completo de VS Code.
 
 Esta entrega incluye github-copilot-sdk 1.0.15 y sus dependencias Python; sus versiones y licencias están en licenses/python-packages. Los clientes oficiales Codex, Claude Code, Gemini CLI y Copilot CLI se instalan por separado; no se incluyen sesiones ni credenciales.
+# Independent ASM laboratory
+
+The source of `tools/asm_worker.py` is GPL-2.0-or-later; see
+`licenses/asm-worker/GPL-2.0.txt`. It runs as an independent Python process using
+Unicorn (GPL-2.0), Capstone (BSD), pyelftools (public domain) and LLVM command-line
+tools (Apache-2.0 with LLVM exception). These development tools are not silently
+included in the public core installer. `tools/prepare_foundation.py` prepares a
+local SDK from installed tools and verified upstream downloads. Redistribution
+of that SDK requires its own corresponding-source and licensing review.

@@ -10,12 +10,15 @@ if sys.platform.startswith('linux'):hidden+=['qtpy','PySide6.QtWebEngineWidgets'
 for package in ('webview','keyring','copilot'):
     if importlib.util.find_spec(package):hidden+=collect_submodules(package)
 data=[(str(ROOT/'web'),'web'),(str(ROOT/'licenses'),'licenses'),(str(ROOT/'README.md'),'.'),(str(ROOT/'LICENSE'),'.'),(str(ROOT/'THIRD_PARTY_NOTICES.md'),'.'),(str(ROOT/'LEEME_PRIMERO.txt'),'.'),(str(ROOT/'config/runtime-defaults.json'),'config'),(str(ROOT/'debugger-support'),'debugger-support'),(str(ROOT/'examples/lantern/counter.c'),'examples/lantern'),(str(ROOT/'examples/lantern/counter.cpp'),'examples/lantern'),(str(ROOT/'examples/lantern/counter.n'),'examples/lantern'),(str(ROOT/'backend/LumenJavaDebugger.java'),'backend'),(str(ROOT/'backend/emma_bridge.mjs'),'backend'),(str(ROOT/'backend/lantern_memory.cjs'),'backend'),(str(ROOT/'backend/extension_host.cjs'),'backend'),(str(ROOT/'backend/extension_api.cjs'),'backend')]
+data.append((str(ROOT/'tools/asm_worker.py'),'tools'))
+data.append((str(ROOT/'tools/machine_console.py'),'tools'))
+data.append((str(ROOT/'tools/machine_seed.py'),'tools'))
 # Package documentation deliberately: historical QA can contain local user paths.
 data.append((str(ROOT/'backend/extension_views.cjs'),'backend'))
 data.append((str(ROOT/'backend/extension_services.cjs'),'backend'))
 data.append((str(ROOT/'backend/extension_quickinput.cjs'),'backend'))
 data.append((str(ROOT/'backend/extension_editors.cjs'),'backend'))
-for name in ('PREVIEW_053_R4.md','PREVIEW_053_R3.md','PREVIEW_053_R2.md','PREVIEW_053_R1.md','PREVIEW_R9.md','PREVIEW_R8.md','PREVIEW_R7.md','PREVIEW_R6.md','PREVIEW_R5.md','LENGUAJES.md','EXTENSIONES.md','SEGURIDAD.md'):
+for name in ('PREVIEW_053_R5.md','PREVIEW_053_R4.md','PREVIEW_053_R3.md','PREVIEW_053_R2.md','PREVIEW_053_R1.md','PREVIEW_R9.md','PREVIEW_R8.md','PREVIEW_R7.md','PREVIEW_R6.md','PREVIEW_R5.md','LENGUAJES.md','EXTENSIONES.md','SEGURIDAD.md'):
     data.append((str(ROOT/'docs'/name),'docs'))
 # Only the shipped examples belong in the bundle, never compiler/profile caches.
 for file in (ROOT/'workspace').rglob('*'):
@@ -40,4 +43,4 @@ exe=EXE(pyz,a.scripts,[],exclude_binaries=True,name='zenit',debug=False,bootload
 python_exe=EXE(pyz,a.scripts,[],exclude_binaries=True,name='zenit-python',debug=False,bootloader_ignore_signals=False,strip=False,version=str(ROOT/'packaging/version.txt') if sys.platform=='win32' else None,upx=False,console=True)
 collection=COLLECT(exe,python_exe,a.binaries,a.datas,strip=False,upx=False,name='Zenit')
 if sys.platform=='darwin':
-    app=BUNDLE(collection,name='Zenit.app',icon=str(icon) if icon.exists() else None,bundle_identifier='studio.lumen.ide',info_plist={'CFBundleShortVersionString':'0.5.3','CFBundleVersion':'0.5.3.4','NSHighResolutionCapable':True,'LSMinimumSystemVersion':'14.0','NSHumanReadableCopyright':'Zénit. Licencia propietaria de preview.'})
+    app=BUNDLE(collection,name='Zenit.app',icon=str(icon) if icon.exists() else None,bundle_identifier='studio.lumen.ide',info_plist={'CFBundleShortVersionString':'0.5.3','CFBundleVersion':'0.5.3.5','NSHighResolutionCapable':True,'LSMinimumSystemVersion':'14.0','NSHumanReadableCopyright':'Zénit. Licencia propietaria de preview.'})

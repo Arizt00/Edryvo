@@ -86,7 +86,7 @@ export class LumenPlatform {
     const sidebar=document.getElementById('sidebar-title');if(sidebar&&['Project','Proyecto'].includes(sidebar.textContent))sidebar.textContent=this.t('Proyecto','Project');
     const subtitle=document.getElementById('assistant-subtitle');if(subtitle&&!this.aiJob)subtitle.textContent=this.t('Convierte ideas en realidad. Más simple. Más lejos.','Turn ideas into reality. Simpler. Further.');
   }
-  pageTitle(kind){if(kind==='search')return this.t('Buscar','Search');if(kind==='debug')return this.t('Depuración','Debug');return kind==='settings'?this.t('Ajustes','Settings'):kind==='extensions'?this.t('Extensiones','Extensions'):kind==='tools'?this.t('Herramientas de desarrollo','Development tools'):kind==='hardware'?this.t('Sistema y rendimiento','System and performance'):kind==='snippets'?this.t('Fragmentos de código','Code snippets'):kind;}
+  pageTitle(kind){if(kind==='foundation')return this.t('Laboratorio','Laboratory');if(kind==='search')return this.t('Buscar','Search');if(kind==='debug')return this.t('Depuración','Debug');return kind==='settings'?this.t('Ajustes','Settings'):kind==='extensions'?this.t('Extensiones','Extensions'):kind==='tools'?this.t('Herramientas de desarrollo','Development tools'):kind==='hardware'?this.t('Sistema y rendimiento','System and performance'):kind==='snippets'?this.t('Fragmentos de código','Code snippets'):kind;}
   openPage(kind,content){
     this.extensionServices?.hide();
     const changed=this.page!==kind;
@@ -102,7 +102,7 @@ export class LumenPlatform {
     this.page=kind;this.workbench.hidden=false;document.getElementById('editor-panel').classList.add('platform-open');
     if(kind!=='settings')document.querySelectorAll('.activity-rail .rail-item').forEach(el=>el.classList.toggle('active',(el.dataset.action||el.dataset.view)===(kind==='debug'?'run':kind)));
     for(const selector of ['.editor-tabbar','.breadcrumbs','#editor-mount','#editor-empty']){const el=document.querySelector(selector);if(el)el.inert=true;}
-    this.workbench.innerHTML=`<header class="platform-header"><div class="platform-title"><span class="platform-mark">${this.glyph(kind==='extensions'?'extensions':kind==='tools'?'build':kind==='hardware'?'cpu':kind==='search'?'search':kind==='debug'?'bug':'settings')}</span><div><span class="platform-eyebrow">ZÉNIT</span><h2>${this.pageTitle(kind)}</h2></div></div><button class="icon-button" data-platform="close-page" aria-label="${this.t('Cerrar y volver al editor','Close and return to editor')}" title="Esc">${this.glyph('close')}</button></header>${content}`;
+    this.workbench.innerHTML=`<header class="platform-header"><div class="platform-title"><span class="platform-mark">${this.glyph(kind==='extensions'?'extensions':kind==='tools'?'build':(kind==='hardware'||kind==='foundation')?'cpu':kind==='search'?'search':kind==='debug'?'bug':'settings')}</span><div><span class="platform-eyebrow">ZÉNIT</span><h2>${this.pageTitle(kind)}</h2></div></div><button class="icon-button" data-platform="close-page" aria-label="${this.t('Cerrar y volver al editor','Close and return to editor')}" title="Esc">${this.glyph('close')}</button></header>${content}`;
     if(changed)this.host.motion.enter(this.workbench,4);this.workbench.querySelector('input,button')?.focus({preventScroll:true});
   }
   closePage(){

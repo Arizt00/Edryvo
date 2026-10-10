@@ -3,6 +3,9 @@ Zénit — Proprietary Preview License
 Copyright (c) 2026 L4CE (Arizt00). All rights reserved.
 
 The original Zénit source code, artwork and documentation are proprietary.
+Exception: tools/asm_worker.py is licensed under GPL-2.0-or-later. Its complete
+source and license are included in distributions using this independent worker.
+The proprietary terms below do not restrict the rights granted by that license.
 Public availability of this repository does not grant a license to use, modify,
 redistribute, sublicense or sell these materials. Such use requires prior written
 permission from the copyright holder, except where permitted by applicable law

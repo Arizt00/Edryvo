@@ -12,6 +12,7 @@ import {installInteractions} from './interactions.js';
 import {LumenPlatform} from './workbench.js';
 import {DesktopWorkflows} from './desktop-workflows.js';
 import {WorkspaceProfiles} from './workspace-profiles.js';
+import {FoundationUI} from './foundation-ui.js';
 
 const motion=new LumenMotion();
 let dock=null,polish=null,platformUI=null,studio=null,previewUI=null,desktopUI=null,workspaceProfiles=null,tabsSignature='';
@@ -580,6 +581,7 @@ async function start(){
     if(service.startup?.path){await openFile(service.startup.path);if(typeof service.startup.content==='string')editor.insertText(service.startup.content,true);}
     desktopUI=new DesktopWorkflows({api,editor,studio,platform:platformUI,dock,notify,openFile,ensureTrust,watchJob,showConsole:()=>showTerminal(),service:()=>service,commands:commandDefinitions});await desktopUI.init();
     workspaceProfiles=new WorkspaceProfiles({editor,studio,platform:platformUI,preview:previewUI,perform,ensureTrust,desktop:desktopUI});desktopUI.mountAuxiliary();
+    new FoundationUI({editor,studio,platform:platformUI,profiles:workspaceProfiles,desktop:desktopUI,ensureTrust,notify,watchJob,commands:commandDefinitions});
     installExplorerMenu({api,editor,notify,modal,closeModal,confirmDialog,saveFile,openFile,refreshTree,showMenu,lantern:studio.lantern,workspace:()=>service.workspace,newWindow:path=>previewUI.newWindow(path),search:path=>studio.search(path),refreshDocuments:()=>{renderTabs();updateDocumentStatus();previewUI.activeChanged();}});
     document.documentElement.removeAttribute('data-booting');
     $('#engine-label').textContent='Local workspace';

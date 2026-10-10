@@ -54,13 +54,29 @@ class InstallPlanTest(unittest.TestCase):
     def test_disabled_existing_dependency_is_retained_and_never_downloaded(self):
         old=self.store.install(self.store.inspect_bytes(self.archives['qa.shared'])['ticket'],True)
         self.store.update_state('qa.shared',False);plan=self.prepare(self.review(deps=['qa.child'],packs=[]))
-        self.assertEqual(plan['existing'],[{'id':'qa.shared','version':'1.0.0','enabled':False}]);self.assertNotIn('qa.shared',self.requests)
+        self.assertEqual(plan['existing'],[{'id':'qa.shared','version':'1.0.0','sha256':self.store.installed['qa.shared']['sha256'],'enabled':False}]);self.assertNotIn('qa.shared',self.requests)
         self.store.install_plan(plan['plan'],True);self.assertFalse(self.store.installed['qa.shared']['enabled'])
         self.assertEqual(old['directory'],self.store.installed['qa.shared']['directory'])
     def test_missing_dependency_cleans_children_but_keeps_parent_for_retry(self):
         root=self.review(deps=['qa.child','qa.missing'])
         with self.assertRaisesRegex(ValueError,'no disponible'):self.prepare(root)
         self.assertEqual(set(self.store.pending),{root['ticket']});self.assertEqual(self.store.list(),[])
+    def test_installed_child_with_missing_grandchild_is_repaired_without_reinstall(self):
+        child=self.store.install(self.store.inspect_bytes(self.archives['qa.child'])['ticket'],True)
+        plan=self.prepare(self.review(deps=['qa.child'],packs=[]))
+        self.assertEqual(self.requests,['qa.shared'])
+        self.assertEqual([x['id'] for x in plan['packages']],['qa.shared','qa.root'])
+        self.store.install_plan(plan['plan'],True)
+        self.assertEqual(self.store.installed['qa.child']['directory'],child['directory'])
+        self.assertIn('qa.shared',self.store.installed)
+    def test_other_window_cannot_replace_reused_child_with_broken_dependency_graph(self):
+        for version in ('2.0.0','1.0.0'):
+            with self.subTest(replacementVersion=version):
+                self.store.install(self.store.inspect_bytes(self.archives['qa.child'])['ticket'],True)
+                plan=self.prepare(self.review(deps=['qa.child'],packs=[]))
+                other=ExtensionStore(self.prefs);other.install(other.inspect_bytes(package('child',['qa.absent'],version=version))['ticket'],True)
+                with self.assertRaisesRegex(ValueError,'cambió'):self.store.install_plan(plan['plan'],True)
+                self.assertNotIn('qa.root',ExtensionStore(self.prefs).installed)
     def test_cycle_is_reported_and_all_children_are_discarded(self):
         self.archives['qa.child']=package('child',['qa.root']);root=self.review(deps=['qa.child'])
         with self.assertRaisesRegex(ValueError,'circulares'):self.prepare(root)

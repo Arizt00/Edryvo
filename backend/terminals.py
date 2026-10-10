@@ -24,15 +24,21 @@ SECRET_NAMES={'OPENAI_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KEY','GOOGLE_API_
 def child_environment():
     env={k:v for k,v in os.environ.items() if k.upper() not in SECRET_NAMES and not k.upper().startswith('LUMEN_SECRET_')}
     env.update({'TERM':'xterm-256color','COLORTERM':'truecolor','LUMEN_TERMINAL':'1','PYTHONUTF8':'1','PYTHONIOENCODING':'utf-8'})
+    from .foundation import tool_environment
+    env.update(tool_environment())
     return env
 
 
 def terminal_profiles():
     result=[]
     def add(ident,label,command,args=(),kind='local'):
-        exe=shutil.which(command)
+        from .runtime_paths import find_tool
+        exe=find_tool(command)
         if exe: result.append({'id':ident,'label':label,'argv':[exe,*args],'kind':kind,'available':True})
     if os.name=='nt':
+        from .foundation import bundled_tool
+        if bash:=bundled_tool('bash'):
+            result.append({'id':'zenit-bash','label':'Bash · Zénit','argv':[bash,'--login','-i'],'kind':'local','available':True})
         add('powershell7','PowerShell 7','pwsh',['-NoLogo'])
         add('powershell','Windows PowerShell','powershell.exe',['-NoLogo'])
         add('cmd','Símbolo del sistema · CMD','cmd.exe')
@@ -152,6 +158,8 @@ class TerminalSession:
             import fcntl,termios,struct
             fcntl.ioctl(self.fd,termios.TIOCSWINSZ,struct.pack('HHHH',rows,cols,0,0))
     def close(self):
+        callback=getattr(self,'before_close',None)
+        if callback and not self.closed:callback()
         if self.win:
             try:self.win.terminate(force=True)
             except (OSError,EOFError):pass

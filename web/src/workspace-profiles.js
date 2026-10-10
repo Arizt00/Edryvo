@@ -1,6 +1,7 @@
 import {icon,escapeHTML as esc} from './icons.js';
 import {parseCSV,numericSummary,cssColors,contrast,opaqueHex} from './workspace-data.js';
-const styles={general:['code','Desarrollo general'],web:['globe','Desarrollo web'],data:['cpu','Ciencia de datos'],design:['palette','Diseño y UI']};
+import {AssemblyWorkbench} from './assembly-workbench.js';
+const styles={general:['code','Desarrollo general'],web:['globe','Desarrollo web'],data:['cpu','Ciencia de datos'],design:['palette','Diseño y UI'],assembly:['cpu','Ensamblador · ASM']};
 const $=s=>document.querySelector(s);
 
 /** Persistent profiles add working tools without overwriting custom dock positions. */
@@ -23,8 +24,8 @@ export class WorkspaceProfiles{
     this.previewEnabled=false;
     this.style=style||this.host.studio.profile.workspaceStyle||'general';this.bar.querySelector('select').value=this.style;document.documentElement.dataset.workspaceStyle=this.style;this.tools.dataset.style=this.style;
     const action=(name,label,glyph)=>`<button class="text-button" data-profile-action="${name}">${icon(glyph)}<span>${label}</span></button>`;
-    this.bar.querySelector('.workspace-profile-actions').innerHTML=({general:action('run','Ejecutar','play')+action('debug-view','Depurar','bug')+action('forge-window','Forge','build'),web:action('preview','Vista web','globe')+action('run','Ejecutar','play'),data:action('table','Explorar CSV','files')+action('run','Ejecutar Python','play'),design:action('palette','Colores y contraste','palette')+action('preview','Vista de componente','globe')})[this.style];
-    this.bar.querySelectorAll('[data-profile-action]').forEach(b=>b.onclick=()=>this.safe(async()=>{const op=b.dataset.profileAction;if(op==='preview'){this.previewEnabled=true;this.tools.hidden=false;await this.paintPreview();}else if(op==='table'||op==='palette'){this.previewEnabled=false;this.tools.hidden=false;this.paint();}else await this.host.perform(op,b);}));
+    this.bar.querySelector('.workspace-profile-actions').innerHTML=({general:action('run','Ejecutar','play')+action('debug-view','Depurar','bug')+action('forge-window','Forge','build'),web:action('preview','Vista web','globe')+action('run','Ejecutar','play'),data:action('table','Explorar CSV','files')+action('run','Ejecutar Python','play'),design:action('palette','Colores y contraste','palette')+action('preview','Vista de componente','globe'),assembly:action('assembly','Laboratorio ASM','cpu')})[this.style];
+    this.bar.querySelectorAll('[data-profile-action]').forEach(b=>b.onclick=()=>this.safe(async()=>{const op=b.dataset.profileAction;if(op==='preview'){this.previewEnabled=true;this.tools.hidden=false;await this.paintPreview();}else if(op==='table'||op==='palette'||op==='assembly'){this.previewEnabled=false;this.tools.hidden=false;this.paint();}else await this.host.perform(op,b);}));
     this.tools.hidden=this.detached||this.style==='general';this.bar.querySelector('.profile-tool-toggle').hidden=this.style==='general';this.paint();
   }
   setDetached(detached,panel){this.detached=detached;this.detachedPanel=detached?panel:null;this.tools.hidden=detached||this.style==='general';const button=this.bar.querySelector('.profile-detach');button.title=detached?'Volver a acoplar el espacio':'Desacoplar espacio de desarrollo';button.setAttribute('aria-label',button.title);button.innerHTML=icon(detached?'dock-left':'arrow-up-right');if(!detached)this.changed();}
@@ -35,6 +36,7 @@ export class WorkspaceProfiles{
     if(this.disposed||this.detached)return;const path=this.host.editor.current||'',text=this.host.editor.getValue?.()||'';
     this.tools.setAttribute('aria-label',styles[this.style][1]+' · '+(path||'sin archivo'));
     if(this.style==='general')return;
+    if(this.style==='assembly'){this.assembly??=new AssemblyWorkbench(this);this.assembly.paint();return;}
     if(this.style==='web'){
       if(this.previewEnabled&&!this.tools.hidden&&/\.(html?|css)$/i.test(path))this.safe(()=>this.paintPreview());
       else this.tools.innerHTML='<div class="profile-empty">'+icon('globe')+'<div><strong>Tu página junto al código</strong><p>Abre HTML o CSS y pulsa Vista web. Verás el búfer sin guardarlo, con tamaños de móvil, tableta y escritorio.</p></div></div>';

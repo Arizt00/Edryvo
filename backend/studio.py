@@ -50,7 +50,7 @@ class StudioState:
                     if type(value) is not bool:
                         raise ValueError('Estado de bienvenida no válido.')
                 elif key == 'workspaceStyle':
-                    if value not in ('general', 'web', 'data', 'design'):
+                    if value not in ('general', 'web', 'data', 'design', 'assembly'):
                         raise ValueError('Estilo de espacio desconocido.')
                 elif key == 'layout':
                     if value is not None and (not isinstance(value, dict) or len(json.dumps(value)) > 6000):

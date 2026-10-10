@@ -418,7 +418,7 @@ class ExtensionServices:
         threading.Thread(target=monitor,daemon=True).start()
     def resource(self,ident,value):
         panel=self.panels[ident];p=file_path(value);opts=panel.get('options') or {};roots=opts.get('localResourceRoots')
-        if roots is None:roots=[str(panel['owner'].workspace.root),str(panel['owner'].extension_root)]
+        if roots is None:roots=[str(panel['owner'].workspace.root),*[str(root) for root in getattr(panel['owner'],'extension_roots',[panel['owner'].extension_root])]]
         allowed=[file_path(r) for r in roots if r]
         if not any(p.is_relative_to(root) for root in allowed):raise PermissionError('Recurso fuera de localResourceRoots.')
         data=p.read_bytes()

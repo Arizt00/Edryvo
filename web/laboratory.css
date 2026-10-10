@@ -1,0 +1,47 @@
+/* Shared, theme-aware surfaces. No hard-coded light palette over extension themes. */
+.foundation-toggle{height:36px;padding:0 12px;gap:7px;white-space:nowrap}
+.foundation-toggle .icon{width:17px;height:17px}
+.foundation-page{max-width:1540px;margin:0 auto;padding:28px 30px 24px;display:flex;flex-direction:column;gap:24px;color:var(--text)}
+.lab-heading{display:flex;align-items:center;justify-content:space-between;gap:18px;border-bottom:1px solid var(--border);padding-bottom:24px}
+.lab-heading h2{font-size:clamp(24px,2.4vw,34px);letter-spacing:-1px;line-height:1.15;margin:10px 0}
+.lab-heading p,.lab-sections p,.lab-machines p{color:var(--muted);font-size:13px;line-height:1.65;margin:8px 0 16px;max-width:74ch}
+.lab-badge{display:inline-flex;align-items:center;border:1px solid var(--border);background:var(--surface);border-radius:20px;padding:6px 12px;color:var(--accent);font-size:12px;white-space:nowrap}
+.lab-tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.lab-tool{display:flex;align-items:flex-start;gap:11px;border:1px solid var(--border);border-radius:14px;padding:16px;background:var(--surface);min-width:0}
+.lab-tool>.icon{flex:none;width:18px;height:18px;margin-top:2px;color:var(--accent)}
+.lab-tool.missing>.icon{color:var(--muted)}
+.lab-tool>div{min-width:0;display:flex;flex-direction:column;gap:5px}
+.lab-tool strong{font-size:13px}.lab-tool small{font-size:11px;color:var(--muted)}
+.lab-tool code{font-size:10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--muted)}
+.lab-sections{display:grid;grid-template-columns:1.25fr 1fr;gap:20px}
+.lab-sections>section,.lab-machines{padding:22px;border:1px solid var(--border);border-radius:17px;background:var(--surface)}
+.lab-sections h3,.lab-machines h3{font-size:17px;margin:0;letter-spacing:-.3px}
+.lab-sections h4{font-size:13px;margin:22px 0 12px}.lab-subheading{margin-top:28px!important}
+.lab-actions{display:flex;gap:8px;flex-wrap:wrap}.lab-actions button{gap:7px;font-size:12px;min-height:34px}
+.lab-form-row{display:flex;flex-wrap:wrap;align-items:end;gap:12px}
+.lab-form-row label{display:flex;flex-direction:column;gap:7px;flex:1;min-width:110px;font-size:12px;color:var(--muted)}
+.lab-form-row input,.lab-form-row select{width:100%;min-height:36px;max-width:100%;border-radius:9px;border:1px solid var(--border);padding:7px 10px;background:var(--editor);color:var(--text)}
+.lab-form-row label:has([name=port]){flex:.4;min-width:80px}
+#lab-standards small,.lab-note{display:block;color:var(--muted);font-size:11px;line-height:1.6;margin-top:12px}
+.lab-machines>header{display:flex;justify-content:space-between;align-items:start;gap:16px}
+.lab-machine-list{display:flex;flex-direction:column;gap:8px;margin:8px 0 18px}
+.lab-machine-list article{display:flex;align-items:center;gap:10px;padding:14px;border-radius:12px;border:1px solid var(--border);background:var(--editor)}
+.lab-machine-list article>div{display:flex;flex:1;gap:10px;align-items:center;flex-wrap:wrap}.lab-machine-list small{color:var(--muted);font-size:11px}
+.lab-machines summary{cursor:pointer;font-size:13px;padding:8px 0;color:var(--accent)}
+.lab-empty{padding:25px;color:var(--muted);font-size:13px;line-height:1.7}.lab-empty strong{color:var(--text);font-size:15px}.lab-empty p{max-width:75ch;margin-bottom:0}
+.lab-error{white-space:pre-wrap;overflow-wrap:anywhere;padding:18px;color:var(--text);background:var(--surface);border-left:3px solid #e36678;font-size:12px}
+.asm-heading{flex-wrap:wrap;gap:8px}.asm-heading>div{flex:1;min-width:150px}.asm-heading strong{display:flex;align-items:center;gap:7px}.asm-heading small{display:block;color:var(--muted);margin-top:5px;font-size:10px}.asm-heading select{border:1px solid var(--border);background:var(--editor);color:var(--text);border-radius:8px;padding:7px;max-width:190px}
+.workspace-profile-tools[data-style=assembly]{max-height:52%;min-height:230px;overflow:auto;background:var(--editor)}
+.asm-result{padding:16px 20px}.asm-status{display:flex;align-items:center;gap:14px;font-size:12px;flex-wrap:wrap;margin-bottom:14px}
+.asm-grid{display:grid;grid-template-columns:1fr 2fr;gap:18px}.asm-grid section{border:1px solid var(--border);border-radius:12px;overflow:hidden}.asm-grid h4{margin:0;padding:10px 12px;background:var(--surface);font-size:12px}.asm-grid dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;margin:12px}.asm-grid dl div{display:flex;justify-content:space-between;gap:7px;font-size:11px}.asm-grid dt{color:var(--muted)}.asm-grid dd{margin:0;font-family:monospace}.asm-instructions{max-height:200px;overflow:auto}.asm-instructions>div{display:grid;grid-template-columns:85px 130px 1fr;gap:12px;padding:7px 12px;font-size:11px}.asm-instructions>div.current{background:var(--accent-soft);color:var(--accent)}.asm-result details{margin-top:16px;font-size:11px}.asm-result pre{white-space:pre-wrap;overflow-wrap:anywhere}
+/* Refine existing surfaces without overriding the user's theme colours. */
+.editor-panel,.sidebar,.assistant-panel,.terminal-panel{box-shadow:0 3px 18px #00000007}
+.sidebar .heading-actions{gap:3px}
+.sidebar .heading-actions .icon-button{width:24px;min-width:24px;height:28px;padding:2px}
+.sidebar .panel-heading{gap:6px}
+.extension-card{border-radius:15px;transition:border-color .16s ease,box-shadow .16s ease}.extension-card:hover{box-shadow:0 3px 14px #0000000c}
+.extension-actions{gap:7px}.extension-card .secondary-button{border-radius:9px}
+.modal-card{box-shadow:0 24px 80px #00000025}.modal-card input:focus-visible,.lab-form-row :is(input,select):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:1400px){.foundation-toggle span{display:none}.foundation-toggle{width:36px;padding:0;justify-content:center}.lab-tools{grid-template-columns:repeat(3,minmax(0,1fr))}.foundation-page{padding:24px}.asm-instructions>div{grid-template-columns:75px 1fr}.asm-instructions>div code:nth-child(2){display:none}}
+@media(max-width:950px){.lab-sections{grid-template-columns:1fr}.lab-tools{grid-template-columns:repeat(2,minmax(0,1fr))}.lab-heading,.lab-machines>header{align-items:start;flex-direction:column}.asm-grid{grid-template-columns:1fr}.foundation-page{padding:18px}}
+@media(prefers-reduced-motion:reduce){.extension-card{transition:none}}

@@ -14,11 +14,11 @@ from .toolchains import validate_argv
 from .runtime_paths import find_tool
 
 SUFFIXES={'python':('.py','.pyw'),'javascript':('.js','.mjs','.cjs'),'typescript':('.ts',),
- 'asm':('.s','.asm'),'c':('.c',),'cpp':('.cpp','.cc','.cxx'),'rust':('.rs',),'go':('.go',),'java':('.java',),
+ 'asm':('.s','.asm'),'bash':('.sh','.bash'),'c':('.c',),'cpp':('.cpp','.cc','.cxx'),'rust':('.rs',),'go':('.go',),'java':('.java',),
  'csharp':('.cs',),'html':('.html','.htm','.htmll'),'css':('.css',),'nc':('.n','.nc','.nm','.ncp','.nb','.nbb')}
-TOOLS={'asm':('gcc','clang'),'python':(),'javascript':('node',),'typescript':('node',),'c':('gcc','clang'),'cpp':('g++','clang++'),
+TOOLS={'asm':('gcc','clang'),'bash':('bash',),'python':(),'javascript':('node',),'typescript':('node',),'c':('gcc','clang'),'cpp':('g++','clang++'),
  'rust':('rustc',),'go':('go',),'java':('javac','java'),'csharp':('dotnet',),'html':(),'css':(),'nc':('ncc',)}
-LABELS={'asm':'ASM · ensamblador','python':'Python','javascript':'JavaScript','typescript':'TypeScript','c':'C','cpp':'C++','rust':'Rust','go':'Go','java':'Java','csharp':'C#','html':'HTML','css':'CSS','nc':'nC'}
+LABELS={'asm':'ASM · ensamblador','bash':'Bash','python':'Python','javascript':'JavaScript','typescript':'TypeScript','c':'C','cpp':'C++','rust':'Rust','go':'Go','java':'Java','csharp':'C#','html':'HTML','css':'CSS','nc':'nC'}
 
 def language(path):
     return next((name for name,suffixes in SUFFIXES.items() if Path(path).suffix.lower() in suffixes),None)
@@ -41,12 +41,17 @@ class Runtimes:
         if not isinstance(data,dict) or not isinstance(data.get('languages'),dict):raise ValueError('Usa un objeto languages.')
         out={'languages':{},'tools':{}}
         for name,path in data.get('tools',{}).items():
-            if name not in ('ncc','node','nasm','clang','clang++','gcc','g++','rustc','go','javac','java','dotnet','lldb-dap','lldb-vscode','dlv','netcoredbg'):raise ValueError('Herramienta desconocida: '+str(name))
+            if name not in ('python','bash','ncc','node','nasm','clang','clang++','gcc','g++','rustc','go','javac','java','dotnet','lldb-dap','lldb-vscode','dlv','netcoredbg'):raise ValueError('Herramienta desconocida: '+str(name))
             if not isinstance(path,str) or not path or len(path)>4096 or '\x00' in path:raise ValueError('Ruta no válida.')
             out['tools'][name]=path
         for name,profile in data['languages'].items():
             if name not in SUFFIXES or not isinstance(profile,dict):raise ValueError('Lenguaje o perfil no válido.')
             item={}
+            if 'standard' in profile:
+                from .foundation import C_STANDARDS, CPP_STANDARDS
+                choices=C_STANDARDS if name=='c' else CPP_STANDARDS if name=='cpp' else ()
+                if profile['standard'] not in choices:raise ValueError('Estándar no válido para '+name)
+                item['standard']=profile['standard']
             for key in ('run','build','check'):
                 if key in profile:item[key]=validate_argv(profile[key])
             if 'debug' in profile:
@@ -91,7 +96,11 @@ class Runtimes:
         commands=[]
         if lang=='python':
             if check:compile(file.read_bytes(),str(file),'exec')
-            elif not debug:commands=[[sys.executable,*(['--python-child'] if getattr(sys,'frozen',False) else ['-u']),str(file)]]
+            elif not debug:
+                from .foundation import python_command
+                commands=[[*python_command(),str(file)]]
+        elif lang=='bash':
+            commands=[[self.executable('bash'),*(['-n'] if check else []),str(file)]]
         elif lang in ('javascript','typescript'):
             node=self.executable('node');commands=[] if debug else [[node,*(['--check'] if check else []),str(file)]]
         elif lang in ('html','css'):
@@ -107,7 +116,7 @@ class Runtimes:
             else:commands=[[compiler,*(['-g'] if debug else []),str(file),'-o',str(target)]]
             if not check and not debug:commands.append([str(target)])
         elif lang in ('c','cpp'):
-            compiler=self.executable(*TOOLS[lang]);standard='-std=c++17' if lang=='cpp' else '-std=c11'
+            compiler=self.executable(*TOOLS[lang]);standard='-std='+custom.get('standard','c++17' if lang=='cpp' else 'c11')
             commands=[[compiler,standard,'-Wall','-Wextra','-I',str(Path(__file__).resolve().parents[1]/'debugger-support/lantern'),*(['-g','-O0'] if debug else []),*(['-fsyntax-only'] if check else []),str(file),*([] if check else ['-o',str(target)])]]
             if not check and not debug:commands.append([str(target)])
         elif lang=='rust':

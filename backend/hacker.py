@@ -15,6 +15,8 @@ class Hacker:
         return {'python':self._python_executable(),**{name:find_tool(name) for name in ('gcc','gdb')}}
 
     def _python_executable(self):
+        from .foundation import bundled_tool
+        if executable:=bundled_tool('python'):return executable
         executable=sys.executable
         if getattr(sys,'frozen',False):
             # ConPTY hosts the console helper inside Zénit; no external CMD.
@@ -29,7 +31,8 @@ class Hacker:
             if sum(not s.closed for s in manager.sessions.values())>=6:raise ValueError('Cierra una terminal antes de abrir otra.')
             profile={'id':'hacker','label':label,'argv':argv,'kind':'hacker'}
             # GCC/GDB depend on companion DLLs next to their executables on Windows.
-            env=dict(environment or {});env['PATH']=str(Path(argv[0]).parent)+os.pathsep+os.environ.get('PATH','')
+            from .foundation import tool_environment
+            env=dict(environment or {});env['PATH']=str(Path(argv[0]).parent)+os.pathsep+tool_environment()['PATH']
             s=TerminalSession(profile,cwd,manager.project,100,26,environment=env)
             manager.sessions[s.id]=s
             return {'id':s.id,'profile':profile,'kind':s.kind}
@@ -44,7 +47,8 @@ class Hacker:
             if file.suffix.lower() not in ('.py','.pyw'):raise ValueError('Abre un archivo Python para esta acción.')
             frozen=getattr(sys,'frozen',False)
             executable=self._python_executable()
-            argv=[executable,*(['--python-child'] if frozen else ['-u']),str(source)]
+            from .foundation import bundled_tool
+            argv=[executable,*(['--python-child'] if frozen and not bundled_tool('python') else ['-u']),str(source)]
             return {'terminal':self._terminal(argv,'Python · '+file.name,ws.root,{'PYTHONPATH':str(file.parent),'LUMEN_SCRIPT_IMPORT_ROOT':str(file.parent)})}
         if mode!='gdb' or file.suffix.lower()!='.c':raise ValueError('GCC + GDB requiere un archivo .c.')
         tools=self.tools()

@@ -31,3 +31,5 @@ qa-output/
 /docs/REVISION_R2.md
 /docs/REVISION_R3.md
 /docs/REVISION_R4.md
+# Development SDK payloads are built and checked separately, never source-controlled.
+sdk/foundation/

@@ -13,6 +13,7 @@ from .lantern_adapters import stage, prepare, runtime_commands, Superseded
 from .diagnostics import marker
 from pathlib import Path
 from .preferences import atomic_json
+from .checkpoint_io import read_checkpoint
 import threading
 import time
 from functools import wraps
@@ -46,7 +47,7 @@ class Lantern:
                 try:
                     lens=self.memory_dir/'lens.json'
                     if lens.stat().st_size<=256000:
-                        data=json.loads(lens.read_text(encoding='utf-8'))
+                        data=json.loads(read_checkpoint(lens,256000))
                         if data.get('generation')==str(self.generation):state['lens']=data.get('values',[])[:200]
                 except (OSError,ValueError,TypeError):pass
             state['history']=copy.deepcopy(self.history[-20:])
@@ -54,12 +55,13 @@ class Lantern:
             state['memoryHelp']='Python: lantern_state · JS/TS: lanternState · C/C++: lantern.h / lantern.hpp · nC: estado JSON con esquema y migración.'
             if self.memory_dir:
                 state['checkpoint']=str(self.memory_dir/'state.json')
-                try: state['memory']=json.loads((self.memory_dir/'state.json').read_text(encoding='utf-8')) if (self.memory_dir/'state.json').stat().st_size<=1_000_000 else {}
+                try: state['memory']=json.loads(read_checkpoint(self.memory_dir/'state.json',1_000_000))
                 except (OSError,ValueError): state['memory']={}
                 native=self.memory_dir/'state.json.native'
                 try:
-                    with native.open('rb') as stream: magic,schema,size,checksum=struct.unpack('<QQQQ',stream.read(32))
-                    if magic==0x4c554d454e4c4e31 and native.stat().st_size==32+size:
+                    raw=read_checkpoint(native,1_048_608)
+                    magic,schema,size,checksum=struct.unpack('<QQQQ',raw[:32])
+                    if magic==0x4c554d454e4c4e31 and len(raw)==32+size:
                         state['nativeMemory']={'schema':schema,'bytes':size,'checksum':f'{checksum:016x}','path':str(native)}
                 except (OSError,ValueError,struct.error):pass
             return state

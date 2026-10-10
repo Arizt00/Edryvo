@@ -31,26 +31,30 @@ class ExtensionInstallPlans:
                     if key in self.pending:
                         _,folder,result=self.pending[key];self.pending[key]=(time.monotonic(),folder,result)
             progress(package=path[-1] if path else root['id'],packagesReady=len(ordered),**values)
-        def visit(info):
+        def visit(info,already_installed=False):
             key=info['id'].casefold()
             if states.get(key)=='done':return
             if states.get(key)=='visiting':raise ValueError('Dependencias circulares: '+' → '.join([*path,info['id']]))
             if len(states)>=MAX_PLAN_PACKAGES:raise ValueError('El plan supera los 32 paquetes. Revisa un grupo más pequeño.')
             states[key]='visiting';path.append(info['id'])
+            if already_installed:
+                existing[key]={'id':info['id'],'version':info['version'],'sha256':info.get('sha256'),'enabled':bool(info.get('enabled'))}
             for dependency in info.get('dependencies',[]):
                 if not dependency['required'] and not include_packs:continue
                 dep_key=dependency['id'].casefold()
                 if dep_key==root['id'].casefold() or states.get(dep_key)=='visiting':
                     raise ValueError('Dependencias circulares: '+' → '.join([*path,dependency['id']]))
                 if dep_key in installed:
-                    value=installed[dep_key]
-                    existing[dep_key]={'id':value['id'],'version':value['version'],'enabled':bool(value.get('enabled'))}
+                    # A reused package may itself have missing dependencies.
+                    # Walk the complete chain without downloading or enabling it.
+                    visit(installed[dep_key],True)
                     continue
                 if states.get(dep_key)=='done':continue
                 update(phase='metadata',received=0,total=0,dependency=dependency['id'])
                 child=self.inspect_remote(dependency['id'],progress=update,cancelled=cancelled)
                 acquired.append(child['ticket']);visit(child)
-            path.pop();states[key]='done';ordered.append(info)
+            path.pop();states[key]='done'
+            if not already_installed:ordered.append(info)
         try:
             visit(root);update(phase='ready',received=0,total=0)
             result={'plan':secrets.token_urlsafe(24),'id':root['id'],'displayName':root['displayName'],
@@ -83,6 +87,10 @@ class ExtensionInstallPlans:
             if not all(items):raise ValueError('Un paquete del plan ha caducado. Revisa las dependencias de nuevo.')
             next_index=dict(self.installed);moved=[];receipts=[];added=[];reused=[]
             try:
+                for previous in plan['result']['existing']:
+                    current=next((x for k,x in next_index.items() if k.casefold()==previous['id'].casefold()),None)
+                    if not current or current['version']!=previous['version'] or current.get('sha256')!=previous.get('sha256'):
+                        raise ValueError('Una dependencia instalada cambió durante la revisión. Prepara el plan de nuevo.')
                 for ticket,(_,folder,info) in zip(plan['tickets'],items):
                     current=next((x for k,x in next_index.items() if k.casefold()==info['id'].casefold()),None)
                     # Preserve another window's install and a user's disabled dependency.
@@ -95,6 +103,22 @@ class ExtensionInstallPlans:
                     atomic_json(receipt,result)
                     if current and current['id']!=result['id']:next_index.pop(current['id'],None)
                     next_index[result['id']]=result;added.append(result)
+                # Another window may install a different child between review
+                # and commit. Preserve it only if the resulting required graph
+                # is still complete; never commit a broken dependency chain.
+                available={key.casefold():value for key,value in next_index.items()}
+                checked=set()
+                def verify(item,stack=()):
+                    key=item['id'].casefold()
+                    if key in stack:raise ValueError('Dependencias circulares después de la revisión.')
+                    if key in checked:return
+                    for dep in item.get('dependencies',[]):
+                        if not dep['required']:continue
+                        child=available.get(dep['id'].casefold())
+                        if not child:raise ValueError('Falta '+dep['id']+' después de la revisión. Prepara el plan de nuevo.')
+                        verify(child,(*stack,key))
+                    checked.add(key)
+                for item in added:verify(item)
                 atomic_json(self.index,next_index)
             except Exception:
                 for receipt,raw in reversed(receipts):

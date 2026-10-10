@@ -154,7 +154,7 @@ export class DesktopWorkflows{
   mountAuxiliary(){
     const panel=this.query.get('panel'),h=this.host;if(!panel)return;
     const header=document.createElement('header');header.className='native-window-heading';
-    const titles={preview:'Vista web en vivo',lantern:'Lantern Live','profile-general':'Desarrollo general','profile-web':'Desarrollo web','profile-data':'Ciencia de datos','profile-design':'Diseño y UI'};
+    const titles={preview:'Vista web en vivo',lantern:'Lantern Live','profile-general':'Desarrollo general','profile-web':'Desarrollo web','profile-data':'Ciencia de datos','profile-design':'Diseño y UI','profile-assembly':'Laboratorio ASM'};
     header.innerHTML=`<span>${icon(panel==='lantern'?'sparkles':'layout')}<strong>${esc(titles[panel]||'Zénit · '+panel)}</strong><small>Búfer compartido · cambios en vivo</small></span><button class="secondary-button native-return">${icon('dock-left')}Volver a Zénit</button>`;
     header.querySelector('button').onclick=()=>this.safe(()=>this.returnToApp());
     if(panel==='preview'||panel==='lantern'){
@@ -222,7 +222,7 @@ export class DesktopWorkflows{
   }
   async detached(){
     const panel=this.query.get('panel'),h=this.host;
-    if(!['project','assistant','console','editor','forge','preview','lantern','profile-general','profile-web','profile-data','profile-design'].includes(panel))return;
+    if(!['project','assistant','console','editor','forge','preview','lantern','profile-general','profile-web','profile-data','profile-design','profile-assembly'].includes(panel))return;
     h.studio.enter();document.documentElement.dataset.detachedPanel=panel;
     if(this.query.get('file')){
       await h.openFile(this.query.get('file'));

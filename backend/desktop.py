@@ -19,7 +19,7 @@ class DesktopAPI:
         """Independent native window, sharing backend processes and document hub."""
         import webview
         from urllib.parse import urlencode
-        titles={'project':'Proyecto','assistant':'Melody','console':'Terminal','editor':path or 'Editor','forge':'Forge','preview':'Vista web','lantern':'Lantern','profile-general':'Desarrollo general','profile-web':'Desarrollo web','profile-data':'Ciencia de datos','profile-design':'Diseño y UI'}
+        titles={'project':'Proyecto','assistant':'Melody','console':'Terminal','editor':path or 'Editor','forge':'Forge','preview':'Vista web','lantern':'Lantern','profile-general':'Desarrollo general','profile-web':'Desarrollo web','profile-data':'Ciencia de datos','profile-design':'Diseño y UI','profile-assembly':'Laboratorio ASM'}
         if panel not in titles:raise ValueError('Panel desconocido.')
         if self._owner is not None:
             self.close_panel()

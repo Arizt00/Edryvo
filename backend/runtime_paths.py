@@ -8,6 +8,8 @@ def find_tool(name, configured=None):
     if explicit:
         path=Path(explicit).expanduser()
         return str(path) if path.is_file() else shutil.which(explicit)
+    from .foundation import bundled_tool
+    if bundled := bundled_tool(name):return bundled
     if name=='rustc' and os.name=='nt':
         base=Path(os.environ.get('RUSTUP_HOME',Path.home()/'.rustup'))/'toolchains'
         for channel in ('stable-x86_64-pc-windows-msvc','stable-x86_64-pc-windows-gnu'):

@@ -7,6 +7,7 @@ import platform
 import re
 import tempfile
 import threading
+import time
 from pathlib import Path
 
 
@@ -35,7 +36,13 @@ def atomic_json(path: Path, data):
             json.dump(data, f, indent=2, ensure_ascii=False, allow_nan=False)
             f.write('\n'); f.flush(); os.fsync(f.fileno())
         os.chmod(name, 0o600)
-        os.replace(name, path)
+        for attempt in range(8):
+            try:os.replace(name,path);break
+            except PermissionError:
+                # Windows readers and antivirus can briefly hold a destination
+                # during replacement. Preserve the complete temporary file.
+                if os.name!='nt' or attempt==7:raise
+                time.sleep(.005*(attempt+1))
     finally:
         if os.path.exists(name): os.unlink(name)
 
