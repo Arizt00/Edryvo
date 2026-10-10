@@ -22,7 +22,7 @@ from .hacker import Hacker
 from .updates import Updates
 from .buffers import Buffers
 from .extension_services import ExtensionServices,file_path
-from .version import VERSION
+from .version import VERSION, REVISION
 from .simulation import Simulation
 from .machines import Machines
 
@@ -43,7 +43,7 @@ class PlatformServices:
         self.extension_services=ExtensionServices(self);self.extension_runtime.services=self.extension_services
     def state(self):
         web=self.app.project/'web/vendor'
-        return {'version':VERSION,'preferences':self.prefs.export(),'providers':self.ai.vault.state(),
+        return {'version':VERSION,'revision':REVISION,'preferences':self.prefs.export(),'providers':self.ai.vault.state(),
                 'xterm':(web/'xterm/xterm.js').is_file() and (web/'xterm-fit/addon-fit.js').is_file(),
                 'installedExtensions':len(self.extensions.installed),'dataDirectory':str(self.prefs.directory),
                 'development':self.tools.discover_servers(),'commandSequence':self.command_seq}

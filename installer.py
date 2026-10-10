@@ -45,7 +45,7 @@ class Installer:
 
     def info(self):
         size = sum(p.stat().st_size for p in self.payload.rglob('*') if p.is_file()) if self.payload.is_dir() else 0
-        return {'version': VERSION, 'target': str(self.target), 'bytes': size, 'available': (self.payload / 'zenit.exe').is_file(),
+        return {'version': VERSION, 'revision': REVISION, 'target': str(self.target), 'bytes': size, 'available': (self.payload / 'zenit.exe').is_file(),
                 'winget': bool(shutil.which('winget')), 'packages': [{'id': k, 'name': v[0], 'package': v[1]} for k, v in PACKAGES.items()]}
 
     def status(self):

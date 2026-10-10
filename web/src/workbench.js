@@ -66,7 +66,8 @@ export class LumenPlatform {
     const labels=[['[data-view="explorer"].rail-item','Explorador','Explorer'],['[data-view="search"].rail-item','Buscar','Search'],['[data-view="git"].rail-item','Control de código','Source Control'],['[data-view="run"].rail-item','Depuración','Run & Debug'],['[data-action="extensions"].rail-item','Extensiones','Extensions'],['[data-action="toggle-ai"].rail-item','Melody','Melody']];
     for(const [selector,es,en] of labels){const el=document.querySelector(selector);if(el){const span=el.lastElementChild;if(span)span.textContent=this.t(es,en);}}
     const text=(selector,es,en)=>{const el=document.querySelector(selector);if(el){const node=[...el.childNodes].find(n=>n.nodeType===Node.TEXT_NODE&&n.textContent.trim());if(el.matches('[data-terminal]')&&node)node.textContent=this.t(es,en);else el.textContent=this.t(es,en);}};
-    text('.brand-tagline','0.5.3 · R1','0.5.3 · R1');text('.search-placeholder','Buscar archivos, símbolos, comandos...','Search files, symbols, commands...');
+    const release=this.state.version+' · R'+this.state.revision;
+    text('.brand-tagline',release,release);text('.search-placeholder','Buscar archivos, símbolos, comandos...','Search files, symbols, commands...');
     text('#editor-empty h2','Tu próxima idea empieza aquí.','Your next idea starts here.');
     text('#editor-empty [data-action="new-file"]','Nuevo archivo','New file');
     const emptyHelp=document.querySelector('#editor-empty p');if(emptyHelp)emptyHelp.innerHTML=this.t('Abre un archivo <kbd>Ctrl P</kbd> o crea algo nuevo.','Open a file <kbd>Ctrl P</kbd> or create something new.');
